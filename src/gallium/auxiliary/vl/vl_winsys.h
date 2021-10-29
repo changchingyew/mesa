@@ -96,4 +96,7 @@ vl_dri3_screen_create(void *display, int screen) { return NULL; };
 struct vl_screen *
 vl_drm_screen_create(int fd);
 
+struct vl_screen *
+vl_swrast_screen_create(void);
+
 #endif

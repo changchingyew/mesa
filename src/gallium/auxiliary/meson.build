@@ -472,6 +472,10 @@ if with_dri2 and with_platform_x11
   endif
 endif
 
+if with_swrast_vk
+  files_libgalliumvlwinsys += files('vl/vl_winsys_swrast.c')
+endif
+
 files_libgallium += custom_target(
   'u_tracepoints.c',
   input: 'util/u_tracepoints.py',

@@ -2,3 +2,8 @@
 *.pyo
 *.out
 build
+builddir/
+installdir/
+reconfigure-build_automation.sh
+.vscode/
+vscode/
