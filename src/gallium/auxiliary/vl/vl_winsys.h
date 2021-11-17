@@ -97,6 +97,6 @@ struct vl_screen *
 vl_drm_screen_create(int fd);
 
 struct vl_screen *
-vl_swrast_screen_create(void);
+vl_swrast_screen_create(int fd);
 
 #endif

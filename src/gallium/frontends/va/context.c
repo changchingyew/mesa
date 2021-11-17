@@ -156,7 +156,8 @@ VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
       bool createdSWScreen = false;
       if (!drv->vscreen)
       {
-         drv->vscreen = vl_swrast_screen_create();
+         int fd = (drm_info != NULL) ? drm_info->fd : -1;
+         drv->vscreen = vl_swrast_screen_create(fd);
          if(!drv->vscreen)
          {
             retValue = VA_STATUS_ERROR_OPERATION_FAILED;

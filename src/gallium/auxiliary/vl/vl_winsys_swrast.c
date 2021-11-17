@@ -37,12 +37,13 @@
 
 #include "target-helpers/sw_helper_public.h"
 #include "gallium/winsys/sw/null/null_sw_winsys.h"
+#include "gallium/winsys/sw/kms-dri/kms_dri_sw_winsys.h"
 
 static void
 vl_swrast_screen_destroy(struct vl_screen *vscreen);
 
 struct vl_screen *
-vl_swrast_screen_create(void)
+vl_swrast_screen_create(int fd)
 {
    struct vl_screen *vscreen;
 
@@ -51,7 +52,21 @@ vl_swrast_screen_create(void)
       return NULL;
    
    // Create a pipe_screen
-   struct sw_winsys * winsysObj = null_sw_create();
+   struct sw_winsys * winsysObj = NULL;
+   if(fd < 0)
+   {
+      fprintf(stderr, "[vl_swrast_screen_create] - Invalid FD %d for kms_dri_winsys, creating NULL winsys instead.\n", fd);
+      winsysObj = null_sw_create();
+   }
+   else
+   {         
+      winsysObj = kms_dri_create_winsys(fd);
+      if(winsysObj == NULL)
+      {
+         fprintf(stderr, "[vl_swrast_screen_create] Creating DRM winsys with fd %d failed!\n", fd);
+      }
+   }
+   
    struct pipe_screen* pScreen = sw_screen_create(winsysObj);
 
    if(!pScreen)
