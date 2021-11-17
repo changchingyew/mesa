@@ -281,7 +281,7 @@ DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
 
 	// frame type (I, P, B, etc) is not included in pipeDesc data, let's try to derive it
 	// from the reference list...if frame doesn't use any references, it should be an I frame.
-	dxvaStructure.IntraPicFlag = frameUsesAnyRefPicture;
+	dxvaStructure.IntraPicFlag = !frameUsesAnyRefPicture;
 
 	// UCHAR  pic_order_present_flag; /* Renamed to bottom_field_pic_order_in_frame_present_flag in newer standard versions. */
 	dxvaStructure.pic_order_present_flag = pPipeDesc->pps->bottom_field_pic_order_in_frame_present_flag;
