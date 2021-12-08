@@ -34,6 +34,9 @@
 #include "d3d12_state_transition_helper.h"
 #include "d3d12_video_buffer.h"
 
+#define D3D12_DECODER_MOCK_DECODED_TEXTURE false
+
+#include "vl/vl_video_buffer.h"
 #include "util/format/u_format.h"
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
@@ -426,6 +429,42 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       &d3d12InputArguments
    );
 
+#if D3D12_DECODER_MOCK_DECODED_TEXTURE
+   struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
+   const uint numPlanes = 2;// Y and UV planes
+   for (size_t planeIdx = 0; planeIdx < numPlanes; planeIdx++)
+   {
+      unsigned box_w = align(resDesc.Width, 2);
+      unsigned box_h = align(resDesc.Height, 2);
+      unsigned box_x = 0 & ~1;
+      unsigned box_y = 0 & ~1;
+      vl_video_buffer_adjust_size(&box_w, &box_h, planeIdx,
+                                  pipe_format_to_chroma_format(target->buffer_format),
+                                  target->interlaced);
+      vl_video_buffer_adjust_size(&box_x, &box_y, planeIdx,
+                                  pipe_format_to_chroma_format(target->buffer_format),
+                                  target->interlaced);
+      struct pipe_box box = {box_x, box_y, 0, box_w, box_h, 1};
+      struct pipe_transfer *transfer;
+      void *pMappedTexture = pD3D12Dec->base.context->texture_map(
+            pD3D12Dec->base.context,
+            views[planeIdx]->texture,
+            0,
+            PIPE_MAP_WRITE,
+            &box,
+            &transfer);
+      
+      assert(pMappedTexture);
+
+      size_t bTextureBytes = box.height * transfer->stride;
+      uint8_t mockPixelValue = 127u;
+      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame - Uploading mock decoded pixel data %d to view plane %d - fenceValue: %d\n", mockPixelValue, (uint) planeIdx, pD3D12Dec->m_fenceValue);
+      memset(pMappedTexture, mockPixelValue, bTextureBytes);
+
+      pipe_texture_unmap(pD3D12Dec->base.context, transfer);
+   }
+#endif
+
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
    // Flush work to the GPU
@@ -466,10 +505,15 @@ void d3d12_video_flush(struct pipe_video_codec *codec)
       D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - Can't close command list with HR %x\n", hr);
    }
 
+#if D3D12_DECODER_MOCK_DECODED_TEXTURE
+   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush - Mocking decoded texture for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+#else
    ID3D12CommandList *ppCommandLists[1] = { pD3D12Dec->m_spDecodeCommandList.Get() };
    pD3D12Dec->m_spDecodeCommandQueue->ExecuteCommandLists(1, ppCommandLists);
    pD3D12Dec->m_spDecodeCommandQueue->Signal(pD3D12Dec->m_spFence.Get(), pD3D12Dec->m_fenceValue);
    pD3D12Dec->m_spFence->SetEventOnCompletion(pD3D12Dec->m_fenceValue, nullptr);
+   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+#endif
 
    hr = pD3D12Dec->m_spCommandAllocator->Reset();
    if (FAILED(hr))
