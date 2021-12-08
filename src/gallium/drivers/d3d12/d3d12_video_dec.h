@@ -187,7 +187,7 @@ void d3d12_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12De
 void d3d12_decoder_release_unused_references(struct d3d12_video_decoder *pD3D12Dec);
 void d3d12_decoder_manage_resolution_change(struct d3d12_video_decoder *pD3D12Dec, const D3D12DecVideoDecodeOutputConversionArguments& conversionArguments, ID3D12Resource* pOutputResource, uint outputSubesource);
 void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB);
-void d3d12_convert_to_dxva_pic_params(struct d3d12_video_decoder *codec, struct pipe_picture_desc *picture, D3D12DecoderByteBuffer outDXVABuffer);
+void d3d12_store_converted_dxva_params_from_pipe_input(struct d3d12_video_decoder *codec, struct pipe_picture_desc *picture);
 template <typename T> T * d3d12_current_dxva_picparams(struct d3d12_video_decoder *codec) { return reinterpret_cast<T*>(codec->m_picParamsBuffer.data()); }
 bool d3d12_video_dec_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport, D3D12_VIDEO_DECODE_PROFILE_TYPE profileType);
 DXGI_FORMAT d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile);

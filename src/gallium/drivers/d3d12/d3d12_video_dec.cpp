@@ -238,10 +238,9 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
    /// Codec header picture parameters buffers
    ///
 
-   d3d12_convert_to_dxva_pic_params (
+   d3d12_store_converted_dxva_params_from_pipe_input (
       pD3D12Dec,
-      picture,
-      pD3D12Dec->m_picParamsBuffer
+      picture
    );
    assert(pD3D12Dec->m_picParamsBuffer.size() > 0);
 
@@ -869,10 +868,9 @@ void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *p
    }
 }
 
-void d3d12_convert_to_dxva_pic_params (
+void d3d12_store_converted_dxva_params_from_pipe_input (
     struct d3d12_video_decoder *codec, // input argument, current decoder
-    struct pipe_picture_desc *picture, // input argument, base structure of pipe_XXX_picture_desc where XXX is the codec name
-    D3D12DecoderByteBuffer outDXVABuffer // output argument, writes the DXVA pic params structure (ie. DXVA_PicParams_XXX) where XXX is the codec name
+    struct pipe_picture_desc *picture // input argument, base structure of pipe_XXX_picture_desc where XXX is the codec name
 )
 {
    assert(picture);
@@ -926,7 +924,7 @@ void d3d12_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *
       pD3D12Dec->m_picParamsBuffer.reserve(DXVAStructSize);
    }
 
-   pD3D12Dec->m_picParamsBuffer.resize(DXVAStructSize);
+   pD3D12Dec->m_picParamsBuffer.resize(DXVAStructSize);   
    memcpy(pD3D12Dec->m_picParamsBuffer.data(), pDXVAStruct, DXVAStructSize);
 }
 
