@@ -430,6 +430,10 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    );
 
 #if D3D12_DECODER_MOCK_DECODED_TEXTURE
+   // Different color per Y, U, V component.
+   // uint8_t YUVPixelValues[3] = { 76, 84, 255 }; // (255, 0, 0) in RGB
+   uint8_t YUVPixelValues[3] = { 125, 91, 167 }; // (180, 110, 60) in RGB - brown/gold
+   
    struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
    const uint numPlanes = 2;// Y and UV planes
    for (size_t planeIdx = 0; planeIdx < numPlanes; planeIdx++)
@@ -457,9 +461,34 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       assert(pMappedTexture);
 
       size_t bTextureBytes = box.height * transfer->stride;
-      uint8_t mockPixelValue = 127u;
-      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame - Uploading mock decoded pixel data %d to view plane %d - fenceValue: %d\n", mockPixelValue, (uint) planeIdx, pD3D12Dec->m_fenceValue);
-      memset(pMappedTexture, mockPixelValue, bTextureBytes);
+
+      if(planeIdx == 0)
+      {
+         // Just fill the Y pixels
+         D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame - Uploading mock decoded pixel data %d to view plane %d - fenceValue: %d\n", YUVPixelValues[0], (uint) planeIdx, pD3D12Dec->m_fenceValue);
+         memset(pMappedTexture, YUVPixelValues[0], bTextureBytes);
+      }
+      else if(planeIdx == 1)
+      {
+         D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame - Uploading mock decoded pixel data U: %d V: %d to view plane %d - fenceValue: %d\n", YUVPixelValues[1], YUVPixelValues[2], (uint) planeIdx, pD3D12Dec->m_fenceValue);
+         uint8_t* pDst = (uint8_t*) pMappedTexture;
+         for (size_t pixRow = 0; pixRow < box.height; pixRow++)
+         {
+            // Interleave U, V values. From MSDN: When the combined U-V array is addressed as an array of little-endian WORD values, the LSBs contain the U values, and the MSBs contain the V values.
+            // box.width counts the number of combined UV components in WORDs.
+            uint16_t* rowPtr = (uint16_t*) pDst;
+            for (size_t pixInRow = 0; pixInRow < box.width; pixInRow++)
+            {
+               *rowPtr = (static_cast<UINT16>(YUVPixelValues[2]) << 8) | static_cast<UINT16>(YUVPixelValues[1]);
+               
+               assert(sizeof(*rowPtr) == sizeof(uint16_t)); // to make sure the stride increment is in WORDs as UV packed values.
+               rowPtr++;
+            }
+            
+            assert(sizeof(*pDst) == sizeof(uint8_t)); // to make sure the stride increment is in bytes as transfer->stride.
+            pDst += transfer->stride;
+         }         
+      }
 
       pipe_texture_unmap(pD3D12Dec->base.context, transfer);
    }
