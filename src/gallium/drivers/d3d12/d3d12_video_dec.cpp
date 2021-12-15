@@ -231,7 +231,7 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
       0,
       D3D12_RESOURCE_STATE_COMMON,
       videoBitstreamBufferPtr,
-      sizeof(*videoBitstreamBufferPtr),
+      sizeof(*videoBitstreamBufferPtr) * videoBitstreamBufferSize,
       sizeof(*videoBitstreamBufferPtr) * videoBitstreamBufferSize
    );
 
@@ -553,7 +553,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
          pSrc.data(),
          layout.Footprint.RowPitch,
-         layout.Footprint.RowPitch,
+         layout.Footprint.RowPitch * stagingDesc.Height,
          spOutputD3D12Texture.Get(),
          planeIdx,
          D3D12_RESOURCE_STATE_COMMON
