@@ -100,6 +100,9 @@ void d3d12_video_flush(struct pipe_video_codec *codec);
 
 typedef std::vector<BYTE> D3D12DecoderByteBuffer;
 
+#define D3D12_DECODER_USE_STAGING_OUTPUT_TEXTURE true // TODO: Not using staging decoded texture causes changes to underlying Id3d12Resource of pipe target buffer not to be picked up
+#define D3D12_DECODER_MOCK_DECODED_TEXTURE false
+
 struct d3d12_video_decoder
 {
     struct pipe_video_codec base;
@@ -123,6 +126,9 @@ struct d3d12_video_decoder
     ComPtr<ID3D12CommandAllocator> m_spCommandAllocator;
     ComPtr<ID3D12VideoDecodeCommandList1> m_spDecodeCommandList;
     ComPtr<ID3D12CommandQueue> m_spCopyQueue;  
+#if D3D12_DECODER_USE_STAGING_OUTPUT_TEXTURE
+    ComPtr<ID3D12Resource> m_spDecodeOutputStagingTexture;
+#endif
     std::unique_ptr<D3D12ResourceCopyHelper> m_D3D12ResourceCopyHelper;  
 
     std::vector<D3D12_RESOURCE_BARRIER> m_transitionsBeforeCloseCmdList;

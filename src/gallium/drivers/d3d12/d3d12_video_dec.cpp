@@ -34,8 +34,6 @@
 #include "d3d12_state_transition_helper.h"
 #include "d3d12_video_buffer.h"
 
-#define D3D12_DECODER_MOCK_DECODED_TEXTURE false
-
 #include "vl/vl_video_buffer.h"
 #include "util/format/u_format.h"
 #include "util/u_inlines.h"
@@ -268,9 +266,38 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 
    struct d3d12_video_buffer* pD3D12VideoBuffer = (struct d3d12_video_buffer*) target;
    assert(pD3D12VideoBuffer);
+   const UINT outputD3D12TextureSubresource = 0u;
 
+#if !D3D12_DECODER_USE_STAGING_OUTPUT_TEXTURE
    ComPtr<ID3D12Resource> spOutputD3D12Texture = pD3D12VideoBuffer->m_pD3D12Resource->bo->res;
-   const UINT outputD3D12TextureSubresource = 0u; // TODO: Do we support creating texture arrays of d3d12_video_buffer with NV12? How to propagate the subresource info from d3d12_resource to d3d12_video_buffer?
+#else
+   auto targetUnderlyingResDesc = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource)->GetDesc();
+   bool bCreateStagingTexture = false;
+   if(pD3D12Dec->m_spDecodeOutputStagingTexture == nullptr)
+   {
+      bCreateStagingTexture = true;
+   }
+   else
+   {
+      D3D12_RESOURCE_DESC currStagingDesc = pD3D12Dec->m_spDecodeOutputStagingTexture->GetDesc();
+      bCreateStagingTexture = (memcmp(&targetUnderlyingResDesc, &currStagingDesc, sizeof(D3D12_RESOURCE_DESC)) != 0);
+   }
+
+   if(bCreateStagingTexture)
+   {
+      CD3DX12_RESOURCE_DESC textureCreationDesc = CD3DX12_RESOURCE_DESC::Tex2D(targetUnderlyingResDesc.Format, targetUnderlyingResDesc.Width, targetUnderlyingResDesc.Height, 1, 1);
+      D3D12_HEAP_PROPERTIES textureCreationProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, pD3D12Dec->m_NodeMask, pD3D12Dec->m_NodeMask);
+      VERIFY_SUCCEEDED(pD3D12Dec->m_pD3D12Screen->dev->CreateCommittedResource(
+         &textureCreationProps,
+         D3D12_HEAP_FLAG_NONE,
+         &textureCreationDesc,
+         D3D12_RESOURCE_STATE_COMMON,
+         nullptr,
+         IID_PPV_ARGS(pD3D12Dec->m_spDecodeOutputStagingTexture.GetAddressOf())));   
+   }
+   
+   ComPtr<ID3D12Resource> spOutputD3D12Texture = pD3D12Dec->m_spDecodeOutputStagingTexture;
+#endif
 
    D3D12_RESOURCE_DESC resDesc = spOutputD3D12Texture->GetDesc();
    assert(resDesc.Format == DXGI_FORMAT_NV12);
@@ -498,6 +525,86 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 
    // Flush work to the GPU
    d3d12_video_flush(codec);
+
+
+#if !D3D12_DECODER_MOCK_DECODED_TEXTURE && D3D12_DECODER_USE_STAGING_OUTPUT_TEXTURE
+   struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
+   const uint numPlanes = 2;// Y and UV planes
+   for (size_t planeIdx = 0; planeIdx < numPlanes; planeIdx++)
+   {
+      const D3D12_RESOURCE_DESC stagingDesc = spOutputD3D12Texture->GetDesc();
+      D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
+      UINT64 srcTextureTotalBytes = 0;
+      pD3D12Dec->m_pD3D12Screen->dev->GetCopyableFootprints(&stagingDesc, planeIdx, 1, 0, &layout, nullptr, nullptr, &srcTextureTotalBytes);
+      std::vector<uint8_t> pSrc(srcTextureTotalBytes);
+
+      // Uncomment below if desired to mock an all violet decoded texture
+      // std::vector<uint8_t> pTmp(srcTextureTotalBytes);
+      // memset(pTmp.data(), 255u/*if on all YUV is RGB violet*/, pTmp.size());
+      // pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(
+      //    spOutputD3D12Texture.Get(),
+      //    planeIdx,
+      //    D3D12_RESOURCE_STATE_COMMON,
+      //    pTmp.data(),
+      //    layout.Footprint.RowPitch,
+      //    layout.Footprint.RowPitch
+      // );
+
+      pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
+         pSrc.data(),
+         layout.Footprint.RowPitch,
+         layout.Footprint.RowPitch,
+         spOutputD3D12Texture.Get(),
+         planeIdx,
+         D3D12_RESOURCE_STATE_COMMON
+      );
+
+      // At this point pSrc has the srcTextureTotalBytes of raw pixel data of spOutputD3D12Texture/subresource/planeIdx
+
+      // Upload pSrc into target using texture_map
+      unsigned box_w = align(stagingDesc.Width, 2);
+      unsigned box_h = align(stagingDesc.Height, 2);
+      unsigned box_x = 0 & ~1;
+      unsigned box_y = 0 & ~1;
+      vl_video_buffer_adjust_size(&box_w, &box_h, planeIdx,
+                                  pipe_format_to_chroma_format(target->buffer_format),
+                                  target->interlaced);
+      vl_video_buffer_adjust_size(&box_x, &box_y, planeIdx,
+                                  pipe_format_to_chroma_format(target->buffer_format),
+                                  target->interlaced);
+      struct pipe_box box = {box_x, box_y, 0, box_w, box_h, 1};
+      struct pipe_transfer *transfer;
+      void *pMappedTexture = pD3D12Dec->base.context->texture_map(
+            pD3D12Dec->base.context,
+            views[planeIdx]->texture,
+            0,
+            PIPE_MAP_WRITE,
+            &box,
+            &transfer);
+      
+      assert(pMappedTexture);
+
+      size_t bTextureBytes = box.height * transfer->stride;
+      uint8_t* pDstData = (uint8_t*) pMappedTexture;
+      for (size_t pixRow = 0; pixRow < box.height; pixRow++)
+      {
+         if(planeIdx == 0)
+         {
+            // Copy box.width Y pixels from src but increment pDstData stride
+            memcpy(pDstData, pSrc.data(), box.width);
+         }
+         else if(planeIdx == 1)
+         {
+            // box.width counts the number of combined UV components in WORDs.So we gotta copy 2*box.width 8-bit components but increment pDstData stride
+            memcpy(pDstData, pSrc.data(), 2*box.width);
+         }
+         assert(sizeof(*pDstData) == sizeof(uint8_t)); // to make sure the stride increment is in bytes as transfer->stride.
+         pDstData += transfer->stride;
+      }
+
+      pipe_texture_unmap(pD3D12Dec->base.context, transfer);
+   }
+#endif
 }
 
 /**
