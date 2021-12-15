@@ -280,12 +280,6 @@ struct pipe_sampler_view ** d3d12_video_buffer_get_sampler_view_planes(struct pi
          memset(&samplerViewTemplate, 0, sizeof(samplerViewTemplate));
          u_sampler_view_default_template(&samplerViewTemplate, pCurPlaneResource, pCurPlaneResource->format);
 
-         // TODO: Do we need to alter the swizzle or d3d12_context takes care if it?
-         if (util_format_get_nr_components(pCurPlaneResource->format) == 1)
-         {
-            samplerViewTemplate.swizzle_r = samplerViewTemplate.swizzle_g = samplerViewTemplate.swizzle_b = samplerViewTemplate.swizzle_a = PIPE_SWIZZLE_X;
-         }
-
          pD3D12VideoBuffer->m_SurfacePlaneSamplerViews[i] = pipe->create_sampler_view(pipe, pCurPlaneResource, &samplerViewTemplate);
 
          if (!pD3D12VideoBuffer->m_SurfacePlaneSamplerViews[i])
@@ -341,10 +335,6 @@ struct pipe_sampler_view ** d3d12_video_buffer_get_sampler_view_components(struc
          if (!pD3D12VideoBuffer->m_SurfaceComponentSamplerViews[component]) {
             memset(&samplerViewTemplate, 0, sizeof(samplerViewTemplate));
             u_sampler_view_default_template(&samplerViewTemplate, pCurPlaneResource, pCurPlaneResource->format);
-            
-            // TODO: Do we need to alter the swizzle or d3d12_context takes care if it?
-            samplerViewTemplate.swizzle_r = samplerViewTemplate.swizzle_g = samplerViewTemplate.swizzle_b = PIPE_SWIZZLE_X + j;
-            samplerViewTemplate.swizzle_a = PIPE_SWIZZLE_1;
             
             pD3D12VideoBuffer->m_SurfaceComponentSamplerViews[component] = pipe->create_sampler_view(pipe, pCurPlaneResource, &samplerViewTemplate);
             if (!pD3D12VideoBuffer->m_SurfaceComponentSamplerViews[component])
