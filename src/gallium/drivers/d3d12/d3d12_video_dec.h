@@ -152,18 +152,7 @@ struct d3d12_video_decoder
     std::unique_ptr<D3D12VidDecReferenceDataManager> m_spDPBManager;
     bool m_DPBManagerInitialized = false;
     
-    // Input bitstream buffers
-    std::vector<D3D12DecoderByteBuffer> m_CurFrameBuffers;
-
-    // Bitstream buffer semantics received in buffers   
-    // VAAPI [0] = codec NALU start code ; [1] = actual bitstream buffer starting w/ NALU start code
-    // VDPAU - Pass thru all buffers from above layer. The [0] index should contain the start code and [1] full buffer
-    const uint VID_BITSTREAM_STARTCODE_BUFFER_IDX_DEFAULT = 0u;
-    const uint VID_BITSTREAM_PAYLOAD_BUFFER_IDX_DEFAULT = 1u;
-    uint m_CodecStartCode_BufferIndex = VID_BITSTREAM_STARTCODE_BUFFER_IDX_DEFAULT;
-    uint m_CodecPayload_BufferIndex = VID_BITSTREAM_PAYLOAD_BUFFER_IDX_DEFAULT;
-
-    // Holds the input bitstream buffer but in GPU video memory (d3d12 uploaded GPU buffer version of m_CurFrameBuffers[m_CodecPayload_BufferIndex] )
+    // Holds the input bitstream buffer in GPU video memory
     ComPtr<ID3D12Resource> m_curFrameCompressedBitstreamBuffer;
     UINT64 m_curFrameCompressedBitstreamBufferAllocatedSize = m_InitialCompBitstreamGPUBufferSize; // Actual number of allocated bytes available in the buffer (after m_curFrameCompressedBitstreamBufferPayloadSize might be garbage)
     UINT64 m_curFrameCompressedBitstreamBufferPayloadSize = m_InitialCompBitstreamGPUBufferSize; // Actual number of bytes of valid data
@@ -174,6 +163,11 @@ struct d3d12_video_decoder
     // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX of the current frame
     // m_InverseQuantMatrixBuffer.size() == 0 means no quantization matrix buffer is set for current frame
     D3D12DecoderByteBuffer m_InverseQuantMatrixBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX ; capacity() has the underlying container allocation size 
+
+#define D3D12_DECODER_DEBUG_READ_FROM_H264_FILE false
+#if D3D12_DECODER_DEBUG_READ_FROM_H264_FILE
+    uint64_t m_sliceDataFileSeekOffset = 0u;
+#endif
 
     ///
     /// Config variables

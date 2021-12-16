@@ -193,47 +193,117 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
    struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pD3D12Dec->m_pD3D12Screen;
 
    ///
-   /// Deep copy num_buffers, buffers and sizes for current frame state
-   ///
-
-   // possible optimization: maybe it's better to just upload the input compressed bitstream to the d3d12 buffer in GPU memory directly without the extra copy
-
-   pD3D12Dec->m_CurFrameBuffers.resize(num_buffers);
-   for (unsigned idx = 0; idx < num_buffers; idx++)
-   {
-      pD3D12Dec->m_CurFrameBuffers[idx].resize(sizes[idx]);
-      memcpy(pD3D12Dec->m_CurFrameBuffers[idx].data(), buffers[idx], sizes[idx]);
-   }
-
-   ///
    /// Compressed bitstream buffers
    ///
 
-   UINT64 videoBitstreamBufferSize = pD3D12Dec->m_CurFrameBuffers[pD3D12Dec->m_CodecPayload_BufferIndex].size(); // Initialize from buffers/sizes arrays
-   BYTE* videoBitstreamBufferPtr = pD3D12Dec->m_CurFrameBuffers[pD3D12Dec->m_CodecPayload_BufferIndex].data(); // Initialize from buffers/sizes arrays
+   /// Mesa VA frontend Video buffer passing semantics for H264, HEVC, MPEG4, VC1 and PIPE_VIDEO_PROFILE_VC1_ADVANCED are:
+      /// If num_buffers == 1 -> buf[0] has the compressed bitstream WITH the starting code
+      /// If num_buffers == 2 -> buf[0] has the NALU starting code and buf[1] has the compressed bitstream WITHOUT any starting code.
+      /// If num_buffers = 3 -> It's JPEG, not supported in D3D12.
+   /// Mesa VDPAU frontend passes the buffers as they get passed in VdpDecoderRender without fixing any start codes except for PIPE_VIDEO_PROFILE_VC1_ADVANCED
+      // In https://http.download.nvidia.com/XFree86/vdpau/doxygen/html/index.html#video_mixer_usage it's mentioned that:
+      // It is recommended that applications pass solely the slice data to VDPAU; specifically that any header data structures be excluded from the portion of the bitstream passed to VDPAU. VDPAU implementations must operate correctly if non-slice data is included, at least for formats employing start codes to delimit slice data.
+      // For all codecs/profiles it's highly recommended (when the codec/profile has such codes...) that the start codes are passed to VDPAU, even when not included in the bitstream the VDPAU client is parsing.
+      // Let's assume we get all the start codes for VDPAU. The doc also says "VDPAU implementations must operate correctly if non-slice data is included, at least for formats employing start codes to delimit slice data"
+      // if we ever get an issue with VDPAU start codes we should consider adding the code that handles this in the VDPAU layer above the gallium driver like mesa VA does.
+      // We should also support the VDPAU case where the buffers have multiple buffer array entry per slice {startCode (optional), slice1, slice2, ..., sliceN}
+
+   // Both the start codes being present at buffers[0] case and the multi-slice case can be handled by flattening all the buffers into a single one and passing that to HW.
+   // Possible future optimization: In-place upload from buffers[] into the GPU D3D12Resource.
+
+   size_t totalBuffersSize = 0u;
+   for (size_t bufferIdx = 0; bufferIdx < num_buffers; bufferIdx++)
+   {
+      totalBuffersSize += sizes[bufferIdx];
+   }
+
+   std::vector<uint8_t> sliceDataStagingBuffer(totalBuffersSize);
+   size_t dstOffset = 0u;
+   for (size_t bufferIdx = 0; bufferIdx < num_buffers; bufferIdx++)
+   {
+      memcpy(sliceDataStagingBuffer.data() + dstOffset, buffers[bufferIdx], sizes[bufferIdx]);
+      dstOffset += sizes[bufferIdx];
+   }
+
+   uint64_t sliceDataStagingBufferSize = sliceDataStagingBuffer.size();
+   BYTE* sliceDataStagingBufferPtr = sliceDataStagingBuffer.data();
 
    // TODO: If doesn't work with >= size, fix m_D3D12ResourceCopyHelper to support that (don't try to read the whole resource size from the pData src buffer that might be smaller).
 
    // Reallocate if necessary to accomodate the current frame bitstream buffer in GPU memory
-   // if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize < videoBitstreamBufferSize)
-   if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize != videoBitstreamBufferSize)
+   // if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize < sliceDataStagingBufferSize)
+   if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize != sliceDataStagingBufferSize)
    {
-      if(!d3d12_create_video_staging_bitstream_buffer(pD3D12Screen, pD3D12Dec, videoBitstreamBufferSize))
+      if(!d3d12_create_video_staging_bitstream_buffer(pD3D12Screen, pD3D12Dec, sliceDataStagingBufferSize))
       {
          D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_decode_bitstream - Failure on d3d12_create_video_staging_bitstream_buffer\n");
       }
    }
    
    // Upload frame bitstream CPU data to ID3D12Resource buffer
-   pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize = videoBitstreamBufferSize; // This can be less than m_curFrameCompressedBitstreamBufferAllocatedSize. 
+   pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize = sliceDataStagingBufferSize; // This can be less than m_curFrameCompressedBitstreamBufferAllocatedSize. 
    pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(
       pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get(),
       0,
       D3D12_RESOURCE_STATE_COMMON,
-      videoBitstreamBufferPtr,
-      sizeof(*videoBitstreamBufferPtr) * videoBitstreamBufferSize,
-      sizeof(*videoBitstreamBufferPtr) * videoBitstreamBufferSize
+      sliceDataStagingBufferPtr,
+      sizeof(*sliceDataStagingBufferPtr) * sliceDataStagingBufferSize,
+      sizeof(*sliceDataStagingBufferPtr) * sliceDataStagingBufferSize
    );
+
+#if D3D12_DECODER_DEBUG_READ_FROM_H264_FILE
+/// 
+/// Compares the m_curFrameCompressedBitstreamBuffer GPU buffer contents of slice data for this frame
+/// against the data from a rawbitstream.h264 file from the current folder where the H.264 elemental bitstream
+/// for the target decoded video is in the format {SPS, PPS-1, ...slices..., PPS-2, ...slices..., PPS-K, ...slices... ...} with start codes of 4 bytes 00 00 00 01
+/// An assertion occurs if the comparison fails.
+///
+   {
+      std::vector<uint8_t> pReadbackArray(sliceDataStagingBufferSize);
+      uint8_t* pReadbackBuffer = pReadbackArray.data();
+      pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
+         pReadbackBuffer,
+         sizeof(*pReadbackBuffer) * sliceDataStagingBufferSize,
+         sizeof(*pReadbackBuffer) * sliceDataStagingBufferSize,
+         pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get(),
+         0,
+         D3D12_RESOURCE_STATE_COMMON
+      );
+      
+      FILE* pSrcFile=fopen("rawbitstream.h264","rb");
+      assert(pSrcFile);
+      if(pD3D12Dec->m_fenceValue == 1u)
+      {
+         pD3D12Dec->m_sliceDataFileSeekOffset += 15u; // Skip first SPS
+      }
+      
+      pD3D12Dec->m_sliceDataFileSeekOffset += 8u; // Skip PPS for current frame
+      
+      fseek(pSrcFile, pD3D12Dec->m_sliceDataFileSeekOffset, SEEK_SET);
+      
+      uint64_t fileSeekBufSize = sliceDataStagingBufferSize + 1; // VA/VDPAU use 3 bytes start codes 00 00 01, file has 4 bytes start codes 00 00 00 01
+
+      std::vector<uint8_t> freadBuffer(fileSeekBufSize);
+      uint8_t* freadBufferPtr = freadBuffer.data();
+
+      D3D12_LOG_DBG("[D3D12 Video Driver] Reading %ld bytes at file offset 0x%lx - for frame: %d\n", fileSeekBufSize, pD3D12Dec->m_sliceDataFileSeekOffset , pD3D12Dec->m_fenceValue);
+      fread(freadBufferPtr, fileSeekBufSize, 1, pSrcFile);
+
+      fclose(pSrcFile);
+      pD3D12Dec->m_sliceDataFileSeekOffset += fileSeekBufSize; // skip slice data size in bytes
+
+      // Compare VA bitstream buffer against debug file slice data
+      for (size_t bytePos = 1/*skip extra 00 in start code at buffer beginning*/; bytePos < fileSeekBufSize; bytePos++)
+      {
+         assert(pReadbackBuffer != freadBufferPtr);
+         if(memcmp(&(freadBufferPtr[bytePos]), &(pReadbackBuffer[bytePos - 1 /*skip extra 00 in start code at buffer beginning*/]), 1) != 0)
+         {
+            D3D12_LOG_DBG("[D3D12 Video Driver] Mismatch: (freadBufferPtr[%ld]: %d, pReadbackBuffer [%ld]:%d)  - for frame: %d\n",bytePos, freadBufferPtr[bytePos], bytePos, pReadbackBuffer[bytePos] , pD3D12Dec->m_fenceValue);
+            assert(false);
+         }
+      }
+   }
+#endif
 
    ///
    /// Codec header picture parameters buffers
