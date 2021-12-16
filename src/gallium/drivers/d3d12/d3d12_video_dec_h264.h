@@ -38,6 +38,9 @@ typedef unsigned short USHORT;
 constexpr UINT16 DXVA_H264_INVALID_PICTURE_INDEX = 0x7F; // This corresponds to DXVA_PicEntry_H264.Index7Bits ; Not to be confused with the invalid value for DXVA_PicEntry_H264.bPicEntry full char value
 constexpr UINT16 DXVA_H264_INVALID_PICTURE_ENTRY_VALUE = 0xFF; // This corresponds to DXVA_PicEntry_H264.bPicEntry
 
+constexpr unsigned int DXVA_H264_START_CODE = 0x000001; // 3 byte start code
+constexpr unsigned int DXVA_H264_START_CODE_LEN_BITS = 24; // 3 byte start code
+
 /* H.264/AVC picture entry data structure */
 typedef struct _DXVA_PicEntry_H264 {
   union {
@@ -130,7 +133,14 @@ typedef struct _DXVA_Qmatrix_H264 {
 
 } DXVA_Qmatrix_H264, *LPDXVA_Qmatrix_H264;
 
-DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264(pipe_video_profile profile, UINT frameWidth, UINT frameHeight, pipe_h264_picture_desc* pipeDesc);
+/* H.264/AVC slice control data structure - short form */
+typedef struct _DXVA_Slice_H264_Short {
+  UINT   BSNALunitDataLocation; /* type 1..5 */
+  UINT   SliceBytesInBuffer; /* for off-host parse */
+  USHORT wBadSliceChopping;  /* for off-host parse */
+} DXVA_Slice_H264_Short, *LPDXVA_Slice_H264_Short;
+
+DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264(UINT frameNum, pipe_video_profile profile, UINT frameWidth, UINT frameHeight, pipe_h264_picture_desc* pipeDesc);
 void d3d12_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB);
 void d3d12_decoder_prepare_for_decode_frame_h264(struct d3d12_video_decoder *pD3D12Dec, ID3D12Resource* pTexture2D, UINT subresourceIndex);
 void d3d12_decoder_release_unused_references_h264(struct d3d12_video_decoder *pD3D12Dec);

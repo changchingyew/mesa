@@ -39,6 +39,7 @@
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
 #include "util/u_video.h"
+// #include "util/vl_vlc.h"
 
 struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context,
                                                const struct pipe_video_codec *codec)
@@ -314,6 +315,7 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
       picture
    );
    assert(pD3D12Dec->m_picParamsBuffer.size() > 0);
+   assert(pD3D12Dec->m_SliceControlBuffer.size() > 0);
 
    // Gather information about interlace from the texture. end_frame will re-create d3d12 decoder/heap as necessary on reconfiguration
    pD3D12Dec->m_InterlaceType = target->interlaced ? D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_FIELD_BASED : D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; 
@@ -387,6 +389,8 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 
    d3d12InputArguments.CompressedBitstream.pBuffer = pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get();
    d3d12InputArguments.CompressedBitstream.Offset = 0u;
+   const uint64_t d3d12BitstreamOffsetAlignment = 128u; // specified in https://docs.microsoft.com/en-us/windows/win32/api/d3d12video/ne-d3d12video-d3d12_video_decode_tier
+   assert((d3d12InputArguments.CompressedBitstream.Offset == 0) || (d3d12InputArguments.CompressedBitstream.Offset % d3d12BitstreamOffsetAlignment));
    d3d12InputArguments.CompressedBitstream.Size = pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize;
 
    d3d12_record_state_transition(
@@ -417,17 +421,28 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    ///
 
    d3d12InputArguments.NumFrameArguments = 1u; // Only the codec data received from the above layer with picture params
-   d3d12InputArguments.FrameArguments[0] = 
+   d3d12InputArguments.FrameArguments[d3d12InputArguments.NumFrameArguments - 1] = 
    {
       D3D12_VIDEO_DECODE_ARGUMENT_TYPE_PICTURE_PARAMETERS,
       static_cast<UINT>(pD3D12Dec->m_picParamsBuffer.size()),
       pD3D12Dec->m_picParamsBuffer.data(),
    };
    
+   if(pD3D12Dec->m_SliceControlBuffer.size() > 0)
+   {
+      d3d12InputArguments.NumFrameArguments++;
+      d3d12InputArguments.FrameArguments[d3d12InputArguments.NumFrameArguments - 1] = 
+      {
+         D3D12_VIDEO_DECODE_ARGUMENT_TYPE_SLICE_CONTROL,
+         static_cast<UINT>(pD3D12Dec->m_SliceControlBuffer.size()),
+         pD3D12Dec->m_SliceControlBuffer.data(),
+      };
+   }
+
    if(pD3D12Dec->m_InverseQuantMatrixBuffer.size() > 0)
    {
-      d3d12InputArguments.NumFrameArguments = 2u; // Only the codec data received from the above layer with InverseQuantMatrixBuffer params
-      d3d12InputArguments.FrameArguments[1] = 
+      d3d12InputArguments.NumFrameArguments++; // Only the codec data received from the above layer with InverseQuantMatrixBuffer params
+      d3d12InputArguments.FrameArguments[d3d12InputArguments.NumFrameArguments-1] = 
       {
          D3D12_VIDEO_DECODE_ARGUMENT_TYPE_INVERSE_QUANTIZATION_MATRIX,
          static_cast<UINT>(pD3D12Dec->m_InverseQuantMatrixBuffer.size()),
@@ -1125,6 +1140,7 @@ void d3d12_store_converted_dxva_params_from_pipe_input (
 {
    assert(picture);
    assert(codec);
+   struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
 
    D3D12_VIDEO_DECODE_PROFILE_TYPE profileType = d3d12_convert_pipe_video_profile_to_profile_type(codec->base.profile);
    switch (profileType)
@@ -1132,7 +1148,8 @@ void d3d12_store_converted_dxva_params_from_pipe_input (
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {
          size_t dxvaPicParamsBufferSize = sizeof(DXVA_PicParams_H264);
-         DXVA_PicParams_H264 dxvaPicParamsH264 = d3d12_dec_dxva_picparams_from_pipe_picparams_h264(codec->base.profile, codec->m_decoderHeapDesc.DecodeWidth, codec->m_decoderHeapDesc.DecodeHeight, (pipe_h264_picture_desc*) picture);
+         pipe_h264_picture_desc* pPicControlH264 = (pipe_h264_picture_desc*) picture;
+         DXVA_PicParams_H264 dxvaPicParamsH264 = d3d12_dec_dxva_picparams_from_pipe_picparams_h264(pD3D12Dec->m_fenceValue, codec->base.profile, codec->m_decoderHeapDesc.DecodeWidth, codec->m_decoderHeapDesc.DecodeHeight, pPicControlH264);
          d3d12_store_dxva_picparams_in_picparams_buffer(codec, &dxvaPicParamsH264, dxvaPicParamsBufferSize);
 
          size_t dxvaQMatrixBufferSize = sizeof(DXVA_Qmatrix_H264);
@@ -1147,6 +1164,39 @@ void d3d12_store_converted_dxva_params_from_pipe_input (
          {
             codec->m_InverseQuantMatrixBuffer.resize(0); //  m_InverseQuantMatrixBuffer.size() == 0 means no quantization matrix buffer is set for current frame
          }
+
+         ///
+         /// Slice control buffers
+         ///
+         
+         // TODO: Do we need to pass the DXVA_Slice_Long in any case when also passing the full slice bitstream to the ?
+         
+         std::vector<DXVA_Slice_H264_Short> pSliceControlBuffers(pPicControlH264->slice_count);
+         pSliceControlBuffers.resize(pPicControlH264->slice_count);
+         for (size_t sliceIdx = 0; sliceIdx < pPicControlH264->slice_count; sliceIdx++)
+         {
+            // From DXVA spec: If wBadSliceChopping is 0 or 1, this member locates the NAL unit with 
+            // nal_unit_type equal to 1, 2, or 5 for the current slice. The value is the byte offset, 
+            // from the start of the bitstream data buffer, of the first byte of the start code prefix in 
+            // the byte stream NAL unit that contains the NAL unit with nal_unit_type equal to 1, 2, 
+            // or 5. (The start code prefix is the start_code_prefix_one_3bytes syntax element. T
+            
+            pSliceControlBuffers[sliceIdx].BSNALunitDataLocation = 0u; // For now only single slice, no offset
+
+            assert(pPicControlH264->slice_count <= 1);
+            // TODO: Multi-slice support - Parse flattened bitstream and detect SliceBytesInBuffer(size) and BSNALunitDataLocation(offset)
+               // unsigned int sliceBufOffset = 0u;
+               // unsigned int numBitsToSearchIntoBuffer = 64u;
+               // pSliceControlBuffers[sliceIdx].BSNALunitDataLocation = GetStartCodeBytesOffsetInBuffer(pD3D12Dec->curFrameSliceBitstreamBuffer, sliceBufOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
+               
+            // From DXVA spec: Number of bytes in the bitstream data buffer that are associated with this slice control data structure,
+            // starting with the byte at the offset given in BSNALunitDataLocation
+            pSliceControlBuffers[sliceIdx].SliceBytesInBuffer = pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize; // For now only single slice, no offset
+            // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
+            pSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
+         }
+
+         d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(codec, pSliceControlBuffers.data(), pSliceControlBuffers.size() * sizeof(pSliceControlBuffers.data()[0]));
       }
       break;
       default:
@@ -1155,6 +1205,40 @@ void d3d12_store_converted_dxva_params_from_pipe_input (
    }
 }
 
+///
+/// Returns the number of bytes starting from [buf.data() + buffsetOffset] where the _targetCode_ is found
+/// Returns -1 if start code not found
+///
+// static unsigned int GetStartCodeBytesOffsetInBuffer(D3D12DecoderByteBuffer &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer)
+// {
+//    struct vl_vlc vlc = {0};
+
+//    unsigned int bufSize = buf.size() - bufferOffset;
+//    uint8_t* bufPtr = buf.data();
+//    bufPtr += bufferOffset;
+
+//    /* search the first numBitsToSearchIntoBuffer bytes for a startcode */
+//    vl_vlc_init(&vlc, 1, (const void * const*) bufPtr, &bufSize);
+//    for (uint i = 0; i < numBitsToSearchIntoBuffer && vl_vlc_bits_left(&vlc) >= targetCodeBitSize; ++i) {
+//       if (vl_vlc_peekbits(&vlc, targetCodeBitSize) == targetCode)
+//          return i;
+//       vl_vlc_eatbits(&vlc, 8); // Stride is 8 bits = 1 byte
+//       vl_vlc_fillbits(&vlc);
+//    }
+
+//    return -1;
+// }
+
+void d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
+{
+   if (pD3D12Dec->m_SliceControlBuffer.capacity() < DXVAStructSize)
+   {
+      pD3D12Dec->m_SliceControlBuffer.reserve(DXVAStructSize);
+   }
+
+   pD3D12Dec->m_SliceControlBuffer.resize(DXVAStructSize);
+   memcpy(pD3D12Dec->m_SliceControlBuffer.data(), pDXVAStruct, DXVAStructSize);
+}
 
 void d3d12_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
 {

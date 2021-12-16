@@ -85,6 +85,7 @@ void d3d12_decoder_prepare_for_decode_frame_h264(
 #define D3D12_VIDEO_H264_MB_IN_PIXELS 16
 
 DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
+	UINT frameNum,
 	pipe_video_profile profile,
 	UINT decodeWidth, // pipe_h264_picture_desc doesn't have the size of the frame for H264, but it does for other codecs.
 	UINT decodeHeight, // pipe_h264_picture_desc doesn't have the size of the frame for H264, but it does for other codecs.
@@ -107,7 +108,7 @@ DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
 		// USHORT  field_pic_flag                 : 1;
 		dxvaStructure.field_pic_flag = pPipeDesc->field_pic_flag;
 		// USHORT  chroma_format_idc              : 2;
-		dxvaStructure.chroma_format_idc = pPipeDesc->pps->sps->chroma_format_idc;
+		dxvaStructure.chroma_format_idc = 1; // This is always 4:2:0 for D3D12 Video. NV12/P010 DXGI formats only.
 		// USHORT  constrained_intra_pred_flag    : 1;
 		dxvaStructure.constrained_intra_pred_flag = pPipeDesc->pps->constrained_intra_pred_flag;
 		// USHORT  weighted_pred_flag             : 1;
@@ -286,6 +287,17 @@ DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
 	// UCHAR  pic_order_present_flag; /* Renamed to bottom_field_pic_order_in_frame_present_flag in newer standard versions. */
 	dxvaStructure.pic_order_present_flag = pPipeDesc->pps->bottom_field_pic_order_in_frame_present_flag;
 
+	// Software decoders should be implemented, as soon as feasible, to set the value of 
+	// Reserved16Bits to 3. The value 0 was previously assigned for uses prior to July 20, 
+	// 2007. The value 1 was previously assigned for uses prior to October 12, 2007. The 
+	// value 2 was previously assigned for uses prior to January 15, 2009. Software 
+	// decoders shall not set Reserved16Bits to any value other than those listed here.
+	dxvaStructure.Reserved16Bits = 3;
+
+	// DXVA spec: Arbitrary number set by the host decoder to use as a tag in the status report 
+   // feedback data. The value should not equal 0, and should be different in each call to 
+   // Execute. For more information, see section 12.0, Status Report Data Structure.
+   dxvaStructure.StatusReportFeedbackNumber = frameNum;
 
 // from DXVA spec
 	// ContinuationFlag

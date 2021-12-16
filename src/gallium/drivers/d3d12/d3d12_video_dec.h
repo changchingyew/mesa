@@ -164,6 +164,10 @@ struct d3d12_video_decoder
     // m_InverseQuantMatrixBuffer.size() == 0 means no quantization matrix buffer is set for current frame
     D3D12DecoderByteBuffer m_InverseQuantMatrixBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX ; capacity() has the underlying container allocation size 
 
+    // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL of the current frame
+    // m_SliceControlBuffer.size() == 0 means no quantization matrix buffer is set for current frame
+    D3D12DecoderByteBuffer m_SliceControlBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL ; capacity() has the underlying container allocation size 
+
 #define D3D12_DECODER_DEBUG_READ_FROM_H264_FILE false
 #if D3D12_DECODER_DEBUG_READ_FROM_H264_FILE
     uint64_t m_sliceDataFileSeekOffset = 0u;
@@ -197,6 +201,7 @@ GUID d3d12_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profileType, 
 VIDEO_DECODE_PROFILE_BIT_DEPTH d3d12_dec_get_format_bitdepth(DXGI_FORMAT Format);
 void d3d12_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *codec, void* pDXVABuffer, UINT64 DXVABufferSize);
 void d3d12_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize);
+void d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize);
 
 ///
 /// d3d12_video_decoder functions ends
