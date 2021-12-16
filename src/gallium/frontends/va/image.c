@@ -560,6 +560,38 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
                box.width, box.height, map, transfer->stride, 0, 0);
          }
          pipe_texture_unmap(drv->pipe, transfer);
+         
+                  
+         typedef struct D3D12OutputTexturePlanesBufferDesc
+         {
+            uint8_t* m_pDecodedTexturePixelsY;
+            size_t m_decodedTexturePixelsYSize;
+            uint64_t m_YStride;
+            uint8_t* m_pDecodedTexturePixelsUV;
+            size_t m_decodedTexturePixelsUVSize;
+            uint64_t m_UVStride;
+         } D3D12OutputTexturePlanesBufferDesc;
+
+         D3D12OutputTexturePlanesBufferDesc* pDesc = surf->buffer->associated_data;
+         if(pDesc)
+         {
+            if(i == 0)
+            {
+               util_copy_rect(data[i] + pitches[i] * j,
+                  views[i]->texture->format,
+                  pitches[i] * views[i]->texture->array_size, 0, 0,
+                  box.width, box.height, pDesc->m_pDecodedTexturePixelsY, pDesc->m_YStride, 0, 0);
+            }
+            else if(i == 1)
+            {
+               util_copy_rect(data[i] + pitches[i] * j,
+                  views[i]->texture->format,
+                  pitches[i] * views[i]->texture->array_size, 0, 0,
+                  box.width, box.height, pDesc->m_pDecodedTexturePixelsUV, pDesc->m_UVStride, 0, 0);
+            }
+         }
+         
+
       }
    }
    mtx_unlock(&drv->mutex);

@@ -100,6 +100,16 @@ void d3d12_video_flush(struct pipe_video_codec *codec);
 
 typedef std::vector<BYTE> D3D12DecoderByteBuffer;
 
+typedef struct D3D12OutputTexturePlanesBufferDesc
+{
+    uint8_t* m_pDecodedTexturePixelsY;
+    size_t m_decodedTexturePixelsYSize;
+    uint64_t m_YStride;
+    uint8_t* m_pDecodedTexturePixelsUV;
+    size_t m_decodedTexturePixelsUVSize;
+    uint64_t m_UVStride;
+} D3D12OutputTexturePlanesBufferDesc;
+
 #define D3D12_DECODER_USE_STAGING_OUTPUT_TEXTURE true // TODO: Not using staging decoded texture causes changes to underlying Id3d12Resource of pipe target buffer not to be picked up
 #define D3D12_DECODER_MOCK_DECODED_TEXTURE false
 
@@ -167,6 +177,10 @@ struct d3d12_video_decoder
     // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL of the current frame
     // m_SliceControlBuffer.size() == 0 means no quantization matrix buffer is set for current frame
     D3D12DecoderByteBuffer m_SliceControlBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL ; capacity() has the underlying container allocation size 
+
+    D3D12OutputTexturePlanesBufferDesc m_DecodedPlanesBufferDesc;
+    D3D12DecoderByteBuffer m_DecodedTexturePixelsY;
+    D3D12DecoderByteBuffer m_DecodedTexturePixelsUV;
 
 #define D3D12_DECODER_DEBUG_READ_FROM_H264_FILE false
 #if D3D12_DECODER_DEBUG_READ_FROM_H264_FILE

@@ -187,15 +187,15 @@ void  d3d12_video_buffer_destroy(struct pipe_video_buffer *buffer)
 */
 void  d3d12_video_buffer_destroy_associated_data(void *associated_data)
 {
-   if(associated_data == nullptr)
-   {
-      return;
-   }
-   else
-   {
-      // Received non-null associated_data -> should be implemented along with the addition of associated_data
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] E_NOIMPL - Implementors adding associated data must also implement the destroy function\n");
-   }
+   // if(associated_data == nullptr)
+   // {
+   //    return;
+   // }
+   // else
+   // {
+   //    // Received non-null associated_data -> should be implemented along with the addition of associated_data
+   //    D3D12_LOG_ERROR("[D3D12 Video Driver Error] E_NOIMPL - Implementors adding associated data must also implement the destroy function\n");
+   // }
 }
 
 

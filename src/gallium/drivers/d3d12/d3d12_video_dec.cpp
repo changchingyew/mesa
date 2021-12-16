@@ -644,6 +644,28 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
          D3D12_RESOURCE_STATE_COMMON
       );
 
+      if(planeIdx == 0)
+      {
+         pD3D12Dec->m_DecodedTexturePixelsY.resize(srcTextureTotalBytes);
+         memcpy(pD3D12Dec->m_DecodedTexturePixelsY.data(), pSrc.data(), pSrc.size());
+         
+         pD3D12Dec->m_DecodedPlanesBufferDesc.m_pDecodedTexturePixelsY = pSrc.data();
+         pD3D12Dec->m_DecodedPlanesBufferDesc.m_decodedTexturePixelsYSize = pSrc.size();
+         pD3D12Dec->m_DecodedPlanesBufferDesc.m_YStride = layout.Footprint.RowPitch;
+
+      }
+      else if(planeIdx==1)
+      {
+         pD3D12Dec->m_DecodedTexturePixelsUV.resize(srcTextureTotalBytes);
+         memcpy(pD3D12Dec->m_DecodedTexturePixelsUV.data(), pSrc.data(), pSrc.size());
+         
+         pD3D12Dec->m_DecodedPlanesBufferDesc.m_pDecodedTexturePixelsUV = pSrc.data();
+         pD3D12Dec->m_DecodedPlanesBufferDesc.m_decodedTexturePixelsUVSize = pSrc.size();
+         pD3D12Dec->m_DecodedPlanesBufferDesc.m_UVStride = layout.Footprint.RowPitch;
+
+      }
+      target->associated_data = &pD3D12Dec->m_DecodedPlanesBufferDesc;
+
       // At this point pSrc has the srcTextureTotalBytes of raw pixel data of spOutputD3D12Texture/subresource/planeIdx
 
       // Upload pSrc into target using texture_map
