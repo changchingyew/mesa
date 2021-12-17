@@ -270,7 +270,7 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
 /// Handle single slice buffer path, maybe with an extra start code buffer at buffers[0].
 ///
 
-      // Both the start codes being present at buffers[0] case and the multi-slice case can be handled by flattening all the buffers into a single one and passing that to HW.
+      // Both the start codes being present at buffers[0] and the rest in buffers [1] or full buffer at [0] cases can be handled by flattening all the buffers into a single one and passing that to HW.
 
       size_t totalReceivedBuffersSize = 0u; // Combined size of all sizes[]
       for (size_t bufferIdx = 0; bufferIdx < num_buffers; bufferIdx++)
@@ -295,15 +295,19 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
          dstOffset += sizes[bufferIdx];
       }
 
-      ///
-      /// Codec header picture parameters buffers
-      ///
+///
+/// Codec header picture parameters buffers
+///
 
-      d3d12_store_converted_dxva_picparams_from_pipe_input (
-         pD3D12Dec,
-         picture
-      );
-      assert(pD3D12Dec->m_picParamsBuffer.size() > 0);
+      // Only load the picture params on the first call to decode_bitstream for this frame, the subsequent calls should have the same pic params/qmatrix.
+      if(pD3D12Dec->m_numConsecutiveDecodeFrame == 0)
+      {
+         d3d12_store_converted_dxva_picparams_from_pipe_input (
+            pD3D12Dec,
+            picture
+         );
+         assert(pD3D12Dec->m_picParamsBuffer.size() > 0);
+      }
 
       // Gather information about interlace from the texture. end_frame will re-create d3d12 decoder/heap as necessary on reconfiguration
       pD3D12Dec->m_InterlaceType = target->interlaced ? D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_FIELD_BASED : D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; 
