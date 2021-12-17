@@ -336,26 +336,8 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 ///
 /// Prepare Slice control buffers before clearing staging buffer
 ///
-   assert(pD3D12Dec->m_stagingDecodeBitstream.size()>0); // Make sure the staging wasn't cleared yet in end_frame
-   
-   size_t numSlices = pD3D12Dec->m_numConsecutiveDecodeFrame;
-
-   std::vector<DXVA_Slice_H264_Short> pSliceControlBuffers(numSlices);
-   pSliceControlBuffers.resize(numSlices);
-   size_t processedBitstreamBytes = 0u;
-   for (size_t sliceIdx = 0; sliceIdx < numSlices; sliceIdx++)
-   {
-      // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
-      pSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
-      bool sliceFound = GetSliceSizeAndOffset(sliceIdx, numSlices, pD3D12Dec->m_stagingDecodeBitstream, processedBitstreamBytes, pSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
-      assert(sliceFound);
-      D3D12_LOG_DBG("[D3D12 Video Driver] Detected slice index %ld with size %d and offset %d for frame with fenceValue: %d\n", sliceIdx, pSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pSliceControlBuffers[sliceIdx].BSNALunitDataLocation, pD3D12Dec->m_fenceValue);
-      
-      processedBitstreamBytes += pSliceControlBuffers[sliceIdx].SliceBytesInBuffer;
-   }
-
-   assert( sizeof(pSliceControlBuffers.data()[0]) == sizeof(DXVA_Slice_H264_Short) );
-   d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(pD3D12Dec, pSliceControlBuffers.data(), pSliceControlBuffers.size() * sizeof((pSliceControlBuffers.data()[0])));
+   assert(pD3D12Dec->m_stagingDecodeBitstream.size() > 0); // Make sure the staging wasn't cleared yet in end_frame
+   d3d12_prepare_converted_dxva_slices_control(pD3D12Dec);
    assert(pD3D12Dec->m_SliceControlBuffer.size() > 0);
 
 ///
@@ -1316,6 +1298,41 @@ void d3d12_store_converted_dxva_picparams_from_pipe_input (
          {
             codec->m_InverseQuantMatrixBuffer.resize(0); //  m_InverseQuantMatrixBuffer.size() == 0 means no quantization matrix buffer is set for current frame
          }
+      }
+      break;
+      default:
+         assert(0);
+         break;
+   }
+}
+
+void d3d12_prepare_converted_dxva_slices_control (
+    struct d3d12_video_decoder *pD3D12Dec // input argument, current decoder    
+)
+{
+   D3D12_VIDEO_DECODE_PROFILE_TYPE profileType = d3d12_convert_pipe_video_profile_to_profile_type(pD3D12Dec->base.profile);
+   switch (profileType)
+   {
+      case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
+      {
+         size_t numSlices = pD3D12Dec->m_numConsecutiveDecodeFrame;
+         std::vector<DXVA_Slice_H264_Short> pSliceControlBuffers(numSlices);
+         pSliceControlBuffers.resize(numSlices);
+         size_t processedBitstreamBytes = 0u;
+         for (size_t sliceIdx = 0; sliceIdx < numSlices; sliceIdx++)
+         {
+            // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
+            pSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
+            bool sliceFound = GetSliceSizeAndOffset(sliceIdx, numSlices, pD3D12Dec->m_stagingDecodeBitstream, processedBitstreamBytes, pSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
+            assert(sliceFound);
+            D3D12_LOG_DBG("[D3D12 Video Driver] Detected slice index %ld with size %d and offset %d for frame with fenceValue: %d\n", sliceIdx, pSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pSliceControlBuffers[sliceIdx].BSNALunitDataLocation, pD3D12Dec->m_fenceValue);
+            
+            processedBitstreamBytes += pSliceControlBuffers[sliceIdx].SliceBytesInBuffer;
+         }
+
+         assert( sizeof(pSliceControlBuffers.data()[0]) == sizeof(DXVA_Slice_H264_Short) );
+         d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(pD3D12Dec, pSliceControlBuffers.data(), pSliceControlBuffers.size() * sizeof((pSliceControlBuffers.data()[0])));
+         assert(pD3D12Dec->m_SliceControlBuffer.size() > 0);
       }
       break;
       default:
