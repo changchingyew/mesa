@@ -165,27 +165,12 @@ DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
 	dxvaStructure.redundant_pic_cnt_present_flag = pPipeDesc->pps->redundant_pic_cnt_present_flag;
 	// USHORT slice_group_change_rate_minus1;
 	dxvaStructure.slice_group_change_rate_minus1 = pPipeDesc->pps->slice_group_change_rate_minus1;
-	// INT    FieldOrderCntList[16][2];
-	for (uint i = 0; i < 16; i++)
-	{
-		for (uint j = 0; j < 2; j++)
-		{
-			dxvaStructure.FieldOrderCntList[i][j] = pPipeDesc->field_order_cnt_list[i][j];
-			
-		}
-	}
 	// INT    CurrFieldOrderCnt[2];	
 	dxvaStructure.CurrFieldOrderCnt[0] = pPipeDesc->field_order_cnt[0];
 	dxvaStructure.CurrFieldOrderCnt[1] = pPipeDesc->field_order_cnt[1];
 
 	// USHORT  RefPicFlag                     : 1;
 	dxvaStructure.RefPicFlag = pPipeDesc->is_reference;
-
-	// USHORT FrameNumList[16];
-	for (uint i = 0; i < 16; i++)
-	{
-		dxvaStructure.FrameNumList[i] = pPipeDesc->frame_num_list[i];
-	}
 
 	// DXVA_PicEntry_H264  RefFrameList[16]; /* DXVA_PicEntry_H264.AssociatedFlag 1 means LongTermRef */
 	// From DXVA spec:
@@ -213,11 +198,53 @@ DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
 				// If field_pic_flag is 1, the current uncompressed frame surface may appear in the list for the purpose of decoding the second field of a complementary reference field pair.
 			dxvaStructure.RefFrameList[i].AssociatedFlag = pPipeDesc->is_long_term[i] ? 1u : 0u;
 
-			// This then indexes into dxvaStructure.FrameNumList[i] = pPipeDesc->frame_num_list[i]
-			// which has a copy of the H.264 bitstream field:
-			// frame_num from slice_header for short-term references,
-			// LongTermPicNum from decoding algorithm for long-term references.
-			dxvaStructure.RefFrameList[i].Index7Bits = i; 
+			// From H264 DXVA spec:
+			// Index7Bits
+			//     An index that identifies an uncompressed surface for the CurrPic or RefFrameList member of the picture parameters structure(section 4.0) or the RefPicList member of the slice control data structure(section 6.0)
+			//     When Index7Bits is used in the CurrPic and RefFrameList members of the picture parameters structure, the value directly specifies the DXVA index of an uncompressed surface.
+			//     When Index7Bits is used in the RefPicList member of the slice control data structure, the value identifies the surface indirectly, as an index into the RefFrameList array of the associated picture parameters structure.For more information, see section 6.2.
+			//     In all cases, when Index7Bits does not contain a valid index, the value is 127.
+
+			dxvaStructure.RefFrameList[i].Index7Bits = pPipeDesc->frame_num_list[i]; 
+
+			// USHORT FrameNumList[16];
+			// 	 FrameNumList
+			// For each entry in RefFrameList, the corresponding entry in FrameNumList
+			// contains the value of FrameNum or LongTermFrameIdx, depending on the value of 
+			// AssociatedFlag in the RefFrameList entry. (FrameNum is assigned to short-term 
+			// reference pictures, and LongTermFrameIdx is assigned to long-term reference 
+			// pictures.)
+			// If an element in the list of frames is not relevent (for example, if the corresponding 
+			// entry in RefFrameList is empty or is marked as "not used for reference"), the value 
+			// of the FrameNumList entry shall be 0. Accelerators can rely on this constraint being 
+			// fulfilled. 
+			dxvaStructure.FrameNumList[i] = (dxvaStructure.RefFrameList[i].bPicEntry != DXVA_H264_INVALID_PICTURE_ENTRY_VALUE) ? pPipeDesc->frame_num_list[i] : 0;
+
+			// INT    FieldOrderCntList[16][2];
+			// Contains the picture order counts for the reference frames listed in RefFrameList. 
+			// For each entry i in the RefFrameList array, FieldOrderCntList[i][0] contains the 
+			// value of TopFieldOrderCnt for entry i, and FieldOrderCntList[i][1] contains the 
+			// value of BottomFieldOrderCnt for entry i. 
+			// 
+			// If an element of the list is not relevent (for example, if the corresponding entry in 
+			// RefFrameList is empty or is marked as "not used for reference"), the value of 
+			// TopFieldOrderCnt or BottomFieldOrderCnt in FieldOrderCntList shall be 0. 
+			// Accelerators can rely on this constraint being fulfilled. 
+
+			for (uint i = 0; i < 16; i++)
+			{				
+				for (uint j = 0; j < 2; j++)
+				{
+					if(dxvaStructure.RefFrameList[i].bPicEntry != DXVA_H264_INVALID_PICTURE_ENTRY_VALUE)
+					{
+						dxvaStructure.FieldOrderCntList[i][j] = pPipeDesc->field_order_cnt_list[i][j];
+					}
+					else
+					{
+						dxvaStructure.FieldOrderCntList[i][j] = 0;
+					}
+				}
+			}
 
 			// From DXVA spec
 			// UsedForReferenceFlags
@@ -227,6 +254,7 @@ DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
 				// If Flag1i is 1, the top field of frame number i is marked as "used for reference," as defined by the H.264/AVC specification. If Flag2i is 1, the bottom field of frame number i is marked as "used for reference." (Otherwise, if either flag is 0, that field is not marked as "used for reference.")
 				// If an element in the list of frames is not relevent (for example, if the corresponding entry in RefFrameList is empty), the value of both flags for that entry shall be 0. Accelerators may rely on this constraint being fulfilled.
 
+			dxvaStructure.UsedForReferenceFlags = 0; // initialize to zero and set only the appropiate values
 			if(pPipeDesc->top_is_reference[i])
 			{
 				dxvaStructure.UsedForReferenceFlags |= 	(1 << ( 2*i ));
