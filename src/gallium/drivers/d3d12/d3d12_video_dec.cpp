@@ -497,6 +497,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 
    d3d12InputArguments.ReferenceFrames.ppTexture2Ds = pD3D12Dec->m_spDPBManager->textures.data();
    d3d12InputArguments.ReferenceFrames.pSubresources = pD3D12Dec->m_spDPBManager->texturesSubresources.data();
+   d3d12InputArguments.ReferenceFrames.ppHeaps = pD3D12Dec->m_spDPBManager->decoderHeapsParameter.data();
    d3d12InputArguments.ReferenceFrames.NumTexture2Ds = static_cast<UINT>(pD3D12Dec->m_spDPBManager->Size());
    d3d12InputArguments.pHeap = pD3D12Dec->m_spVideoDecoderHeap.Get();
 
