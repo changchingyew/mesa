@@ -39,7 +39,7 @@
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
 #include "util/u_video.h"
-// #include "util/vl_vlc.h"
+#include "util/vl_vlc.h"
 
 struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context,
                                                const struct pipe_video_codec *codec)
@@ -194,6 +194,18 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
    struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pD3D12Dec->m_pD3D12Screen;
 
    ///
+   /// Caps check
+   ///
+
+   // Let's quickly make sure we can decode what's being asked for.
+
+   int capsResult = d3d12_screen_get_video_param(&pD3D12Screen->base,
+                               codec->profile,
+                               PIPE_VIDEO_ENTRYPOINT_BITSTREAM,
+                               PIPE_VIDEO_CAP_SUPPORTED);
+   assert(capsResult != 0);
+
+   ///
    /// Compressed bitstream buffers
    ///
 
@@ -201,126 +213,105 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
       /// If num_buffers == 1 -> buf[0] has the compressed bitstream WITH the starting code
       /// If num_buffers == 2 -> buf[0] has the NALU starting code and buf[1] has the compressed bitstream WITHOUT any starting code.
       /// If num_buffers = 3 -> It's JPEG, not supported in D3D12.
+      /// num_buffers is at most 3.
    /// Mesa VDPAU frontend passes the buffers as they get passed in VdpDecoderRender without fixing any start codes except for PIPE_VIDEO_PROFILE_VC1_ADVANCED
       // In https://http.download.nvidia.com/XFree86/vdpau/doxygen/html/index.html#video_mixer_usage it's mentioned that:
       // It is recommended that applications pass solely the slice data to VDPAU; specifically that any header data structures be excluded from the portion of the bitstream passed to VDPAU. VDPAU implementations must operate correctly if non-slice data is included, at least for formats employing start codes to delimit slice data.
       // For all codecs/profiles it's highly recommended (when the codec/profile has such codes...) that the start codes are passed to VDPAU, even when not included in the bitstream the VDPAU client is parsing.
       // Let's assume we get all the start codes for VDPAU. The doc also says "VDPAU implementations must operate correctly if non-slice data is included, at least for formats employing start codes to delimit slice data"
       // if we ever get an issue with VDPAU start codes we should consider adding the code that handles this in the VDPAU layer above the gallium driver like mesa VA does.
-      // We should also support the VDPAU case where the buffers have multiple buffer array entry per slice {startCode (optional), slice1, slice2, ..., sliceN}
 
-   // Both the start codes being present at buffers[0] case and the multi-slice case can be handled by flattening all the buffers into a single one and passing that to HW.
-   // Possible future optimization: In-place upload from buffers[] into the GPU D3D12Resource.
+   // To handle the multi-slice case where multiple slices mean multiple decode_bitstream calls, end_frame already takes care of this assuming numSlices = pD3D12Dec->m_numConsecutiveDecodeFrame; and parsing the start codes
+   // from the combined bitstream of all decode_bitstream calls.
 
-   size_t totalBuffersSize = 0u;
-   for (size_t bufferIdx = 0; bufferIdx < num_buffers; bufferIdx++)
+   // VAAPI seems to send one decode_bitstream command per slice, but we should also support the VDPAU case where the buffers have multiple buffer array entry per slice {startCode (optional), slice1, slice2, ..., startCode (optional) , sliceN}
+
+   if(num_buffers > 2) // Assume this means multiple slices at once in a decode_bitstream call
    {
-      totalBuffersSize += sizes[bufferIdx];
-   }
+      // Based on VA frontend codebase, this never happens for video (no JPEG)
+      // Based on VDPAU frontends codebase, this only happens when sending more than one slice at once in decode bitstream
 
-   std::vector<uint8_t> sliceDataStagingBuffer(totalBuffersSize);
-   size_t dstOffset = 0u;
-   for (size_t bufferIdx = 0; bufferIdx < num_buffers; bufferIdx++)
-   {
-      memcpy(sliceDataStagingBuffer.data() + dstOffset, buffers[bufferIdx], sizes[bufferIdx]);
-      dstOffset += sizes[bufferIdx];
-   }
+      // To handle the case where VDPAU send all the slices at once in a single decode_bitstream call, let's pretend it was a series of different calls
 
-   uint64_t sliceDataStagingBufferSize = sliceDataStagingBuffer.size();
-   BYTE* sliceDataStagingBufferPtr = sliceDataStagingBuffer.data();
+      // group by start codes and buffers and perform calls for the number of slices so m_numConsecutiveDecodeFrame matches that number.
+      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_decode_bitstream multiple slices on same call detected for fenceValue: %d, breaking down the calls into one per slice\n", pD3D12Dec->m_fenceValue);
 
-   // TODO: If doesn't work with >= size, fix m_D3D12ResourceCopyHelper to support that (don't try to read the whole resource size from the pData src buffer that might be smaller).
+      size_t curBufferIdx = 0;
 
-   // Reallocate if necessary to accomodate the current frame bitstream buffer in GPU memory
-   // if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize < sliceDataStagingBufferSize)
-   if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize != sliceDataStagingBufferSize)
-   {
-      if(!d3d12_create_video_staging_bitstream_buffer(pD3D12Screen, pD3D12Dec, sliceDataStagingBufferSize))
+      // Vars to be used for the delegation calls to decode_bitstream
+      unsigned call_num_buffers = 0;
+      const void * const * call_buffers = nullptr;
+      const unsigned *call_sizes = nullptr;
+
+      while(curBufferIdx < num_buffers)
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_decode_bitstream - Failure on d3d12_create_video_staging_bitstream_buffer\n");
+         // Store the current buffer as the base array pointer for the delegated call, later decide if it'll be a startcode+slicedata or just slicedata call
+         call_buffers = &buffers[curBufferIdx];
+         call_sizes = &sizes[curBufferIdx];
+
+         // Usually start codes are less or equal than 4 bytes
+         // If the current buffer is a start code buffer, send it along with the next buffer. Otherwise, just send the current buffer.
+         call_num_buffers = (sizes[curBufferIdx] <= 4) ? 2 : 1;
+
+         // Delegate call with one or two buffers only
+         d3d12_video_decode_bitstream(codec,
+                           target,
+                           picture,
+                           call_num_buffers,
+                           call_buffers,
+                           call_sizes);
+
+         curBufferIdx += call_num_buffers; // Consume from the loop the buffers sent in the last call
       }
    }
-   
-   // Upload frame bitstream CPU data to ID3D12Resource buffer
-   pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize = sliceDataStagingBufferSize; // This can be less than m_curFrameCompressedBitstreamBufferAllocatedSize. 
-   pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(
-      pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get(),
-      0,
-      D3D12_RESOURCE_STATE_COMMON,
-      sliceDataStagingBufferPtr,
-      sizeof(*sliceDataStagingBufferPtr) * sliceDataStagingBufferSize,
-      sizeof(*sliceDataStagingBufferPtr) * sliceDataStagingBufferSize
-   );
-
-#if D3D12_DECODER_DEBUG_READ_FROM_H264_FILE
-/// 
-/// Compares the m_curFrameCompressedBitstreamBuffer GPU buffer contents of slice data for this frame
-/// against the data from a rawbitstream.h264 file from the current folder where the H.264 elemental bitstream
-/// for the target decoded video is in the format {SPS, PPS-1, ...slices..., PPS-2, ...slices..., PPS-K, ...slices... ...} with start codes of 4 bytes 00 00 00 01
-/// An assertion occurs if the comparison fails.
+   else
+   {
 ///
-   {
-      std::vector<uint8_t> pReadbackArray(sliceDataStagingBufferSize);
-      uint8_t* pReadbackBuffer = pReadbackArray.data();
-      pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
-         pReadbackBuffer,
-         sizeof(*pReadbackBuffer) * sliceDataStagingBufferSize,
-         sizeof(*pReadbackBuffer) * sliceDataStagingBufferSize,
-         pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get(),
-         0,
-         D3D12_RESOURCE_STATE_COMMON
+/// Handle single slice buffer path, maybe with an extra start code buffer at buffers[0].
+///
+
+      // Both the start codes being present at buffers[0] case and the multi-slice case can be handled by flattening all the buffers into a single one and passing that to HW.
+
+      size_t totalReceivedBuffersSize = 0u; // Combined size of all sizes[]
+      for (size_t bufferIdx = 0; bufferIdx < num_buffers; bufferIdx++)
+      {
+         totalReceivedBuffersSize += sizes[bufferIdx];
+      }
+
+      // Bytes of data pre-staged before this decode_frame call
+      size_t preStagedDataSize = pD3D12Dec->m_stagingDecodeBitstream.size();
+      
+      // Extend the staging buffer size, as decode_frame can be called several times before end_frame
+      pD3D12Dec->m_stagingDecodeBitstream.resize(preStagedDataSize + totalReceivedBuffersSize);
+      
+      // Point newSliceDataPositionDstBase to the end of the pre-staged data in m_stagingDecodeBitstream, where the new buffers will be appended
+      BYTE* newSliceDataPositionDstBase = pD3D12Dec->m_stagingDecodeBitstream.data() + preStagedDataSize;
+
+      // Append new data at the end.
+      size_t dstOffset = 0u;
+      for (size_t bufferIdx = 0; bufferIdx < num_buffers; bufferIdx++)
+      {
+         memcpy(newSliceDataPositionDstBase + dstOffset, buffers[bufferIdx], sizes[bufferIdx]);
+         dstOffset += sizes[bufferIdx];
+      }
+
+      ///
+      /// Codec header picture parameters buffers
+      ///
+
+      d3d12_store_converted_dxva_picparams_from_pipe_input (
+         pD3D12Dec,
+         picture
       );
-      
-      FILE* pSrcFile=fopen("rawbitstream.h264","rb");
-      assert(pSrcFile);
-      if(pD3D12Dec->m_fenceValue == 1u)
-      {
-         pD3D12Dec->m_sliceDataFileSeekOffset += 15u; // Skip first SPS
-      }
-      
-      pD3D12Dec->m_sliceDataFileSeekOffset += 8u; // Skip PPS for current frame
-      
-      fseek(pSrcFile, pD3D12Dec->m_sliceDataFileSeekOffset, SEEK_SET);
-      
-      uint64_t fileSeekBufSize = sliceDataStagingBufferSize + 1; // VA/VDPAU use 3 bytes start codes 00 00 01, file has 4 bytes start codes 00 00 00 01
+      assert(pD3D12Dec->m_picParamsBuffer.size() > 0);
 
-      std::vector<uint8_t> freadBuffer(fileSeekBufSize);
-      uint8_t* freadBufferPtr = freadBuffer.data();
+      // Gather information about interlace from the texture. end_frame will re-create d3d12 decoder/heap as necessary on reconfiguration
+      pD3D12Dec->m_InterlaceType = target->interlaced ? D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_FIELD_BASED : D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; 
 
-      D3D12_LOG_DBG("[D3D12 Video Driver] Reading %ld bytes at file offset 0x%lx - for frame: %d\n", fileSeekBufSize, pD3D12Dec->m_sliceDataFileSeekOffset , pD3D12Dec->m_fenceValue);
-      fread(freadBufferPtr, fileSeekBufSize, 1, pSrcFile);
+      pD3D12Dec->m_numConsecutiveDecodeFrame++;
 
-      fclose(pSrcFile);
-      pD3D12Dec->m_sliceDataFileSeekOffset += fileSeekBufSize; // skip slice data size in bytes
-
-      // Compare VA bitstream buffer against debug file slice data
-      for (size_t bytePos = 1/*skip extra 00 in start code at buffer beginning*/; bytePos < fileSeekBufSize; bytePos++)
-      {
-         assert(pReadbackBuffer != freadBufferPtr);
-         if(memcmp(&(freadBufferPtr[bytePos]), &(pReadbackBuffer[bytePos - 1 /*skip extra 00 in start code at buffer beginning*/]), 1) != 0)
-         {
-            D3D12_LOG_DBG("[D3D12 Video Driver] Mismatch: (freadBufferPtr[%ld]: %d, pReadbackBuffer [%ld]:%d)  - for frame: %d\n",bytePos, freadBufferPtr[bytePos], bytePos, pReadbackBuffer[bytePos] , pD3D12Dec->m_fenceValue);
-            assert(false);
-         }
-      }
-   }
-#endif
-
-   ///
-   /// Codec header picture parameters buffers
-   ///
-
-   d3d12_store_converted_dxva_params_from_pipe_input (
-      pD3D12Dec,
-      picture
-   );
-   assert(pD3D12Dec->m_picParamsBuffer.size() > 0);
-   assert(pD3D12Dec->m_SliceControlBuffer.size() > 0);
-
-   // Gather information about interlace from the texture. end_frame will re-create d3d12 decoder/heap as necessary on reconfiguration
-   pD3D12Dec->m_InterlaceType = target->interlaced ? D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_FIELD_BASED : D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; 
-
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_decode_bitstream finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_decode_bitstream finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   }   
 }
 
 /**
@@ -332,9 +323,77 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 {
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
    assert(pD3D12Dec);
+   struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pD3D12Dec->m_pD3D12Screen;
+   assert(pD3D12Screen);
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
    assert(pD3D12Dec->m_spD3D12VideoDevice);
    assert(pD3D12Dec->m_spDecodeCommandQueue);
+
+///
+/// Prepare Slice control buffers before clearing staging buffer
+///
+   assert(pD3D12Dec->m_stagingDecodeBitstream.size()>0); // Make sure the staging wasn't cleared yet in end_frame
+   
+   size_t numSlices = pD3D12Dec->m_numConsecutiveDecodeFrame;
+
+   std::vector<DXVA_Slice_H264_Short> pSliceControlBuffers(numSlices);
+   pSliceControlBuffers.resize(numSlices);
+   size_t processedBitstreamBytes = 0u;
+   for (size_t sliceIdx = 0; sliceIdx < numSlices; sliceIdx++)
+   {
+      // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
+      pSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
+      bool sliceFound = GetSliceSizeAndOffset(sliceIdx, numSlices, pD3D12Dec->m_stagingDecodeBitstream, processedBitstreamBytes, pSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
+      assert(sliceFound);
+      D3D12_LOG_DBG("[D3D12 Video Driver] Detected slice index %ld with size %d and offset %d for frame with fenceValue: %d\n", sliceIdx, pSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pSliceControlBuffers[sliceIdx].BSNALunitDataLocation, pD3D12Dec->m_fenceValue);
+      
+      processedBitstreamBytes += pSliceControlBuffers[sliceIdx].SliceBytesInBuffer;
+   }
+
+   assert( sizeof(pSliceControlBuffers.data()[0]) == sizeof(DXVA_Slice_H264_Short) );
+   d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(pD3D12Dec, pSliceControlBuffers.data(), pSliceControlBuffers.size() * sizeof((pSliceControlBuffers.data()[0])));
+   assert(pD3D12Dec->m_SliceControlBuffer.size() > 0);
+
+///
+/// Upload m_stagingDecodeBitstream to GPU memory now that end_frame is called and clear staging buffer
+///
+
+   uint64_t sliceDataStagingBufferSize = pD3D12Dec->m_stagingDecodeBitstream.size();
+   BYTE* sliceDataStagingBufferPtr = pD3D12Dec->m_stagingDecodeBitstream.data();
+
+   // TODO: If doesn't work with >= size, fix m_D3D12ResourceCopyHelper to support that (don't try to read the whole resource size from the pData src buffer that might be smaller).
+
+   // Reallocate if necessary to accomodate the current frame bitstream buffer in GPU memory
+   // if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize < sliceDataStagingBufferSize)
+   if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize != sliceDataStagingBufferSize)
+   {
+      if(!d3d12_create_video_staging_bitstream_buffer(pD3D12Screen, pD3D12Dec, sliceDataStagingBufferSize))
+      {
+         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_end_frame - Failure on d3d12_create_video_staging_bitstream_buffer\n");
+      }
+   }   
+
+   // Upload frame bitstream CPU data to ID3D12Resource buffer
+   pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize = sliceDataStagingBufferSize; // This can be less than m_curFrameCompressedBitstreamBufferAllocatedSize. 
+   assert(pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize <= pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize);
+   pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(
+      pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get(),
+      0,
+      D3D12_RESOURCE_STATE_COMMON,
+      sliceDataStagingBufferPtr,
+      sizeof(*sliceDataStagingBufferPtr) * sliceDataStagingBufferSize,
+      sizeof(*sliceDataStagingBufferPtr) * sliceDataStagingBufferSize
+   );
+
+   // Clear CPU staging buffer now that end_frame is called and was uploaded to GPU for DecodeFrame call.
+   pD3D12Dec->m_stagingDecodeBitstream.resize(0);
+   
+   // Reset decode_frame counter at end_frame call
+   pD3D12Dec->m_numConsecutiveDecodeFrame = 0;
+
+///
+/// Proceed to record the GPU Decode commands
+///
 
    struct d3d12_video_buffer* pD3D12VideoBuffer = (struct d3d12_video_buffer*) target;
    assert(pD3D12VideoBuffer);
@@ -1155,7 +1214,74 @@ void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *p
    }
 }
 
-void d3d12_store_converted_dxva_params_from_pipe_input (
+///
+/// Returns the number of bytes starting from [buf.data() + buffsetOffset] where the _targetCode_ is found
+/// Returns -1 if start code not found
+///
+int GetNextStartCodeOffset(D3D12DecoderByteBuffer &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer)
+{
+   struct vl_vlc vlc = {0};
+
+   // Shorten the buffer to be [buffetOffset, endOfBuf)
+   unsigned int bufSize = buf.size() - bufferOffset;
+   uint8_t* bufPtr = buf.data();
+   bufPtr += bufferOffset;
+
+   /* search the first numBitsToSearchIntoBuffer bytes for a startcode */
+   vl_vlc_init(&vlc, 1, (const void * const*) &bufPtr, &bufSize);
+   for (uint i = 0; i < numBitsToSearchIntoBuffer && vl_vlc_bits_left(&vlc) >= targetCodeBitSize; ++i) {
+      if (vl_vlc_peekbits(&vlc, targetCodeBitSize) == targetCode)
+         return i;
+      vl_vlc_eatbits(&vlc, 8); // Stride is 8 bits = 1 byte
+      vl_vlc_fillbits(&vlc);
+   }
+
+   return -1;
+}
+
+bool GetSliceSizeAndOffset(size_t sliceIdx, size_t numSlices, D3D12DecoderByteBuffer &buf, unsigned int bufferOffset, UINT& outSliceSize, UINT& outSliceOffset)
+{
+   if(sliceIdx >= numSlices)
+   {
+      return false;
+   }
+
+   if(sliceIdx == (numSlices - 1)) // If this is the last slice on the bitstream
+   {
+      uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset; // Search the rest of the full frame buffer after the offset
+      int currentSlicePosition = GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
+      assert(currentSlicePosition >= 0);
+
+      // Save the offset until the next slice in the output param
+      outSliceOffset = currentSlicePosition + bufferOffset;
+      
+      // As there is not another slice after this one, the size will be the difference between the bitsteam total size and the offset current slice
+
+      outSliceSize = buf.size() - outSliceOffset;
+   }   
+   else // If it's not the last slice on the bitstream
+   {
+      uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset; // Search the rest of the full frame buffer after the offset
+      int currentSlicePosition = GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
+      assert(currentSlicePosition >= 0); 
+
+      // Save the offset until the next slice in the output param
+      outSliceOffset = currentSlicePosition + bufferOffset;
+      
+      // As there's another slice after this one, look for it and calculate the size based on the next one's offset.
+
+      // Skip current start code, to get the slice after this, to calculate its size
+      bufferOffset += DXVA_H264_START_CODE_LEN_BITS;
+
+      int nextSlicePosition = DXVA_H264_START_CODE_LEN_BITS + GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
+      assert(nextSlicePosition >= 0); // if currentSlicePosition was the last slice, this might fail
+
+      outSliceSize = nextSlicePosition - currentSlicePosition;
+   }
+   return true;
+}
+
+void d3d12_store_converted_dxva_picparams_from_pipe_input (
     struct d3d12_video_decoder *codec, // input argument, current decoder
     struct pipe_picture_desc *picture // input argument, base structure of pipe_XXX_picture_desc where XXX is the codec name
 )
@@ -1186,39 +1312,6 @@ void d3d12_store_converted_dxva_params_from_pipe_input (
          {
             codec->m_InverseQuantMatrixBuffer.resize(0); //  m_InverseQuantMatrixBuffer.size() == 0 means no quantization matrix buffer is set for current frame
          }
-
-         ///
-         /// Slice control buffers
-         ///
-         
-         // TODO: Do we need to pass the DXVA_Slice_Long in any case when also passing the full slice bitstream to the ?
-         
-         std::vector<DXVA_Slice_H264_Short> pSliceControlBuffers(pPicControlH264->slice_count);
-         pSliceControlBuffers.resize(pPicControlH264->slice_count);
-         for (size_t sliceIdx = 0; sliceIdx < pPicControlH264->slice_count; sliceIdx++)
-         {
-            // From DXVA spec: If wBadSliceChopping is 0 or 1, this member locates the NAL unit with 
-            // nal_unit_type equal to 1, 2, or 5 for the current slice. The value is the byte offset, 
-            // from the start of the bitstream data buffer, of the first byte of the start code prefix in 
-            // the byte stream NAL unit that contains the NAL unit with nal_unit_type equal to 1, 2, 
-            // or 5. (The start code prefix is the start_code_prefix_one_3bytes syntax element. T
-            
-            pSliceControlBuffers[sliceIdx].BSNALunitDataLocation = 0u; // For now only single slice, no offset
-
-            assert(pPicControlH264->slice_count <= 1);
-            // TODO: Multi-slice support - Parse flattened bitstream and detect SliceBytesInBuffer(size) and BSNALunitDataLocation(offset)
-               // unsigned int sliceBufOffset = 0u;
-               // unsigned int numBitsToSearchIntoBuffer = 64u;
-               // pSliceControlBuffers[sliceIdx].BSNALunitDataLocation = GetStartCodeBytesOffsetInBuffer(pD3D12Dec->curFrameSliceBitstreamBuffer, sliceBufOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
-               
-            // From DXVA spec: Number of bytes in the bitstream data buffer that are associated with this slice control data structure,
-            // starting with the byte at the offset given in BSNALunitDataLocation
-            pSliceControlBuffers[sliceIdx].SliceBytesInBuffer = pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize; // For now only single slice, no offset
-            // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
-            pSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
-         }
-
-         d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(codec, pSliceControlBuffers.data(), pSliceControlBuffers.size() * sizeof(pSliceControlBuffers.data()[0]));
       }
       break;
       default:
@@ -1227,32 +1320,9 @@ void d3d12_store_converted_dxva_params_from_pipe_input (
    }
 }
 
-///
-/// Returns the number of bytes starting from [buf.data() + buffsetOffset] where the _targetCode_ is found
-/// Returns -1 if start code not found
-///
-// static unsigned int GetStartCodeBytesOffsetInBuffer(D3D12DecoderByteBuffer &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer)
-// {
-//    struct vl_vlc vlc = {0};
-
-//    unsigned int bufSize = buf.size() - bufferOffset;
-//    uint8_t* bufPtr = buf.data();
-//    bufPtr += bufferOffset;
-
-//    /* search the first numBitsToSearchIntoBuffer bytes for a startcode */
-//    vl_vlc_init(&vlc, 1, (const void * const*) bufPtr, &bufSize);
-//    for (uint i = 0; i < numBitsToSearchIntoBuffer && vl_vlc_bits_left(&vlc) >= targetCodeBitSize; ++i) {
-//       if (vl_vlc_peekbits(&vlc, targetCodeBitSize) == targetCode)
-//          return i;
-//       vl_vlc_eatbits(&vlc, 8); // Stride is 8 bits = 1 byte
-//       vl_vlc_fillbits(&vlc);
-//    }
-
-//    return -1;
-// }
-
 void d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
 {
+   assert((DXVAStructSize % sizeof(DXVA_Slice_H264_Short)) == 0);
    if (pD3D12Dec->m_SliceControlBuffer.capacity() < DXVAStructSize)
    {
       pD3D12Dec->m_SliceControlBuffer.reserve(DXVAStructSize);
