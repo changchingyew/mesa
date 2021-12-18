@@ -23,6 +23,8 @@
 
 #include "d3d12_video_dec_references_mgr.h"
 #include "d3d12_video_dec_h264.h"
+#include "d3d12_video_texture_array_dpb_manager.h"
+#include "d3d12_video_array_of_textures_dpb_manager.h"
 
 //----------------------------------------------------------------------------------------------------------------------------------
 static UINT16 GetInvalidReferenceIndex(D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType)
@@ -74,16 +76,27 @@ D3D12VidDecReferenceDataManager::D3D12VidDecReferenceDataManager(
     const struct d3d12_screen* pD3D12Screen,
     UINT NodeMask,
     D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
-    D3D12DPBDescriptor dpbDescriptor
+    D3D12DPBDescriptor m_dpbDescriptor
 )
     : m_pD3D12Screen(pD3D12Screen)
     , m_NodeMask(NodeMask)
     , m_invalidIndex(GetInvalidReferenceIndex(DecodeProfileType))
-    , m_dpbDescriptor(dpbDescriptor)
+    , m_dpbDescriptor(m_dpbDescriptor)
     {
-        this->Resize(dpbDescriptor);
+        this->Init();
 
         m_outputDecoderTextures.resize(m_dpbDescriptor.dpbSize);
+
+        D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC targetFrameResolution = {m_dpbDescriptor.Width, m_dpbDescriptor.Height};
+        D3D12_RESOURCE_FLAGS resourceAllocFlags = m_dpbDescriptor.fReferenceOnly ? (D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) : D3D12_RESOURCE_FLAG_NONE;
+        if(m_dpbDescriptor.fArrayOfTexture)
+        {
+            m_upD3D12TexturesStorageManager = std::make_unique<ArrayOfTexturesDPBManager>(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
+        }
+        else
+        {
+            m_upD3D12TexturesStorageManager = std::make_unique<TexturesArrayDPBManager>(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
+        }
     }
 
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -274,28 +287,20 @@ void D3D12VidDecReferenceDataManager::ReleaseUnusedReferences()
 
 //----------------------------------------------------------------------------------------------------------------------------------
 _Use_decl_annotations_
-void D3D12VidDecReferenceDataManager::Resize(D3D12DPBDescriptor dpbDescriptor)
+void D3D12VidDecReferenceDataManager::Init()
 {
-    m_dpbDescriptor = dpbDescriptor;
-
-    ResizeDataStructures(dpbDescriptor.dpbSize);
+    ResizeDataStructures(m_dpbDescriptor.dpbSize);
     ResetInternalTrackingReferenceUsage();
     ResetReferenceFramesInformation();
     ReleaseUnusedReferences();
 
-    typedef struct D3D12ResourceHeapCombinedDesc
-    {
-        D3D12_RESOURCE_DESC m_desc12;
-        D3D12_HEAP_DESC m_heapDesc;
-    } D3D12ResourceHeapCombinedDesc;
-
     if (m_dpbDescriptor.fReferenceOnly)
-        {
+    {
         D3D12ResourceHeapCombinedDesc requiredResourceArgs = {};
 
         if (m_dpbDescriptor.fArrayOfTexture)
         {
-            requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(dpbDescriptor.Format, dpbDescriptor.Width, dpbDescriptor.Height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
+            requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(m_dpbDescriptor.Format, m_dpbDescriptor.Width, m_dpbDescriptor.Height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
             UINT64 requiredResourceSize = 0;
             m_pD3D12Screen->dev->GetCopyableFootprints(&requiredResourceArgs.m_desc12, 0, 1, 0, nullptr, nullptr, nullptr, &requiredResourceSize);
             requiredResourceArgs.m_heapDesc = CD3DX12_HEAP_DESC(requiredResourceSize, CD3DX12_HEAP_PROPERTIES((D3D12_HEAP_TYPE_DEFAULT), m_NodeMask, m_NodeMask));
@@ -341,7 +346,7 @@ void D3D12VidDecReferenceDataManager::Resize(D3D12DPBDescriptor dpbDescriptor)
         }
         else
         {
-            requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(dpbDescriptor.Format, dpbDescriptor.Width, dpbDescriptor.Height, dpbDescriptor.dpbSize, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
+            requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(m_dpbDescriptor.Format, m_dpbDescriptor.Width, m_dpbDescriptor.Height, m_dpbDescriptor.dpbSize, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
             UINT64 requiredResourceSize = 0;
             m_pD3D12Screen->dev->GetCopyableFootprints(&requiredResourceArgs.m_desc12, 0, 1, 0, nullptr, nullptr, nullptr, &requiredResourceSize);
             requiredResourceArgs.m_heapDesc = CD3DX12_HEAP_DESC(requiredResourceSize, CD3DX12_HEAP_PROPERTIES((D3D12_HEAP_TYPE_DEFAULT), m_NodeMask, m_NodeMask));

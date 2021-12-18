@@ -25,6 +25,13 @@
 #define D3D12_VIDEO_DEC_REFMGR_H
 
 #include "d3d12_video_dec_types.h"
+#include "d3d12_video_dpb_storage_manager.h"
+
+typedef struct D3D12ResourceHeapCombinedDesc
+{
+    D3D12_RESOURCE_DESC m_desc12;
+    D3D12_HEAP_DESC m_heapDesc;
+} D3D12ResourceHeapCombinedDesc;
 
 struct D3D12VidDecReferenceDataManager
 {
@@ -68,7 +75,7 @@ struct D3D12VidDecReferenceDataManager
     std::vector<ID3D12VideoDecoderHeap *>                decoderHeapsParameter;
 
 protected:
-    void Resize(D3D12DPBDescriptor dpbDescriptor);
+    void Init();
     
     template<typename T, size_t size> 
     void GetUpdatedEntries(T (&picEntries)[size]);
@@ -86,14 +93,15 @@ protected:
         ComPtr<ID3D12VideoDecoderHeap>      decoderHeap;
         ComPtr<ID3D12Resource>              referenceOnlyTexture; // Allocated and lifetime managed by translation layer
         ID3D12Resource*                     referenceTexture;     // May point to caller allocated resource or referenceOnlyTexture
-        D3D12_RESOURCE_DESC                 resourceDesc;
         UINT                                subresourceIndex;
         UINT16                              originalIndex;
         bool                                fUsed;        
     };
 
     std::vector<ComPtr<ID3D12Resource>>              m_outputDecoderTextures; // TODO: Move out of here
-    uint m_DecodeOutputIdx = 0;
+    uint m_DecodeOutputIdx = 0; // TODO: Move out of here
+
+    std::unique_ptr<ID3D12VideoDPBStorageManager> m_upD3D12TexturesStorageManager;
 
     void ResizeDataStructures(UINT size);
     UINT16 FindRemappedIndex(UINT16 originalIndex);
