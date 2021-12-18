@@ -47,27 +47,11 @@ void D3D12VidDecReferenceDataManager::GetCurrentFrameDecodeOutputTexture(ID3D12R
     /// Create decode output texture
     ///
 
-    // TODO: In method Resize, initialize the right combination of texturearray/refonly
-    // That should only contain the ref pictures, not the current decoded picture (except in texArray + !refOnlyMode)
-    // in that case we should get the (resource, subresource) pair within the texarray dpb and assign them to
-    // m_spDecodeOutputStagingTexture
-    // m_decodeOutputStagingTextureSubresource
-    // so the GPU decodes directly into the DPB tex array slot and we don't have to copy it
+    // Returns a fresh texture from the pool.
+    D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE pFreshAllocation = m_upD3D12TexturesStorageManager->GetNewTrackedReconstructedPictureAllocation();
 
-    CD3DX12_RESOURCE_DESC textureCreationDesc = CD3DX12_RESOURCE_DESC::Tex2D(m_dpbDescriptor.Format, m_dpbDescriptor.Width, m_dpbDescriptor.Height, 1, 1);
-    D3D12_HEAP_PROPERTIES textureCreationProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_NodeMask, m_NodeMask);
-    VERIFY_SUCCEEDED(m_pD3D12Screen->dev->CreateCommittedResource(
-        &textureCreationProps,
-        D3D12_HEAP_FLAG_NONE,
-        &textureCreationDesc,
-        D3D12_RESOURCE_STATE_COMMON,
-        nullptr,
-        IID_PPV_ARGS(m_outputDecoderTextures[m_DecodeOutputIdx % m_dpbDescriptor.dpbSize].GetAddressOf())));
-
-        *ppOutTexture2D = m_outputDecoderTextures[m_DecodeOutputIdx % m_dpbDescriptor.dpbSize].Get();
-        *pOutSubresourceIndex = 0u;
-
-        m_DecodeOutputIdx++;
+    *ppOutTexture2D = pFreshAllocation.pReconstructedPicture;
+    *pOutSubresourceIndex = pFreshAllocation.ReconstructedPictureSubresource;
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -84,8 +68,6 @@ D3D12VidDecReferenceDataManager::D3D12VidDecReferenceDataManager(
     , m_dpbDescriptor(m_dpbDescriptor)
     {
         this->Init();
-
-        m_outputDecoderTextures.resize(m_dpbDescriptor.dpbSize);
 
         D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC targetFrameResolution = {m_dpbDescriptor.Width, m_dpbDescriptor.Height};
         D3D12_RESOURCE_FLAGS resourceAllocFlags = m_dpbDescriptor.fReferenceOnly ? (D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) : D3D12_RESOURCE_FLAG_NONE;

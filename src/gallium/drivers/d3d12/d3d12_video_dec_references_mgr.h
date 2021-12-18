@@ -96,10 +96,7 @@ protected:
         UINT                                subresourceIndex;
         UINT16                              originalIndex;
         bool                                fUsed;        
-    };
-
-    std::vector<ComPtr<ID3D12Resource>>              m_outputDecoderTextures; // TODO: Move out of here
-    uint m_DecodeOutputIdx = 0; // TODO: Move out of here
+    };    
 
     std::unique_ptr<ID3D12VideoDPBStorageManager> m_upD3D12TexturesStorageManager;
 
