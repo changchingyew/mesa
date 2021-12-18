@@ -897,14 +897,14 @@ void d3d12_decoder_prepare_for_decode_frame(
    UINT* pOutSubresourceIndex,
    const D3D12DecVideoDecodeOutputConversionArguments& conversionArgs
 )
-{
-   // (Re) Configures DXVA DPB manager, D3D12 DPB textures managers, and returns the decode output pair <resource, subresource> for the current frame 
+{   
    d3d12_decoder_reconfigure_dpb(
       pD3D12Dec,
       pD3D12VideoBuffer,
-      conversionArgs,
-      ppOutTexture2D, // output
-      pOutSubresourceIndex); // output
+      conversionArgs);
+
+   // Get the texture for the current frame to be decoded
+   pD3D12Dec->m_spDPBManager->GetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
 
    d3d12_decoder_release_unused_references(pD3D12Dec);
 
@@ -914,8 +914,8 @@ void d3d12_decoder_prepare_for_decode_frame(
       {
          d3d12_decoder_prepare_h264_reference_pic_settings(
          pD3D12Dec,
-         *ppOutTexture2D, // Input - We pass the value of the ppOutTexture2D, obtained in d3d12_decoder_reconfigure_dpb above
-         *pOutSubresourceIndex // Input - We pass the value of the pOutSubresourceIndex, obtained in d3d12_decoder_reconfigure_dpb above
+         *ppOutTexture2D, // Input - We pass the value of the ppOutTexture2D
+         *pOutSubresourceIndex // Input - We pass the value of the pOutSubresourceIndex
          );   
       } break;
 
@@ -928,9 +928,7 @@ void d3d12_decoder_prepare_for_decode_frame(
 void d3d12_decoder_reconfigure_dpb(
    struct d3d12_video_decoder *pD3D12Dec,
    struct d3d12_video_buffer* pD3D12VideoBuffer,
-   const D3D12DecVideoDecodeOutputConversionArguments& conversionArguments,
-   ID3D12Resource** ppOutTexture2D,
-   UINT* pOutSubresourceIndex
+   const D3D12DecVideoDecodeOutputConversionArguments& conversionArguments   
    )
 {
    UINT width;
@@ -1008,9 +1006,6 @@ void d3d12_decoder_reconfigure_dpb(
    }
 
    pD3D12Dec->m_decodeFormat = outputResourceDesc.Format;
-
-   // Get the texture for the current frame to be decoded
-   pD3D12Dec->m_spDPBManager->GetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
 }
 
 void d3d12_decoder_release_unused_references(struct d3d12_video_decoder *pD3D12Dec)
