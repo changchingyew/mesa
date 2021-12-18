@@ -74,7 +74,8 @@ public:
         ID3D12Device* pDevice,
         DXGI_FORMAT encodeSessionFormat,
         D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
-        D3D12_RESOURCE_FLAGS resourceAllocFlags = D3D12_RESOURCE_FLAG_NONE
+        D3D12_RESOURCE_FLAGS resourceAllocFlags = D3D12_RESOURCE_FLAG_NONE,
+        bool setNullSubresourcesOnAllZero = false
     );
     ~ArrayOfTexturesDPBManager() { }
 
@@ -113,6 +114,10 @@ private:
     } ReusableResource;
 
     std::vector<ReusableResource> m_ResourcesPool;
+
+    // If all subresources are 0, the DPB is loaded with an array of individual textures, the D3D Encode API expects pSubresources to be null in this case
+    // The D3D Decode API expects it to be non-null even with all zeroes.
+    bool m_NullSubresourcesOnAllZero = false;
 };
 
 #endif

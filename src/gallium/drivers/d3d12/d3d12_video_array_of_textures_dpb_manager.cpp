@@ -59,13 +59,15 @@ ArrayOfTexturesDPBManager::ArrayOfTexturesDPBManager(
     ID3D12Device* pDevice,
     DXGI_FORMAT encodeSessionFormat,
     D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
-    D3D12_RESOURCE_FLAGS resourceAllocFlags
+    D3D12_RESOURCE_FLAGS resourceAllocFlags,
+    bool setNullSubresourcesOnAllZero
 ) :
     m_dpbInitialSize(dpbInitialSize),
     m_pDevice(pDevice),
     m_encodeFormat(encodeSessionFormat),
     m_encodeResolution(encodeSessionResolution),
-    m_resourceAllocFlags(resourceAllocFlags)
+    m_resourceAllocFlags(resourceAllocFlags),
+    m_NullSubresourcesOnAllZero(setNullSubresourcesOnAllZero)
 {
     // Initialize D3D12 DPB exposed in this class implemented CRUD interface for a DPB
     assert(0u == ClearDecodePictureBuffer());
@@ -245,8 +247,9 @@ UINT ArrayOfTexturesDPBManager::GetNumberOfPicsInDPB()
 D3D12_VIDEO_ENCODE_REFERENCE_FRAMES ArrayOfTexturesDPBManager::GetCurrentFrameReferenceFrames()
 {
     // If all subresources are 0, the DPB is loaded with an array of individual textures, the D3D Encode API expects pSubresources to be null in this case
+    // The D3D Decode API expects it to be non-null even with all zeroes.
     UINT* pSubresources = m_D3D12DPB.pSubresources.data();
-    if(std::all_of(m_D3D12DPB.pSubresources.cbegin(), m_D3D12DPB.pSubresources.cend(), [](int i){ return i == 0; })) 
+    if((std::all_of(m_D3D12DPB.pSubresources.cbegin(), m_D3D12DPB.pSubresources.cend(), [](int i){ return i == 0; })) && m_NullSubresourcesOnAllZero) 
     {
         pSubresources = nullptr;
     }
