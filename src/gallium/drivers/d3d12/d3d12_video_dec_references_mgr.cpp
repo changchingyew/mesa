@@ -39,15 +39,52 @@ static UINT16 GetInvalidReferenceIndex(D3D12_VIDEO_DECODE_PROFILE_TYPE DecodePro
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
+void D3D12VidDecReferenceDataManager::GetCurrentFrameDecodeOutputTexture(ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex)
+{
+    ///
+    /// Create decode output texture
+    ///
+
+    // TODO: In method Resize, initialize the right combination of texturearray/refonly
+    // That should only contain the ref pictures, not the current decoded picture (except in texArray + !refOnlyMode)
+    // in that case we should get the (resource, subresource) pair within the texarray dpb and assign them to
+    // m_spDecodeOutputStagingTexture
+    // m_decodeOutputStagingTextureSubresource
+    // so the GPU decodes directly into the DPB tex array slot and we don't have to copy it
+
+    CD3DX12_RESOURCE_DESC textureCreationDesc = CD3DX12_RESOURCE_DESC::Tex2D(m_dpbDescriptor.Format, m_dpbDescriptor.Width, m_dpbDescriptor.Height, 1, 1);
+    D3D12_HEAP_PROPERTIES textureCreationProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_NodeMask, m_NodeMask);
+    VERIFY_SUCCEEDED(m_pD3D12Screen->dev->CreateCommittedResource(
+        &textureCreationProps,
+        D3D12_HEAP_FLAG_NONE,
+        &textureCreationDesc,
+        D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(m_outputDecoderTextures[m_DecodeOutputIdx % m_dpbDescriptor.dpbSize].GetAddressOf())));
+
+        *ppOutTexture2D = m_outputDecoderTextures[m_DecodeOutputIdx % m_dpbDescriptor.dpbSize].Get();
+        *pOutSubresourceIndex = 0u;
+
+        m_DecodeOutputIdx++;
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
 _Use_decl_annotations_
 D3D12VidDecReferenceDataManager::D3D12VidDecReferenceDataManager(
     const struct d3d12_screen* pD3D12Screen,
+    UINT NodeMask,
     D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
-    UINT NodeMask)
-        : m_pD3D12Screen(pD3D12Screen)
-        , m_invalidIndex(GetInvalidReferenceIndex(DecodeProfileType))
-        , m_NodeMask(NodeMask)
-    {}
+    D3D12DPBDescriptor dpbDescriptor
+)
+    : m_pD3D12Screen(pD3D12Screen)
+    , m_NodeMask(NodeMask)
+    , m_invalidIndex(GetInvalidReferenceIndex(DecodeProfileType))
+    , m_dpbDescriptor(dpbDescriptor)
+    {
+        this->Resize(dpbDescriptor);
+
+        m_outputDecoderTextures.resize(m_dpbDescriptor.dpbSize);
+    }
 
 //----------------------------------------------------------------------------------------------------------------------------------
 UINT16 D3D12VidDecReferenceDataManager::FindRemappedIndex(UINT16 originalIndex)
@@ -104,7 +141,7 @@ UINT16 D3D12VidDecReferenceDataManager::UpdateEntry(
 
         decoderHeapsParameter[remappedIndex] = referenceDatas[remappedIndex].decoderHeap.Get();        
         textures[remappedIndex] = referenceDatas[remappedIndex].referenceTexture;
-        texturesSubresources[remappedIndex] = referenceDatas[remappedIndex].subresourceIndex;
+        texturesSubresources[remappedIndex] = referenceDatas[remappedIndex].subresourceIndex;        
 
         pOutputReferenceNoRef = outNeedsTransitionToDecodeRead ? referenceDatas[remappedIndex].referenceTexture : nullptr;
         OutputSubresource = outNeedsTransitionToDecodeRead ? referenceDatas[remappedIndex].subresourceIndex : 0u;
@@ -237,16 +274,14 @@ void D3D12VidDecReferenceDataManager::ReleaseUnusedReferences()
 
 //----------------------------------------------------------------------------------------------------------------------------------
 _Use_decl_annotations_
-void D3D12VidDecReferenceDataManager::Resize(UINT16 dpb, D3D12ReferenceOnlyDesc* pReferenceOnly, bool fArrayOfTexture)
+void D3D12VidDecReferenceDataManager::Resize(D3D12DPBDescriptor dpbDescriptor)
 {
-    m_fArrayOfTexture = fArrayOfTexture;
+    m_dpbDescriptor = dpbDescriptor;
 
-    ResizeDataStructures(dpb);
+    ResizeDataStructures(dpbDescriptor.dpbSize);
     ResetInternalTrackingReferenceUsage();
     ResetReferenceFramesInformation();
     ReleaseUnusedReferences();
-
-    m_fReferenceOnly = pReferenceOnly != nullptr;
 
     typedef struct D3D12ResourceHeapCombinedDesc
     {
@@ -254,86 +289,86 @@ void D3D12VidDecReferenceDataManager::Resize(UINT16 dpb, D3D12ReferenceOnlyDesc*
         D3D12_HEAP_DESC m_heapDesc;
     } D3D12ResourceHeapCombinedDesc;
 
-    if (m_fReferenceOnly)
+    if (m_dpbDescriptor.fReferenceOnly)
         {
-            D3D12ResourceHeapCombinedDesc requiredResourceArgs = {};
+        D3D12ResourceHeapCombinedDesc requiredResourceArgs = {};
 
-            if (fArrayOfTexture)
+        if (m_dpbDescriptor.fArrayOfTexture)
+        {
+            requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(dpbDescriptor.Format, dpbDescriptor.Width, dpbDescriptor.Height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
+            UINT64 requiredResourceSize = 0;
+            m_pD3D12Screen->dev->GetCopyableFootprints(&requiredResourceArgs.m_desc12, 0, 1, 0, nullptr, nullptr, nullptr, &requiredResourceSize);
+            requiredResourceArgs.m_heapDesc = CD3DX12_HEAP_DESC(requiredResourceSize, CD3DX12_HEAP_PROPERTIES((D3D12_HEAP_TYPE_DEFAULT), m_NodeMask, m_NodeMask));
+
+            for (ReferenceData& referenceData : referenceDatas)
             {
-                requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(pReferenceOnly->Format, pReferenceOnly->Width, pReferenceOnly->Height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
-                UINT64 requiredResourceSize = 0;
-                m_pD3D12Screen->dev->GetCopyableFootprints(&requiredResourceArgs.m_desc12, 0, 1, 0, nullptr, nullptr, nullptr, &requiredResourceSize);
-                requiredResourceArgs.m_heapDesc = CD3DX12_HEAP_DESC(requiredResourceSize, CD3DX12_HEAP_PROPERTIES((D3D12_HEAP_TYPE_DEFAULT), m_NodeMask, m_NodeMask));
-
-                for (ReferenceData& referenceData : referenceDatas)
-                {
-                    D3D12_HEAP_PROPERTIES currentHeapProps = { };
-                    D3D12_HEAP_FLAGS currentHeapFlags = { };
-                    HRESULT hr = referenceData.referenceOnlyTexture->GetHeapProperties(&currentHeapProps, &currentHeapFlags);
-                    if(FAILED(hr))
-                    {
-                        D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::Resize - GetHeapProperties failed with HR %x\n", hr);
-                    }
-                    D3D12_RESOURCE_DESC currentResourceDesc = referenceData.referenceOnlyTexture->GetDesc();
-                    UINT64 currentResourceSize = 0;
-                    m_pD3D12Screen->dev->GetCopyableFootprints(&currentResourceDesc, 0, 1, 0, nullptr, nullptr, nullptr, &currentResourceSize);
-
-                    D3D12ResourceHeapCombinedDesc existingResourceArgs = 
-                    {
-                        currentResourceDesc,
-                        CD3DX12_HEAP_DESC(currentResourceSize, currentHeapProps, 0L, currentHeapFlags)
-                    };
-
-                    if (   !referenceData.referenceOnlyTexture
-                        || 0 != memcmp(&existingResourceArgs, &requiredResourceArgs, sizeof(D3D12ResourceHeapCombinedDesc)))
-                    {
-                        hr = m_pD3D12Screen->dev->CreateCommittedResource(
-                            &requiredResourceArgs.m_heapDesc.Properties,
-                            D3D12_HEAP_FLAG_NONE,
-                            &requiredResourceArgs.m_desc12,
-                            D3D12_RESOURCE_STATE_COMMON,
-                            nullptr,
-                            IID_PPV_ARGS(referenceData.referenceOnlyTexture.GetAddressOf()));
-                        if(FAILED(hr))
-                        {
-                            D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::Resize - CreateCommittedResource failed with HR %x\n", hr);
-                        }
-                    }
-
-                    referenceData.referenceTexture = referenceData.referenceOnlyTexture.Get();
-                    referenceData.subresourceIndex = 0u;
-                }
-            }
-            else
-            {
-                requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(pReferenceOnly->Format, pReferenceOnly->Width, pReferenceOnly->Height, dpb, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
-                UINT64 requiredResourceSize = 0;
-                m_pD3D12Screen->dev->GetCopyableFootprints(&requiredResourceArgs.m_desc12, 0, 1, 0, nullptr, nullptr, nullptr, &requiredResourceSize);
-                requiredResourceArgs.m_heapDesc = CD3DX12_HEAP_DESC(requiredResourceSize, CD3DX12_HEAP_PROPERTIES((D3D12_HEAP_TYPE_DEFAULT), m_NodeMask, m_NodeMask));
-
-                ComPtr<ID3D12Resource> spReferenceOnlyTextureArray;
-                
-                HRESULT hr = m_pD3D12Screen->dev->CreateCommittedResource(
-                            &requiredResourceArgs.m_heapDesc.Properties,
-                            D3D12_HEAP_FLAG_NONE,
-                            &requiredResourceArgs.m_desc12,
-                            D3D12_RESOURCE_STATE_COMMON,
-                            nullptr,
-                            IID_PPV_ARGS(spReferenceOnlyTextureArray.GetAddressOf()));
-
+                D3D12_HEAP_PROPERTIES currentHeapProps = { };
+                D3D12_HEAP_FLAGS currentHeapFlags = { };
+                HRESULT hr = referenceData.referenceOnlyTexture->GetHeapProperties(&currentHeapProps, &currentHeapFlags);
                 if(FAILED(hr))
                 {
-                    D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::Resize - CreateCommittedResource failed with HR %x\n", hr);
+                    D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::Resize - GetHeapProperties failed with HR %x\n", hr);
+                }
+                D3D12_RESOURCE_DESC currentResourceDesc = referenceData.referenceOnlyTexture->GetDesc();
+                UINT64 currentResourceSize = 0;
+                m_pD3D12Screen->dev->GetCopyableFootprints(&currentResourceDesc, 0, 1, 0, nullptr, nullptr, nullptr, &currentResourceSize);
+
+                D3D12ResourceHeapCombinedDesc existingResourceArgs = 
+                {
+                    currentResourceDesc,
+                    CD3DX12_HEAP_DESC(currentResourceSize, currentHeapProps, 0L, currentHeapFlags)
+                };
+
+                if (   !referenceData.referenceOnlyTexture
+                    || 0 != memcmp(&existingResourceArgs, &requiredResourceArgs, sizeof(D3D12ResourceHeapCombinedDesc)))
+                {
+                    hr = m_pD3D12Screen->dev->CreateCommittedResource(
+                        &requiredResourceArgs.m_heapDesc.Properties,
+                        D3D12_HEAP_FLAG_NONE,
+                        &requiredResourceArgs.m_desc12,
+                        D3D12_RESOURCE_STATE_COMMON,
+                        nullptr,
+                        IID_PPV_ARGS(referenceData.referenceOnlyTexture.GetAddressOf()));
+                    if(FAILED(hr))
+                    {
+                        D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::Resize - CreateCommittedResource failed with HR %x\n", hr);
+                    }
                 }
 
-                for (size_t i = 0; i < referenceDatas.size(); i++)
-                {
-                    referenceDatas[i].referenceOnlyTexture = spReferenceOnlyTextureArray.Get();
-                    referenceDatas[i].referenceTexture = spReferenceOnlyTextureArray.Get();
-                    referenceDatas[i].subresourceIndex = static_cast<UINT>(i);
-                }
+                referenceData.referenceTexture = referenceData.referenceOnlyTexture.Get();
+                referenceData.subresourceIndex = 0u;
             }
         }
+        else
+        {
+            requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(dpbDescriptor.Format, dpbDescriptor.Width, dpbDescriptor.Height, dpbDescriptor.dpbSize, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
+            UINT64 requiredResourceSize = 0;
+            m_pD3D12Screen->dev->GetCopyableFootprints(&requiredResourceArgs.m_desc12, 0, 1, 0, nullptr, nullptr, nullptr, &requiredResourceSize);
+            requiredResourceArgs.m_heapDesc = CD3DX12_HEAP_DESC(requiredResourceSize, CD3DX12_HEAP_PROPERTIES((D3D12_HEAP_TYPE_DEFAULT), m_NodeMask, m_NodeMask));
+
+            ComPtr<ID3D12Resource> spReferenceOnlyTextureArray;
+            
+            HRESULT hr = m_pD3D12Screen->dev->CreateCommittedResource(
+                        &requiredResourceArgs.m_heapDesc.Properties,
+                        D3D12_HEAP_FLAG_NONE,
+                        &requiredResourceArgs.m_desc12,
+                        D3D12_RESOURCE_STATE_COMMON,
+                        nullptr,
+                        IID_PPV_ARGS(spReferenceOnlyTextureArray.GetAddressOf()));
+
+            if(FAILED(hr))
+            {
+                D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::Resize - CreateCommittedResource failed with HR %x\n", hr);
+            }
+
+            for (size_t i = 0; i < referenceDatas.size(); i++)
+            {
+                referenceDatas[i].referenceOnlyTexture = spReferenceOnlyTextureArray.Get();
+                referenceDatas[i].referenceTexture = spReferenceOnlyTextureArray.Get();
+                referenceDatas[i].subresourceIndex = static_cast<UINT>(i);
+            }
+        }
+    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------

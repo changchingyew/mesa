@@ -45,7 +45,7 @@ void d3d12_decoder_release_unused_references_h264(struct d3d12_video_decoder *pD
 	pD3D12Dec->m_spDPBManager->MarkReferencesInUse(d3d12_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList);
 }
 
-void d3d12_decoder_prepare_for_decode_frame_h264(
+void d3d12_decoder_prepare_h264_reference_pic_settings(
 	struct d3d12_video_decoder *pD3D12Dec,
 	ID3D12Resource* pTexture2D,
 	UINT subresourceIndex

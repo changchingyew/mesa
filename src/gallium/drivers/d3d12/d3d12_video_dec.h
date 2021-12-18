@@ -110,8 +110,7 @@ typedef struct D3D12OutputTexturePlanesBufferDesc
     uint64_t m_UVStride;
 } D3D12OutputTexturePlanesBufferDesc;
 
-#define D3D12_DECODER_USE_STAGING_OUTPUT_TEXTURE true // TODO: Not using staging decoded texture causes changes to underlying Id3d12Resource of pipe target buffer not to be picked up
-#define D3D12_DECODER_MOCK_DECODED_TEXTURE false
+#define D3D12_DECODER_COPY_OUTPUT_AS_CPU_BUFFER true
 
 struct d3d12_video_decoder
 {
@@ -135,10 +134,7 @@ struct d3d12_video_decoder
     ComPtr<ID3D12CommandQueue> m_spDecodeCommandQueue;
     ComPtr<ID3D12CommandAllocator> m_spCommandAllocator;
     ComPtr<ID3D12VideoDecodeCommandList1> m_spDecodeCommandList;
-    ComPtr<ID3D12CommandQueue> m_spCopyQueue;  
-#if D3D12_DECODER_USE_STAGING_OUTPUT_TEXTURE
-    ComPtr<ID3D12Resource> m_spDecodeOutputStagingTexture;
-#endif
+    ComPtr<ID3D12CommandQueue> m_spCopyQueue;
     std::unique_ptr<D3D12ResourceCopyHelper> m_D3D12ResourceCopyHelper;  
 
     std::vector<D3D12_RESOURCE_BARRIER> m_transitionsBeforeCloseCmdList;
@@ -148,7 +144,6 @@ struct d3d12_video_decoder
     D3D12_VIDEO_DECODE_TIER                m_tier = D3D12_VIDEO_DECODE_TIER_NOT_SUPPORTED;
     DXGI_FORMAT                            m_decodeFormat;
     D3D12_VIDEO_DECODE_CONFIGURATION_FLAGS m_configurationFlags = D3D12_VIDEO_DECODE_CONFIGURATION_FLAG_NONE;
-    D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE m_InterlaceType;
     GUID m_d3d12DecProfile = { };
     D3D12_VIDEO_DECODE_PROFILE_TYPE m_d3d12DecProfileType = { };
     uint m_MaxReferencePicsWithCurrentPic = 0u;
@@ -160,7 +155,6 @@ struct d3d12_video_decoder
 
     // Tracks DPB and reference picture textures
     std::unique_ptr<D3D12VidDecReferenceDataManager> m_spDPBManager;
-    bool m_DPBManagerInitialized = false;
     
     // Holds the input bitstream buffer while it's being constructed in decode_bitstream calls
     D3D12DecoderByteBuffer m_stagingDecodeBitstream;
@@ -198,15 +192,14 @@ struct d3d12_video_decoder
 
 // bool d3d12_video_decoder_is_array_of_textures_enabled(const struct d3d12_video_decoder* pD3D12Dec);
 bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
-bool d3d12_check_caps_and_create_video_decoder_and_heap(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
-bool d3d12_create_video_dpbmanagers(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
+bool d3d12_check_caps_and_create_video_decoder_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
 bool d3d12_create_video_state_buffers(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
 bool d3d12_create_video_staging_bitstream_buffer(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec, UINT64 bufSize);
-void d3d12_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12Dec, ID3D12Resource* pTexture2D, UINT subresourceIndex, const D3D12DecVideoDecodeOutputConversionArguments& conversionArgs);
+void d3d12_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12Dec, struct d3d12_video_buffer* pD3D12VideoBuffer, ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex, const D3D12DecVideoDecodeOutputConversionArguments& conversionArgs);
 void d3d12_decoder_release_unused_references(struct d3d12_video_decoder *pD3D12Dec);
-void d3d12_decoder_manage_resolution_change(struct d3d12_video_decoder *pD3D12Dec, const D3D12DecVideoDecodeOutputConversionArguments& conversionArguments, ID3D12Resource* pOutputResource, uint outputSubesource);
+void d3d12_decoder_reconfigure_dpb(struct d3d12_video_decoder *pD3D12Dec, struct d3d12_video_buffer* pD3D12VideoBuffer, const D3D12DecVideoDecodeOutputConversionArguments& conversionArguments, ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex);
 void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB);
-void d3d12_store_converted_dxva_picparams_from_pipe_input(struct d3d12_video_decoder *codec, struct pipe_picture_desc *picture);
+void d3d12_store_converted_dxva_picparams_from_pipe_input(struct d3d12_video_decoder *codec, struct pipe_picture_desc *picture, struct d3d12_video_buffer* pD3D12VideoBuffer);
 template <typename T> T * d3d12_current_dxva_picparams(struct d3d12_video_decoder *codec) { return reinterpret_cast<T*>(codec->m_picParamsBuffer.data()); }
 bool d3d12_video_dec_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport, D3D12_VIDEO_DECODE_PROFILE_TYPE profileType);
 DXGI_FORMAT d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile);

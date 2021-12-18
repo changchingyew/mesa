@@ -30,13 +30,13 @@ struct D3D12VidDecReferenceDataManager
 {
     D3D12VidDecReferenceDataManager(
         const struct d3d12_screen* pD3D12Screen,
+        UINT NodeMask,
         D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
-        UINT NodeMask);
+        D3D12DPBDescriptor dpbDescriptor);
 
     UINT Size() const { return (UINT)textures.size(); }
-    bool IsReferenceOnly() { return m_fReferenceOnly; }
-
-    void Resize(UINT16 dbp, _In_opt_ D3D12ReferenceOnlyDesc* pReferenceOnly, bool fArrayOfTexture);
+    bool IsReferenceOnly() { return m_dpbDescriptor.fReferenceOnly; }
+    bool IsArrayOfTextures() { return m_dpbDescriptor.fArrayOfTexture; }
     
     void ResetInternalTrackingReferenceUsage();
     void ResetReferenceFramesInformation();
@@ -59,12 +59,16 @@ struct D3D12VidDecReferenceDataManager
         bool& outNeedsTransitionToDecodeWrite // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
     );
 
+    // Gets the output texture for the current frame to be decoded
+    void GetCurrentFrameDecodeOutputTexture(ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex);
+
     // D3D12 DecodeFrame Parameters.
     std::vector<ID3D12Resource *>                        textures;
     std::vector<UINT>                                    texturesSubresources;
     std::vector<ID3D12VideoDecoderHeap *>                decoderHeapsParameter;
 
 protected:
+    void Resize(D3D12DPBDescriptor dpbDescriptor);
     
     template<typename T, size_t size> 
     void GetUpdatedEntries(T (&picEntries)[size]);
@@ -82,10 +86,14 @@ protected:
         ComPtr<ID3D12VideoDecoderHeap>      decoderHeap;
         ComPtr<ID3D12Resource>              referenceOnlyTexture; // Allocated and lifetime managed by translation layer
         ID3D12Resource*                     referenceTexture;     // May point to caller allocated resource or referenceOnlyTexture
+        D3D12_RESOURCE_DESC                 resourceDesc;
         UINT                                subresourceIndex;
         UINT16                              originalIndex;
-        bool                                fUsed;
+        bool                                fUsed;        
     };
+
+    std::vector<ComPtr<ID3D12Resource>>              m_outputDecoderTextures; // TODO: Move out of here
+    uint m_DecodeOutputIdx = 0;
 
     void ResizeDataStructures(UINT size);
     UINT16 FindRemappedIndex(UINT16 originalIndex);
@@ -93,16 +101,16 @@ protected:
     std::vector<ReferenceData>                           referenceDatas;
 
     const struct d3d12_screen*                           m_pD3D12Screen;
-    UINT16                                               m_invalidIndex;
-    UINT16                                               m_currentOutputIndex = 0;
-    bool                                                 m_fReferenceOnly = false;
-    bool                                                 m_fArrayOfTexture = false;
     UINT                                                 m_NodeMask;
+    UINT16                                               m_invalidIndex;
+    D3D12DPBDescriptor                                   m_dpbDescriptor = { };
+    UINT16                                               m_currentOutputIndex = 0;    
 };
+
 
 //----------------------------------------------------------------------------------------------------------------------------------
 template<typename T, size_t size>
-inline void D3D12VidDecReferenceDataManager::UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> & outNeededTransitions)
+void D3D12VidDecReferenceDataManager::UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> & outNeededTransitions)
 {
     outNeededTransitions.clear();
 
@@ -129,7 +137,7 @@ inline void D3D12VidDecReferenceDataManager::UpdateEntries(T (&picEntries)[size]
 
 //----------------------------------------------------------------------------------------------------------------------------------
 template<typename T, size_t size>
-inline void D3D12VidDecReferenceDataManager::GetUpdatedEntries(T (&picEntries)[size])
+void D3D12VidDecReferenceDataManager::GetUpdatedEntries(T (&picEntries)[size])
 {
     for (auto& picEntry : picEntries)
     {
@@ -139,7 +147,7 @@ inline void D3D12VidDecReferenceDataManager::GetUpdatedEntries(T (&picEntries)[s
 
 //----------------------------------------------------------------------------------------------------------------------------------    
 template<typename T, size_t size> 
-inline void D3D12VidDecReferenceDataManager::MarkReferencesInUse(const T (&picEntries)[size])
+void D3D12VidDecReferenceDataManager::MarkReferencesInUse(const T (&picEntries)[size])
 {
     for (auto& picEntry : picEntries)
     {

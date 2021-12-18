@@ -67,7 +67,6 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
 	pD3D12Dec->base.decode_bitstream = d3d12_video_decode_bitstream;
 	pD3D12Dec->base.end_frame = d3d12_video_end_frame;
 	pD3D12Dec->base.flush = d3d12_video_flush;   
-   pD3D12Dec->m_InterlaceType = D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; // Assume progressive for now, can adjust in d3d12_video_begin_frame with argument target.interlaced;
    pD3D12Dec->m_MaxReferencePicsWithCurrentPic = codec->max_references + 1u; // Add an extra one for the current decoded picture recon picture.
    
    pD3D12Dec->m_decodeFormat = d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);
@@ -91,21 +90,15 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
       goto failed;
    }
 
-   if(!d3d12_check_caps_and_create_video_decoder_and_heap(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
+   if(!d3d12_check_caps_and_create_video_decoder_objects(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_create_decoder - Failure on d3d12_check_caps_and_create_video_decoder_and_heap\n");
+      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_create_decoder - Failure on d3d12_check_caps_and_create_video_decoder_objects\n");
       goto failed;
    }
 
    if(!d3d12_create_video_command_objects(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
    {
       D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_create_decoder - Failure on d3d12_create_video_command_objects\n");
-      goto failed;
-   }
-
-   if(!d3d12_create_video_dpbmanagers(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
-   {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_create_decoder - Failure on d3d12_create_video_dpbmanagers\n");
       goto failed;
    }
 
@@ -192,6 +185,8 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
    assert(pD3D12Dec->m_spDecodeCommandQueue);
    assert(pD3D12Dec->m_pD3D12Screen);
    struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pD3D12Dec->m_pD3D12Screen;
+   struct d3d12_video_buffer* pD3D12VideoBuffer = (struct d3d12_video_buffer*) target;
+   assert(pD3D12VideoBuffer);
 
    ///
    /// Caps check
@@ -304,13 +299,11 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
       {
          d3d12_store_converted_dxva_picparams_from_pipe_input (
             pD3D12Dec,
-            picture
+            picture,
+            pD3D12VideoBuffer
          );
          assert(pD3D12Dec->m_picParamsBuffer.size() > 0);
       }
-
-      // Gather information about interlace from the texture. end_frame will re-create d3d12 decoder/heap as necessary on reconfiguration
-      pD3D12Dec->m_InterlaceType = target->interlaced ? D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_FIELD_BASED : D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; 
 
       pD3D12Dec->m_numConsecutiveDecodeFrame++;
 
@@ -332,6 +325,8 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
    assert(pD3D12Dec->m_spD3D12VideoDevice);
    assert(pD3D12Dec->m_spDecodeCommandQueue);
+   struct d3d12_video_buffer* pD3D12VideoBuffer = (struct d3d12_video_buffer*) target;
+   assert(pD3D12VideoBuffer);
 
 ///
 /// Prepare Slice control buffers before clearing staging buffer
@@ -381,47 +376,6 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 /// Proceed to record the GPU Decode commands
 ///
 
-   struct d3d12_video_buffer* pD3D12VideoBuffer = (struct d3d12_video_buffer*) target;
-   assert(pD3D12VideoBuffer);
-   const UINT outputD3D12TextureSubresource = 0u;
-
-#if !D3D12_DECODER_USE_STAGING_OUTPUT_TEXTURE
-   ComPtr<ID3D12Resource> spOutputD3D12Texture = pD3D12VideoBuffer->m_pD3D12Resource->bo->res;
-#else
-   auto targetUnderlyingResDesc = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource)->GetDesc();
-   bool bCreateStagingTexture = false;
-   if(pD3D12Dec->m_spDecodeOutputStagingTexture == nullptr)
-   {
-      bCreateStagingTexture = true;
-   }
-   else
-   {
-      D3D12_RESOURCE_DESC currStagingDesc = pD3D12Dec->m_spDecodeOutputStagingTexture->GetDesc();
-      bCreateStagingTexture = (memcmp(&targetUnderlyingResDesc, &currStagingDesc, sizeof(D3D12_RESOURCE_DESC)) != 0);
-   }
-
-   if(bCreateStagingTexture)
-   {
-      CD3DX12_RESOURCE_DESC textureCreationDesc = CD3DX12_RESOURCE_DESC::Tex2D(targetUnderlyingResDesc.Format, targetUnderlyingResDesc.Width, targetUnderlyingResDesc.Height, 1, 1);
-      D3D12_HEAP_PROPERTIES textureCreationProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, pD3D12Dec->m_NodeMask, pD3D12Dec->m_NodeMask);
-      VERIFY_SUCCEEDED(pD3D12Dec->m_pD3D12Screen->dev->CreateCommittedResource(
-         &textureCreationProps,
-         D3D12_HEAP_FLAG_NONE,
-         &textureCreationDesc,
-         D3D12_RESOURCE_STATE_COMMON,
-         nullptr,
-         IID_PPV_ARGS(pD3D12Dec->m_spDecodeOutputStagingTexture.GetAddressOf())));   
-   }
-   
-   ComPtr<ID3D12Resource> spOutputD3D12Texture = pD3D12Dec->m_spDecodeOutputStagingTexture;
-#endif
-
-   D3D12_RESOURCE_DESC resDesc = spOutputD3D12Texture->GetDesc();
-   assert(resDesc.Format == DXGI_FORMAT_NV12);
-   assert(resDesc.Format == pD3D12Dec->m_decoderHeapDesc.Format);
-   assert(resDesc.Width == pD3D12Dec->m_decoderHeapDesc.DecodeWidth);
-   assert(resDesc.Height == pD3D12Dec->m_decoderHeapDesc.DecodeHeight);
-
    // Requested conversions by caller upper layer (none for now)
    D3D12DecVideoDecodeOutputConversionArguments requestedConversionArguments = { };
 
@@ -454,10 +408,14 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       )
    );
 
+   ID3D12Resource* pOutputD3D12Texture;
+   uint outputD3D12Subresource = 0;
+
    d3d12_decoder_prepare_for_decode_frame(
       pD3D12Dec,
-      spOutputD3D12Texture.Get(),
-      outputD3D12TextureSubresource,
+      pD3D12VideoBuffer,
+      &pOutputD3D12Texture, // output
+      &outputD3D12Subresource, //output
       requestedConversionArguments
    );
 
@@ -503,18 +461,17 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 
    // translate output D3D12 structure
    D3D12_VIDEO_DECODE_OUTPUT_STREAM_ARGUMENTS1 d3d12OutputArguments = {};
-   d3d12OutputArguments.pOutputTexture2D = spOutputD3D12Texture.Get();
-   d3d12OutputArguments.OutputSubresource = outputD3D12TextureSubresource;
+   d3d12OutputArguments.pOutputTexture2D = pOutputD3D12Texture;
+   d3d12OutputArguments.OutputSubresource = outputD3D12Subresource;
 
-   if (pD3D12Dec->m_spDPBManager->IsReferenceOnly())
+   bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0;
+   if (fReferenceOnly)
    {
       d3d12OutputArguments.ConversionArguments.Enable = TRUE;
 
       bool needsTransitionToDecodeWrite = false;
       pD3D12Dec->m_spDPBManager->GetReferenceOnlyOutput(d3d12OutputArguments.ConversionArguments.pReferenceTexture2D, d3d12OutputArguments.ConversionArguments.ReferenceSubresource, needsTransitionToDecodeWrite);
       assert(needsTransitionToDecodeWrite);
-      
-      // TODO: State transitions might be trickier, with D3D12DecomposeSubresource. See conf decode tests and translation layer refmgr transition method code
       
       d3d12_record_state_transition(
          pD3D12Dec->m_spDecodeCommandList,
@@ -565,7 +522,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 
    d3d12_record_state_transition(
       pD3D12Dec->m_spDecodeCommandList,
-      spOutputD3D12Texture.Get(),
+      pOutputD3D12Texture,
       D3D12_RESOURCE_STATE_COMMON,
       D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE
    );
@@ -573,7 +530,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    // Schedule reverse (back to common) transitions before command list closes for current frame
    pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(
       CD3DX12_RESOURCE_BARRIER::Transition(
-         spOutputD3D12Texture.Get(),
+         pOutputD3D12Texture,
          D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
          D3D12_RESOURCE_STATE_COMMON
       )
@@ -587,83 +544,26 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       &d3d12InputArguments
    );
 
-#if D3D12_DECODER_MOCK_DECODED_TEXTURE
-   // Different color per Y, U, V component.
-   // uint8_t YUVPixelValues[3] = { 76, 84, 255 }; // (255, 0, 0) in RGB
-   uint8_t YUVPixelValues[3] = { 125, 91, 167 }; // (180, 110, 60) in RGB - brown/gold
-   
-   struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
-   const uint numPlanes = 2;// Y and UV planes
-   for (size_t planeIdx = 0; planeIdx < numPlanes; planeIdx++)
-   {
-      unsigned box_w = align(resDesc.Width, 2);
-      unsigned box_h = align(resDesc.Height, 2);
-      unsigned box_x = 0 & ~1;
-      unsigned box_y = 0 & ~1;
-      vl_video_buffer_adjust_size(&box_w, &box_h, planeIdx,
-                                  pipe_format_to_chroma_format(target->buffer_format),
-                                  target->interlaced);
-      vl_video_buffer_adjust_size(&box_x, &box_y, planeIdx,
-                                  pipe_format_to_chroma_format(target->buffer_format),
-                                  target->interlaced);
-      struct pipe_box box = {box_x, box_y, 0, box_w, box_h, 1};
-      struct pipe_transfer *transfer;
-      void *pMappedTexture = pD3D12Dec->base.context->texture_map(
-            pD3D12Dec->base.context,
-            views[planeIdx]->texture,
-            0,
-            PIPE_MAP_WRITE,
-            &box,
-            &transfer);
-      
-      assert(pMappedTexture);
-
-      size_t bTextureBytes = box.height * transfer->stride;
-
-      if(planeIdx == 0)
-      {
-         // Just fill the Y pixels
-         D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame - Uploading mock decoded pixel data %d to view plane %d - fenceValue: %d\n", YUVPixelValues[0], (uint) planeIdx, pD3D12Dec->m_fenceValue);
-         memset(pMappedTexture, YUVPixelValues[0], bTextureBytes);
-      }
-      else if(planeIdx == 1)
-      {
-         D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame - Uploading mock decoded pixel data U: %d V: %d to view plane %d - fenceValue: %d\n", YUVPixelValues[1], YUVPixelValues[2], (uint) planeIdx, pD3D12Dec->m_fenceValue);
-         uint8_t* pDst = (uint8_t*) pMappedTexture;
-         for (size_t pixRow = 0; pixRow < box.height; pixRow++)
-         {
-            // Interleave U, V values. From MSDN: When the combined U-V array is addressed as an array of little-endian WORD values, the LSBs contain the U values, and the MSBs contain the V values.
-            // box.width counts the number of combined UV components in WORDs.
-            uint16_t* rowPtr = (uint16_t*) pDst;
-            for (size_t pixInRow = 0; pixInRow < box.width; pixInRow++)
-            {
-               *rowPtr = (static_cast<UINT16>(YUVPixelValues[2]) << 8) | static_cast<UINT16>(YUVPixelValues[1]);
-               
-               assert(sizeof(*rowPtr) == sizeof(uint16_t)); // to make sure the stride increment is in WORDs as UV packed values.
-               rowPtr++;
-            }
-            
-            assert(sizeof(*pDst) == sizeof(uint8_t)); // to make sure the stride increment is in bytes as transfer->stride.
-            pDst += transfer->stride;
-         }         
-      }
-
-      pipe_texture_unmap(pD3D12Dec->base.context, transfer);
-   }
-#endif
-
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
    // Flush work to the GPU
    d3d12_video_flush(codec);
 
+#if !D3D12_DECODER_COPY_OUTPUT_AS_CPU_BUFFER
+   // TODO : Need to deep copy m_spDecodeOutputStagingTexture into pPipeD3D12DstResource as need to keep the original decoded picture in the DPB without touching it while in use for next frames
+   // and above layers (ie. VA) only allocate a single buffer for each frame
+   ID3D12Resource* pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
+#else
+   
+   ///
+   /// TODO: Just writing into target->bo->res/d3d12_resource_resource(...) is not populating the pixels downstream (ie. vaGetImage readback with texture_map returns all zeroes)
+   ///
 
-#if !D3D12_DECODER_MOCK_DECODED_TEXTURE && D3D12_DECODER_USE_STAGING_OUTPUT_TEXTURE
    struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
    const uint numPlanes = 2;// Y and UV planes
    for (size_t planeIdx = 0; planeIdx < numPlanes; planeIdx++)
    {
-      const D3D12_RESOURCE_DESC stagingDesc = spOutputD3D12Texture->GetDesc();
+      const D3D12_RESOURCE_DESC stagingDesc = pOutputD3D12Texture->GetDesc();
       D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
       UINT64 srcTextureTotalBytes = 0;
       pD3D12Dec->m_pD3D12Screen->dev->GetCopyableFootprints(&stagingDesc, planeIdx, 1, 0, &layout, nullptr, nullptr, &srcTextureTotalBytes);
@@ -673,7 +573,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       // std::vector<uint8_t> pTmp(srcTextureTotalBytes);
       // memset(pTmp.data(), 255u/*if on all YUV is RGB violet*/, pTmp.size());
       // pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(
-      //    spOutputD3D12Texture.Get(),
+      //    pOutputD3D12Texture,
       //    planeIdx,
       //    D3D12_RESOURCE_STATE_COMMON,
       //    pTmp.data(),
@@ -685,7 +585,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
          pSrc.data(),
          layout.Footprint.RowPitch,
          layout.Footprint.RowPitch * stagingDesc.Height,
-         spOutputD3D12Texture.Get(),
+         pOutputD3D12Texture,
          planeIdx,
          D3D12_RESOURCE_STATE_COMMON
       );
@@ -712,7 +612,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       }
       target->associated_data = &pD3D12Dec->m_DecodedPlanesBufferDesc;
 
-      // At this point pSrc has the srcTextureTotalBytes of raw pixel data of spOutputD3D12Texture/subresource/planeIdx
+      // At this point pSrc has the srcTextureTotalBytes of raw pixel data of pOutputD3D12Texture/subresource/planeIdx
 
       // Upload pSrc into target using texture_map
       unsigned box_w = align(stagingDesc.Width, 2);
@@ -737,7 +637,6 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       
       assert(pMappedTexture);
 
-      size_t bTextureBytes = box.height * transfer->stride;
       uint8_t* pDstData = (uint8_t*) pMappedTexture;
       for (size_t pixRow = 0; pixRow < box.height; pixRow++)
       {
@@ -794,15 +693,11 @@ void d3d12_video_flush(struct pipe_video_codec *codec)
       D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - Can't close command list with HR %x\n", hr);
    }
 
-#if D3D12_DECODER_MOCK_DECODED_TEXTURE
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush - Mocking decoded texture for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
-#else
    ID3D12CommandList *ppCommandLists[1] = { pD3D12Dec->m_spDecodeCommandList.Get() };
    pD3D12Dec->m_spDecodeCommandQueue->ExecuteCommandLists(1, ppCommandLists);
    pD3D12Dec->m_spDecodeCommandQueue->Signal(pD3D12Dec->m_spFence.Get(), pD3D12Dec->m_fenceValue);
    pD3D12Dec->m_spFence->SetEventOnCompletion(pD3D12Dec->m_fenceValue, nullptr);
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Dec->m_fenceValue);
-#endif
 
    hr = pD3D12Dec->m_spCommandAllocator->Reset();
    if (FAILED(hr))
@@ -887,18 +782,17 @@ bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen,
    return true;
 }
 
-bool d3d12_check_caps_and_create_video_decoder_and_heap(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
+bool d3d12_check_caps_and_create_video_decoder_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
 {
    assert(pD3D12Dec->m_spD3D12VideoDevice);
 
    pD3D12Dec->m_decoderDesc = {};
-   pD3D12Dec->m_decoderHeapDesc = {};
    
    D3D12_VIDEO_DECODE_CONFIGURATION decodeConfiguration = 
    { 
       pD3D12Dec->m_d3d12DecProfile, 
       D3D12_BITSTREAM_ENCRYPTION_TYPE_NONE,
-      pD3D12Dec->m_InterlaceType,
+      D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE // Assume progressive for now, can adjust in d3d12_decoder_reconfigure_dpb with pipe_video_buffer input argument target.interlaced;
    };
 
    D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport = {};
@@ -915,13 +809,13 @@ bool d3d12_check_caps_and_create_video_decoder_and_heap(const struct d3d12_scree
    HRESULT hr = pD3D12Dec->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_DECODE_SUPPORT, &decodeSupport, sizeof(decodeSupport));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_check_caps_and_create_video_decoder_and_heap - CheckFeatureSupport failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_check_caps_and_create_video_decoder_objects - CheckFeatureSupport failed with HR %x\n", hr);
       return false;
    }
 
    if (!(decodeSupport.SupportFlags & D3D12_VIDEO_DECODE_SUPPORT_FLAG_SUPPORTED))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_check_caps_and_create_video_decoder_and_heap - D3D12_VIDEO_DECODE_SUPPORT_FLAG_SUPPORTED was false when checking caps \n");
+      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_check_caps_and_create_video_decoder_objects - D3D12_VIDEO_DECODE_SUPPORT_FLAG_SUPPORTED was false when checking caps \n");
       return false;
    }
 
@@ -949,32 +843,9 @@ bool d3d12_check_caps_and_create_video_decoder_and_heap(const struct d3d12_scree
    hr = pD3D12Dec->m_spD3D12VideoDevice->CreateVideoDecoder(&pD3D12Dec->m_decoderDesc, IID_PPV_ARGS(pD3D12Dec->m_spVideoDecoder.GetAddressOf()));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_check_caps_and_create_video_decoder_and_heap - CreateVideoDecoder failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_check_caps_and_create_video_decoder_objects - CreateVideoDecoder failed with HR %x\n", hr);
       return false;
    }
-
-   pD3D12Dec->m_decoderHeapDesc.NodeMask = pD3D12Dec->m_NodeMask;
-   pD3D12Dec->m_decoderHeapDesc.Configuration = decodeConfiguration;
-   pD3D12Dec->m_decoderHeapDesc.DecodeWidth = pD3D12Dec->base.width;
-   pD3D12Dec->m_decoderHeapDesc.DecodeHeight = pD3D12Dec->base.height;
-   pD3D12Dec->m_decoderHeapDesc.Format = pD3D12Dec->m_decodeFormat;
-   pD3D12Dec->m_decoderHeapDesc.MaxDecodePictureBufferCount = pD3D12Dec->m_MaxReferencePicsWithCurrentPic;
-
-   hr = pD3D12Dec->m_spD3D12VideoDevice->CreateVideoDecoderHeap(&pD3D12Dec->m_decoderHeapDesc, IID_PPV_ARGS(pD3D12Dec->m_spVideoDecoderHeap.GetAddressOf()));
-   if(FAILED(hr))
-   {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_check_caps_and_create_video_decoder_and_heap - CreateVideoDecoderHeap failed with HR %x\n", hr);
-      return false;
-   }
-
-   return true;
-}
-
-bool d3d12_create_video_dpbmanagers(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
-{   
-   assert(pD3D12Dec->m_spD3D12VideoDevice);
-
-   pD3D12Dec->m_spDPBManager.reset(new D3D12VidDecReferenceDataManager(pD3D12Screen, pD3D12Dec->m_d3d12DecProfileType, pD3D12Dec->m_NodeMask));
 
    return true;
 }
@@ -1021,19 +892,31 @@ bool d3d12_create_video_staging_bitstream_buffer(const struct d3d12_screen* pD3D
 
 void d3d12_decoder_prepare_for_decode_frame(
    struct d3d12_video_decoder *pD3D12Dec,
-   ID3D12Resource* pTexture2D,
-   UINT subresourceIndex,
+   struct d3d12_video_buffer* pD3D12VideoBuffer,
+   ID3D12Resource** ppOutTexture2D,
+   UINT* pOutSubresourceIndex,
    const D3D12DecVideoDecodeOutputConversionArguments& conversionArgs
 )
 {
+   // (Re) Configures DXVA DPB manager, D3D12 DPB textures managers, and returns the decode output pair <resource, subresource> for the current frame 
+   d3d12_decoder_reconfigure_dpb(
+      pD3D12Dec,
+      pD3D12VideoBuffer,
+      conversionArgs,
+      ppOutTexture2D, // output
+      pOutSubresourceIndex); // output
+
    d3d12_decoder_release_unused_references(pD3D12Dec);
-   d3d12_decoder_manage_resolution_change(pD3D12Dec, conversionArgs, pTexture2D, subresourceIndex);
 
    switch (pD3D12Dec->m_d3d12DecProfileType)
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {
-         d3d12_decoder_prepare_for_decode_frame_h264(pD3D12Dec, pTexture2D, subresourceIndex);   
+         d3d12_decoder_prepare_h264_reference_pic_settings(
+         pD3D12Dec,
+         *ppOutTexture2D, // Input - We pass the value of the ppOutTexture2D, obtained in d3d12_decoder_reconfigure_dpb above
+         *pOutSubresourceIndex // Input - We pass the value of the pOutSubresourceIndex, obtained in d3d12_decoder_reconfigure_dpb above
+         );   
       } break;
 
       default:
@@ -1042,96 +925,74 @@ void d3d12_decoder_prepare_for_decode_frame(
    }
 }
 
-void d3d12_decoder_manage_resolution_change(
+void d3d12_decoder_reconfigure_dpb(
    struct d3d12_video_decoder *pD3D12Dec,
+   struct d3d12_video_buffer* pD3D12VideoBuffer,
    const D3D12DecVideoDecodeOutputConversionArguments& conversionArguments,
-   ID3D12Resource* pOutputResource,
-   uint outputSubesource)
+   ID3D12Resource** ppOutTexture2D,
+   UINT* pOutSubresourceIndex
+   )
 {
    UINT width;
    UINT height;
    UINT16 maxDPB;
-   d3d12_decoder_get_frame_info(pD3D12Dec, &width, &height, &maxDPB);
+   d3d12_decoder_get_frame_info(pD3D12Dec, &width, &height, &maxDPB);   
 
-   D3D12_RESOURCE_DESC outputResourceDesc = pOutputResource->GetDesc();
+   ID3D12Resource* pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
+   D3D12_RESOURCE_DESC outputResourceDesc = pPipeD3D12DstResource->GetDesc();
    VIDEO_DECODE_PROFILE_BIT_DEPTH resourceBitDepth = d3d12_dec_get_format_bitdepth(outputResourceDesc.Format);
 
-   if (pD3D12Dec->m_decodeFormat != outputResourceDesc.Format)
+   D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE interlaceTypeRequested = pD3D12VideoBuffer->base.interlaced ? D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_FIELD_BASED : D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; 
+   if ((pD3D12Dec->m_decodeFormat != outputResourceDesc.Format)
+      || (pD3D12Dec->m_decoderDesc.Configuration.InterlaceType != interlaceTypeRequested))
    {
       // Copy current pD3D12Dec->m_decoderDesc, modify decodeprofile and re-create decoder.
       D3D12_VIDEO_DECODER_DESC decoderDesc = pD3D12Dec->m_decoderDesc;
+      decoderDesc.Configuration.InterlaceType = interlaceTypeRequested;
       decoderDesc.Configuration.DecodeProfile = d3d12_decoder_resolve_profile(pD3D12Dec->m_d3d12DecProfileType, resourceBitDepth);
       pD3D12Dec->m_spVideoDecoder.Reset();
       HRESULT hr = pD3D12Dec->m_spD3D12VideoDevice->CreateVideoDecoder(&decoderDesc, IID_PPV_ARGS(pD3D12Dec->m_spVideoDecoder.GetAddressOf()));
       if(FAILED(hr))
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_decoder_manage_resolution_change - CreateVideoDecoder failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_decoder_reconfigure_dpb - CreateVideoDecoder failed with HR %x\n", hr);
       }
       // Update state after CreateVideoDecoder succeeds only.
       pD3D12Dec->m_decoderDesc = decoderDesc;
    }
 
    if ( 
-         !pD3D12Dec->m_DPBManagerInitialized
+         !pD3D12Dec->m_spDPBManager
       || !pD3D12Dec->m_spVideoDecoderHeap
       || pD3D12Dec->m_decodeFormat != outputResourceDesc.Format
       || pD3D12Dec->m_decoderHeapDesc.DecodeWidth != width
       || pD3D12Dec->m_decoderHeapDesc.DecodeHeight != height
       || pD3D12Dec->m_decoderHeapDesc.MaxDecodePictureBufferCount < maxDPB)
    {
-      
-      UINT16 referenceCount = maxDPB;
-      bool fArrayOfTexture = false;
+      // Detect the combination of AOT/ReferenceOnly to configure the DPB manager
+      bool fArrayOfTexture = (pD3D12Dec->m_tier >= D3D12_VIDEO_DECODE_TIER_2);
       bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0;
 
-      D3D12ReferenceOnlyDesc* pReferenceOnlyDesc = nullptr;
-      D3D12ReferenceOnlyDesc referenceOnlyDesc;
-      referenceOnlyDesc.Width = outputResourceDesc.Width;
-      referenceOnlyDesc.Height = outputResourceDesc.Height;
-      referenceOnlyDesc.Format = outputResourceDesc.Format;
+      UINT16 referenceCount = (conversionArguments.Enable) ? (UINT16) conversionArguments.ReferenceFrameCount : maxDPB;
+      D3D12DPBDescriptor dpbDesc = { };
+      dpbDesc.Width = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Width : outputResourceDesc.Width;
+      dpbDesc.Height = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Height : outputResourceDesc.Height;
+      dpbDesc.Format = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Format.Format : outputResourceDesc.Format;
+      dpbDesc.fArrayOfTexture = fArrayOfTexture;
+      dpbDesc.fReferenceOnly = fReferenceOnly;
+      dpbDesc.dpbSize = referenceCount;
 
-      if (conversionArguments.Enable)
+      // Create DPB manager
+      if(pD3D12Dec->m_spDPBManager == nullptr)
       {
-            // Decode output conversion is on, create a DPB only array to hold the references. 
-            // All indices are re-mapped in host decoder to address just the size of the DPB array (given by ReferenceFrameCount).
-            referenceCount = (UINT16)conversionArguments.ReferenceFrameCount;
+         pD3D12Dec->m_spDPBManager.reset(new D3D12VidDecReferenceDataManager(pD3D12Dec->m_pD3D12Screen, pD3D12Dec->m_NodeMask, pD3D12Dec->m_d3d12DecProfileType, dpbDesc));
+      }      
 
-            referenceOnlyDesc.Width = conversionArguments.ReferenceInfo.Width;
-            referenceOnlyDesc.Height = conversionArguments.ReferenceInfo.Height;
-            referenceOnlyDesc.Format = conversionArguments.ReferenceInfo.Format.Format;
-            pReferenceOnlyDesc = &referenceOnlyDesc;
-            
-      }
-      else if (fReferenceOnly)
-      {
-            pReferenceOnlyDesc = &referenceOnlyDesc;
-      }
-      
-      if (outputResourceDesc.DepthOrArraySize != 1)
-      {
-            // When DepthOrArraySize is not 1 Enable Texture Array Mode.  This selection
-            // is made regardless of ConfigDecoderSpecific during decode creation.
-            // The reference indices are in a range of zero to the ArraySize and refer 
-            // directly to array subresources.
-            referenceCount = outputResourceDesc.DepthOrArraySize;
-      }
-      else
-      {
-            // A DepthOrArraySize of 1 indicates that Array of Texture Mode is enabled.
-            // The reference indices are not in the range of 0 to MaxDPB, but instead 
-            // are in a range determined by the caller that the driver doesn't appear to have
-            // a way of knowing.
-
-            assert(pD3D12Dec->m_tier >= D3D12_VIDEO_DECODE_TIER_2 || fReferenceOnly);
-            fArrayOfTexture = pD3D12Dec->m_tier >= D3D12_VIDEO_DECODE_TIER_2;
-      }
-
-      pD3D12Dec->m_spDPBManager->Resize(referenceCount, pReferenceOnlyDesc, fArrayOfTexture);
-      pD3D12Dec->m_DPBManagerInitialized = true;
-
-      // Copy current pD3D12Dec->m_decoderDesc and update config values acconrdingly
-      D3D12_VIDEO_DECODER_HEAP_DESC decoderHeapDesc = pD3D12Dec->m_decoderHeapDesc;
-      decoderHeapDesc.Configuration.DecodeProfile = d3d12_decoder_resolve_profile(pD3D12Dec->m_d3d12DecProfileType, resourceBitDepth);
+      //
+      // (Re)-create decoder heap
+      //
+      D3D12_VIDEO_DECODER_HEAP_DESC decoderHeapDesc = { };
+      decoderHeapDesc.NodeMask = pD3D12Dec->m_NodeMask;
+      decoderHeapDesc.Configuration = pD3D12Dec->m_decoderDesc.Configuration;
       decoderHeapDesc.DecodeWidth = width;
       decoderHeapDesc.DecodeHeight = height;
       decoderHeapDesc.Format = outputResourceDesc.Format;
@@ -1140,13 +1001,16 @@ void d3d12_decoder_manage_resolution_change(
       HRESULT hr = pD3D12Dec->m_spD3D12VideoDevice->CreateVideoDecoderHeap(&decoderHeapDesc, IID_PPV_ARGS(pD3D12Dec->m_spVideoDecoderHeap.GetAddressOf()));
       if(FAILED(hr))
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_decoder_manage_resolution_change - CreateVideoDecoderHeap failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_decoder_reconfigure_dpb - CreateVideoDecoderHeap failed with HR %x\n", hr);
       }
-      // Update state after CreateVideoDecoderHeap succeeds only.
+      // Update pD3D12Dec after CreateVideoDecoderHeap succeeds only.
       pD3D12Dec->m_decoderHeapDesc = decoderHeapDesc;
    }
 
    pD3D12Dec->m_decodeFormat = outputResourceDesc.Format;
+
+   // Get the texture for the current frame to be decoded
+   pD3D12Dec->m_spDPBManager->GetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
 }
 
 void d3d12_decoder_release_unused_references(struct d3d12_video_decoder *pD3D12Dec)
@@ -1270,7 +1134,8 @@ bool GetSliceSizeAndOffset(size_t sliceIdx, size_t numSlices, D3D12DecoderByteBu
 
 void d3d12_store_converted_dxva_picparams_from_pipe_input (
     struct d3d12_video_decoder *codec, // input argument, current decoder
-    struct pipe_picture_desc *picture // input argument, base structure of pipe_XXX_picture_desc where XXX is the codec name
+    struct pipe_picture_desc *picture, // input argument, base structure of pipe_XXX_picture_desc where XXX is the codec name
+    struct d3d12_video_buffer* pD3D12VideoBuffer // input argument, target video buffer
 )
 {
    assert(picture);
@@ -1284,7 +1149,9 @@ void d3d12_store_converted_dxva_picparams_from_pipe_input (
       {
          size_t dxvaPicParamsBufferSize = sizeof(DXVA_PicParams_H264);
          pipe_h264_picture_desc* pPicControlH264 = (pipe_h264_picture_desc*) picture;
-         DXVA_PicParams_H264 dxvaPicParamsH264 = d3d12_dec_dxva_picparams_from_pipe_picparams_h264(pD3D12Dec->m_fenceValue, codec->base.profile, codec->m_decoderHeapDesc.DecodeWidth, codec->m_decoderHeapDesc.DecodeHeight, pPicControlH264);
+         ID3D12Resource* pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
+         D3D12_RESOURCE_DESC outputResourceDesc = pPipeD3D12DstResource->GetDesc();
+         DXVA_PicParams_H264 dxvaPicParamsH264 = d3d12_dec_dxva_picparams_from_pipe_picparams_h264(pD3D12Dec->m_fenceValue, codec->base.profile, outputResourceDesc.Width, outputResourceDesc.Height, pPicControlH264);
          d3d12_store_dxva_picparams_in_picparams_buffer(codec, &dxvaPicParamsH264, dxvaPicParamsBufferSize);
 
          size_t dxvaQMatrixBufferSize = sizeof(DXVA_Qmatrix_H264);
