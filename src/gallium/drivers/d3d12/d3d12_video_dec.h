@@ -196,7 +196,7 @@ bool d3d12_check_caps_and_create_video_decoder_objects(const struct d3d12_screen
 bool d3d12_create_video_state_buffers(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
 bool d3d12_create_video_staging_bitstream_buffer(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec, UINT64 bufSize);
 void d3d12_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12Dec, struct d3d12_video_buffer* pD3D12VideoBuffer, ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex, const D3D12DecVideoDecodeOutputConversionArguments& conversionArgs);
-void d3d12_decoder_release_unused_references(struct d3d12_video_decoder *pD3D12Dec);
+void d3d12_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3D12Dec);
 void d3d12_decoder_reconfigure_dpb(struct d3d12_video_decoder *pD3D12Dec, struct d3d12_video_buffer* pD3D12VideoBuffer, const D3D12DecVideoDecodeOutputConversionArguments& conversionArguments);
 void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB);
 void d3d12_store_converted_dxva_picparams_from_pipe_input(struct d3d12_video_decoder *codec, struct pipe_picture_desc *picture, struct d3d12_video_buffer* pD3D12VideoBuffer);

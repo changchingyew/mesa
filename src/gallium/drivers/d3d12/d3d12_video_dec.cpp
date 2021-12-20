@@ -453,10 +453,8 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       };
    }
 
-   d3d12InputArguments.ReferenceFrames.ppTexture2Ds = pD3D12Dec->m_spDPBManager->textures.data();
-   d3d12InputArguments.ReferenceFrames.pSubresources = pD3D12Dec->m_spDPBManager->texturesSubresources.data();
-   d3d12InputArguments.ReferenceFrames.ppHeaps = pD3D12Dec->m_spDPBManager->decoderHeapsParameter.data();
-   d3d12InputArguments.ReferenceFrames.NumTexture2Ds = static_cast<UINT>(pD3D12Dec->m_spDPBManager->Size());
+   d3d12InputArguments.ReferenceFrames = pD3D12Dec->m_spDPBManager->GetCurrentFrameReferenceFrames();
+
    d3d12InputArguments.pHeap = pD3D12Dec->m_spVideoDecoderHeap.Get();
 
    // translate output D3D12 structure
@@ -906,17 +904,17 @@ void d3d12_decoder_prepare_for_decode_frame(
    // Get the texture for the current frame to be decoded
    pD3D12Dec->m_spDPBManager->GetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
 
-   d3d12_decoder_release_unused_references(pD3D12Dec);
+   d3d12_decoder_refresh_dpb_active_references(pD3D12Dec);
 
    switch (pD3D12Dec->m_d3d12DecProfileType)
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {
-         d3d12_decoder_prepare_h264_reference_pic_settings(
-         pD3D12Dec,
-         *ppOutTexture2D, // Input - We pass the value of the ppOutTexture2D
-         *pOutSubresourceIndex // Input - We pass the value of the pOutSubresourceIndex
-         );   
+         d3d12_decoder_prepare_current_frame_references_h264(
+            pD3D12Dec,
+            *ppOutTexture2D, // Input - We pass the value of the ppOutTexture2D
+            *pOutSubresourceIndex // Input - We pass the value of the pOutSubresourceIndex
+            );   
       } break;
 
       default:
@@ -1008,20 +1006,19 @@ void d3d12_decoder_reconfigure_dpb(
    pD3D12Dec->m_decodeFormat = outputResourceDesc.Format;
 }
 
-void d3d12_decoder_release_unused_references(struct d3d12_video_decoder *pD3D12Dec)
+void d3d12_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3D12Dec)
 {
    // Method overview
-   // 1. Clear the following pD3D12Dec->m_spDPBManager descriptors: textures, textureSubresources and decoder heap by calling pD3D12Dec->m_spDPBManager->ResetReferenceFramesInformation()        
-   // 2. Codec specific strategy in switch statement regarding reference frames eviction policy
-   // 3. Call pD3D12Dec->m_spDPBManager->ReleaseUnusedReferences(); at the end of this method. Any references (and texture allocations associated) that were left not marked as used in pD3D12Dec->m_spDPBManager by step (2) are lost.
+   // 1. Codec specific strategy in switch statement regarding reference frames eviction policy. Should only mark active DPB references, leaving evicted ones as unused
+   // 2. Call ReleaseUnusedReferencesTexturesMemory(); at the end of this method. Any references (and texture allocations associated) 
+   //    that were left not marked as used in m_spDPBManager by step (2) are lost.
    
-   pD3D12Dec->m_spDPBManager->ResetReferenceFramesInformation();
-
    switch (pD3D12Dec->m_d3d12DecProfileType)
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {
-         d3d12_decoder_release_unused_references_h264(pD3D12Dec);
+         pD3D12Dec->m_spDPBManager->MarkAllReferencesAsUnused();
+         pD3D12Dec->m_spDPBManager->MarkReferencesInUse(d3d12_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList);
       }
       break;
 
@@ -1031,7 +1028,7 @@ void d3d12_decoder_release_unused_references(struct d3d12_video_decoder *pD3D12D
    }
 
    // Releases the underlying reference picture texture objects of all references that were not marked as used in this method.
-   pD3D12Dec->m_spDPBManager->ReleaseUnusedReferences();
+   pD3D12Dec->m_spDPBManager->ReleaseUnusedReferencesTexturesMemory();
 }
 
 void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB)

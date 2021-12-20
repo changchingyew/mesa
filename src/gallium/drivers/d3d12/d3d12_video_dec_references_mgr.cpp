@@ -43,15 +43,25 @@ static UINT16 GetInvalidReferenceIndex(D3D12_VIDEO_DECODE_PROFILE_TYPE DecodePro
 //----------------------------------------------------------------------------------------------------------------------------------
 void D3D12VidDecReferenceDataManager::GetCurrentFrameDecodeOutputTexture(ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex)
 {
-    ///
-    /// Create decode output texture
-    ///
-
-    // Returns a fresh texture from the pool.
-    D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE pFreshAllocation = m_upD3D12TexturesStorageManager->GetNewTrackedReconstructedPictureAllocation();
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE pFreshAllocation = m_upD3D12TexturesStorageManager->GetNewTrackedPictureAllocation();
 
     *ppOutTexture2D = pFreshAllocation.pReconstructedPicture;
     *pOutSubresourceIndex = pFreshAllocation.ReconstructedPictureSubresource;
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
+D3D12_VIDEO_DECODE_REFERENCE_FRAMES D3D12VidDecReferenceDataManager::GetCurrentFrameReferenceFrames()
+{
+    D3D12_VIDEO_REFERENCE_FRAMES args = m_upD3D12TexturesStorageManager->GetCurrentFrameReferenceFrames();
+    D3D12_VIDEO_DECODE_REFERENCE_FRAMES retVal =
+    {
+        args.NumTexture2Ds,
+        args.ppTexture2Ds,
+        args.pSubresources,
+        args.ppHeaps,
+    };
+
+    return retVal;    
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -66,28 +76,45 @@ D3D12VidDecReferenceDataManager::D3D12VidDecReferenceDataManager(
     , m_NodeMask(NodeMask)
     , m_invalidIndex(GetInvalidReferenceIndex(DecodeProfileType))
     , m_dpbDescriptor(m_dpbDescriptor)
-    {
-        this->Init();
-
-        D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC targetFrameResolution = {m_dpbDescriptor.Width, m_dpbDescriptor.Height};
-        D3D12_RESOURCE_FLAGS resourceAllocFlags = m_dpbDescriptor.fReferenceOnly ? (D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) : D3D12_RESOURCE_FLAG_NONE;
-        if(m_dpbDescriptor.fArrayOfTexture)
-        {
-            m_upD3D12TexturesStorageManager = std::make_unique<ArrayOfTexturesDPBManager>(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
-        }
-        else
-        {
-            m_upD3D12TexturesStorageManager = std::make_unique<TexturesArrayDPBManager>(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
-        }
+{
+    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC targetFrameResolution = {m_dpbDescriptor.Width, m_dpbDescriptor.Height};
+    D3D12_RESOURCE_FLAGS resourceAllocFlags = m_dpbDescriptor.fReferenceOnly ? (D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) : D3D12_RESOURCE_FLAG_NONE;
+    
+    if(m_dpbDescriptor.fArrayOfTexture)
+    {        
+        m_upD3D12TexturesStorageManager = std::make_unique<ArrayOfTexturesDPBManager>(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
     }
+    else
+    {        
+        m_upD3D12TexturesStorageManager = std::make_unique<TexturesArrayDPBManager>(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
+    }
+    
+    m_referenceDXVAIndices.resize(m_dpbDescriptor.dpbSize);
+
+    // TODO: Replace with Insert fine grain
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPicture = 
+    {
+        nullptr,
+        0,
+        nullptr
+    };
+
+    for (UINT dpbIdx = 0; dpbIdx < m_dpbDescriptor.dpbSize; dpbIdx++)
+    {
+        m_upD3D12TexturesStorageManager->InsertReferenceFrame(reconPicture, dpbIdx);
+    }
+
+    MarkAllReferencesAsUnused();
+    ReleaseUnusedReferencesTexturesMemory();
+}
 
 //----------------------------------------------------------------------------------------------------------------------------------
 UINT16 D3D12VidDecReferenceDataManager::FindRemappedIndex(UINT16 originalIndex)
 {
     // Check if the index is already mapped.
-    for (UINT16 remappedIndex = 0; remappedIndex < referenceDatas.size(); remappedIndex++)
+    for (UINT16 remappedIndex = 0; remappedIndex < m_dpbDescriptor.dpbSize; remappedIndex++)
     {
-        if (referenceDatas[remappedIndex].originalIndex == originalIndex)
+        if (m_referenceDXVAIndices[remappedIndex].originalIndex == originalIndex)
         {
             return remappedIndex;
         }
@@ -105,6 +132,7 @@ UINT16 D3D12VidDecReferenceDataManager::UpdateEntry(
                                                     )
 {
     UINT16 remappedIndex = m_invalidIndex;
+    outNeedsTransitionToDecodeRead = false;
 
     if (index != m_invalidIndex)
     {
@@ -114,52 +142,15 @@ UINT16 D3D12VidDecReferenceDataManager::UpdateEntry(
         if (   remappedIndex == m_invalidIndex
             || remappedIndex == m_currentOutputIndex)
         {
-            // // Caller specified an invalid reference index.  Remap it to the current
-            // // picture index to avoid crashing and still attempt to decode.
-            // if (g_hTracelogging)
-            // {
-            //     TraceLoggingWrite(g_hTracelogging,
-            //         "Decode - Invalid Reference Index",
-            //         TraceLoggingValue(index, "Index"),
-            //         TraceLoggingValue(m_currentOutputIndex, "OutputIndex"));
-            // }
             fprintf(stderr, "[D3D12VidDecReferenceDataManager] Decode - Invalid Reference Index\n");
 
             remappedIndex = m_currentOutputIndex;
-
-            // The output resource has already been transitioned to the DECODE_WRITE state when
-            // set as the current output.  For use as a reference, the resource should be in a DECODE_READ state, 
-            // but we can't express both so leave it in the WRITE state.  This is an error condition, so this is 
-            // an attempt to keep the decoder producing output until we start getting correct reference indices again.
             outNeedsTransitionToDecodeRead = false;
         }
-
-        decoderHeapsParameter[remappedIndex] = referenceDatas[remappedIndex].decoderHeap.Get();        
-        textures[remappedIndex] = referenceDatas[remappedIndex].referenceTexture;
-        texturesSubresources[remappedIndex] = referenceDatas[remappedIndex].subresourceIndex;        
-
-        pOutputReferenceNoRef = outNeedsTransitionToDecodeRead ? referenceDatas[remappedIndex].referenceTexture : nullptr;
-        OutputSubresource = outNeedsTransitionToDecodeRead ? referenceDatas[remappedIndex].subresourceIndex : 0u;
-    }
-
-    return remappedIndex;
-}
-
-//----------------------------------------------------------------------------------------------------------------------------------
-UINT16 D3D12VidDecReferenceDataManager::GetUpdatedEntry(UINT16 index)
-{
-    UINT16 remappedIndex = m_invalidIndex;
-
-    if (index != m_invalidIndex)
-    {
-        remappedIndex = FindRemappedIndex(index);
-
-        if (remappedIndex == m_invalidIndex)
-        {
-            // Caller specified an invalid reference index.  Remap it to the current
-            // picture index to avoid crashing and still attempt to decode.
-            remappedIndex = m_currentOutputIndex;
-        }
+        
+        D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPicture = m_upD3D12TexturesStorageManager->GetReferenceFrame(remappedIndex);
+        pOutputReferenceNoRef = outNeedsTransitionToDecodeRead ? reconPicture.pReconstructedPicture : nullptr;
+        OutputSubresource = outNeedsTransitionToDecodeRead ? reconPicture.ReconstructedPictureSubresource : 0u;
     }
 
     return remappedIndex;
@@ -175,8 +166,8 @@ UINT16 D3D12VidDecReferenceDataManager::StoreFutureReference(UINT16 index, ComPt
     if (remappedIndex == m_invalidIndex)
     {
         // If not already mapped, see if the same index in the remapped space is available.
-        if (   index < referenceDatas.size()
-            && referenceDatas[index].originalIndex == m_invalidIndex)
+        if (   index < m_dpbDescriptor.dpbSize
+            && m_referenceDXVAIndices[index].originalIndex == m_invalidIndex)
         {
             remappedIndex = index;
         }
@@ -193,21 +184,18 @@ UINT16 D3D12VidDecReferenceDataManager::StoreFutureReference(UINT16 index, ComPt
         D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager - Decode - No available reference map entry for output.\n");
     }
 
-    ReferenceData& referenceData = referenceDatas[remappedIndex];
-
     // Set the index as the key in this map entry.
-    referenceData.originalIndex = index;
-
-    referenceData.decoderHeap = decoderHeap;
-
-    // When IsReferenceOnly is true, then the translation layer is managing references
-    // either becasue the layout is incompatible with other texture usage (REFERENCE_ONLY), or because and/or 
-    // decode output conversion is enabled.
-    if (!IsReferenceOnly())
+    m_referenceDXVAIndices[remappedIndex].originalIndex = index;
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPic =
     {
-        referenceData.referenceTexture = pTexture2D;
-        referenceData.subresourceIndex = subresourceIndex;
-    }
+        pTexture2D,
+        subresourceIndex,
+        decoderHeap.Get()
+    };
+    
+    // TODO: Replace with Insert fine grain
+    // m_upD3D12TexturesStorageManager->InsertReferenceFrame(reconPic, remappedIndex);
+    m_upD3D12TexturesStorageManager->AssignReferenceFrame(reconPic, remappedIndex);
 
     // Store the index to use for error handling when caller specifies and invalid reference index.
     m_currentOutputIndex = remappedIndex;
@@ -228,10 +216,10 @@ void D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput(
         D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput expected IsReferenceOnly() to be true.\n");
     }
 
-    ReferenceData& referenceData = referenceDatas[m_currentOutputIndex];
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPic = m_upD3D12TexturesStorageManager->GetReferenceFrame(m_currentOutputIndex);
 
-    pOutputReferenceNoRef = referenceData.referenceTexture;
-    OutputSubresource = referenceData.subresourceIndex;
+    pOutputReferenceNoRef = reconPic.pReconstructedPicture;
+    OutputSubresource = reconPic.ReconstructedPictureSubresource;
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -242,147 +230,49 @@ void D3D12VidDecReferenceDataManager::MarkReferenceInUse(UINT16 index)
         UINT16 remappedIndex = FindRemappedIndex(index);
         if (remappedIndex != m_invalidIndex)
         {
-            referenceDatas[remappedIndex].fUsed = true;
+            m_referenceDXVAIndices[remappedIndex].fUsed = true;
         }
     }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
-void D3D12VidDecReferenceDataManager::ReleaseUnusedReferences()
+void D3D12VidDecReferenceDataManager::ReleaseUnusedReferencesTexturesMemory()
 {
-    for (ReferenceData& referenceData : referenceDatas)
+    for (UINT index = 0; index < m_dpbDescriptor.dpbSize; index++)
     {
-        if (!referenceData.fUsed)
+        if (!m_referenceDXVAIndices[index].fUsed)
         {
-            referenceData.decoderHeap = nullptr;
+            D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPicture = m_upD3D12TexturesStorageManager->GetReferenceFrame(index);
+            // TODO: Replace with Remove fine grain
+            // TODO: Remove from storage, careful with remove/erase shifting the indices of the other resources in the DPB storage
+            // m_upD3D12TexturesStorageManager->RemoveReferenceFrame(reconPic, remappedIndex);
 
-            if (!IsReferenceOnly())
+            if(reconPicture.pReconstructedPicture != nullptr)
             {
-                referenceData.referenceTexture = nullptr;
-                referenceData.subresourceIndex = 0;
-            }
-
-            referenceData.originalIndex = m_invalidIndex;
-        }
-    }
-}
-
-//----------------------------------------------------------------------------------------------------------------------------------
-_Use_decl_annotations_
-void D3D12VidDecReferenceDataManager::Init()
-{
-    ResizeDataStructures(m_dpbDescriptor.dpbSize);
-    ResetInternalTrackingReferenceUsage();
-    ResetReferenceFramesInformation();
-    ReleaseUnusedReferences();
-
-    if (m_dpbDescriptor.fReferenceOnly)
-    {
-        D3D12ResourceHeapCombinedDesc requiredResourceArgs = {};
-
-        if (m_dpbDescriptor.fArrayOfTexture)
-        {
-            requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(m_dpbDescriptor.Format, m_dpbDescriptor.Width, m_dpbDescriptor.Height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
-            UINT64 requiredResourceSize = 0;
-            m_pD3D12Screen->dev->GetCopyableFootprints(&requiredResourceArgs.m_desc12, 0, 1, 0, nullptr, nullptr, nullptr, &requiredResourceSize);
-            requiredResourceArgs.m_heapDesc = CD3DX12_HEAP_DESC(requiredResourceSize, CD3DX12_HEAP_PROPERTIES((D3D12_HEAP_TYPE_DEFAULT), m_NodeMask, m_NodeMask));
-
-            for (ReferenceData& referenceData : referenceDatas)
-            {
-                D3D12_HEAP_PROPERTIES currentHeapProps = { };
-                D3D12_HEAP_FLAGS currentHeapFlags = { };
-                HRESULT hr = referenceData.referenceOnlyTexture->GetHeapProperties(&currentHeapProps, &currentHeapFlags);
-                if(FAILED(hr))
+                // Untrack this resource, will mark it as free un the underlying storage buffer pool
+                assert(m_upD3D12TexturesStorageManager->UntrackReconstructedPictureAllocation(reconPicture));                
+                D3D12_VIDEO_RECONSTRUCTED_PICTURE nullReconPic = 
                 {
-                    D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::Resize - GetHeapProperties failed with HR %x\n", hr);
-                }
-                D3D12_RESOURCE_DESC currentResourceDesc = referenceData.referenceOnlyTexture->GetDesc();
-                UINT64 currentResourceSize = 0;
-                m_pD3D12Screen->dev->GetCopyableFootprints(&currentResourceDesc, 0, 1, 0, nullptr, nullptr, nullptr, &currentResourceSize);
-
-                D3D12ResourceHeapCombinedDesc existingResourceArgs = 
-                {
-                    currentResourceDesc,
-                    CD3DX12_HEAP_DESC(currentResourceSize, currentHeapProps, 0L, currentHeapFlags)
+                    nullptr,
+                    0,
+                    nullptr
                 };
 
-                if (   !referenceData.referenceOnlyTexture
-                    || 0 != memcmp(&existingResourceArgs, &requiredResourceArgs, sizeof(D3D12ResourceHeapCombinedDesc)))
-                {
-                    hr = m_pD3D12Screen->dev->CreateCommittedResource(
-                        &requiredResourceArgs.m_heapDesc.Properties,
-                        D3D12_HEAP_FLAG_NONE,
-                        &requiredResourceArgs.m_desc12,
-                        D3D12_RESOURCE_STATE_COMMON,
-                        nullptr,
-                        IID_PPV_ARGS(referenceData.referenceOnlyTexture.GetAddressOf()));
-                    if(FAILED(hr))
-                    {
-                        D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::Resize - CreateCommittedResource failed with HR %x\n", hr);
-                    }
-                }
-
-                referenceData.referenceTexture = referenceData.referenceOnlyTexture.Get();
-                referenceData.subresourceIndex = 0u;
-            }
-        }
-        else
-        {
-            requiredResourceArgs.m_desc12 = CD3DX12_RESOURCE_DESC::Tex2D(m_dpbDescriptor.Format, m_dpbDescriptor.Width, m_dpbDescriptor.Height, m_dpbDescriptor.dpbSize, 1, 1, 0, D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
-            UINT64 requiredResourceSize = 0;
-            m_pD3D12Screen->dev->GetCopyableFootprints(&requiredResourceArgs.m_desc12, 0, 1, 0, nullptr, nullptr, nullptr, &requiredResourceSize);
-            requiredResourceArgs.m_heapDesc = CD3DX12_HEAP_DESC(requiredResourceSize, CD3DX12_HEAP_PROPERTIES((D3D12_HEAP_TYPE_DEFAULT), m_NodeMask, m_NodeMask));
-
-            ComPtr<ID3D12Resource> spReferenceOnlyTextureArray;
-            
-            HRESULT hr = m_pD3D12Screen->dev->CreateCommittedResource(
-                        &requiredResourceArgs.m_heapDesc.Properties,
-                        D3D12_HEAP_FLAG_NONE,
-                        &requiredResourceArgs.m_desc12,
-                        D3D12_RESOURCE_STATE_COMMON,
-                        nullptr,
-                        IID_PPV_ARGS(spReferenceOnlyTextureArray.GetAddressOf()));
-
-            if(FAILED(hr))
-            {
-                D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::Resize - CreateCommittedResource failed with HR %x\n", hr);
+                // Mark the unused refpic as null/empty in the DPB
+                m_upD3D12TexturesStorageManager->AssignReferenceFrame(nullReconPic, index);     
             }
 
-            for (size_t i = 0; i < referenceDatas.size(); i++)
-            {
-                referenceDatas[i].referenceOnlyTexture = spReferenceOnlyTextureArray.Get();
-                referenceDatas[i].referenceTexture = spReferenceOnlyTextureArray.Get();
-                referenceDatas[i].subresourceIndex = static_cast<UINT>(i);
-            }
+
+            m_referenceDXVAIndices[index].originalIndex = m_invalidIndex;
         }
     }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
-void D3D12VidDecReferenceDataManager::ResizeDataStructures(UINT size)
+void D3D12VidDecReferenceDataManager::MarkAllReferencesAsUnused()
 {
-    textures.resize(size);
-    texturesSubresources.resize(size);
-    decoderHeapsParameter.resize(size);
-    referenceDatas.resize(size);
-}
-
-//----------------------------------------------------------------------------------------------------------------------------------
-void D3D12VidDecReferenceDataManager::ResetReferenceFramesInformation()
-{
-    for (UINT index = 0; index < Size(); index++)
+    for (UINT index = 0; index < m_dpbDescriptor.dpbSize; index++)
     {
-        textures[index] = nullptr;
-        texturesSubresources[index] = 0;
-        decoderHeapsParameter[index] = nullptr;
-    }
-}
-
-//----------------------------------------------------------------------------------------------------------------------------------
-void D3D12VidDecReferenceDataManager::ResetInternalTrackingReferenceUsage()
-{
-    for (UINT index = 0; index < Size(); index++)
-    {
-        referenceDatas[index].fUsed = false;
+        m_referenceDXVAIndices[index].fUsed = false;
     }
 }

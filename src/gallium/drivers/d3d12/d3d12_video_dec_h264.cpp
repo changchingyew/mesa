@@ -38,14 +38,10 @@ void d3d12_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UI
 	*pMaxDPB = pPicParams->num_ref_frames + 1;
 }
 
-void d3d12_decoder_release_unused_references_h264(struct d3d12_video_decoder *pD3D12Dec)
-{	
-	// References residency policy: Mark all references as unused and only mark again as used the ones used by this frame
-	pD3D12Dec->m_spDPBManager->ResetInternalTrackingReferenceUsage();
-	pD3D12Dec->m_spDPBManager->MarkReferencesInUse(d3d12_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList);
-}
-
-void d3d12_decoder_prepare_h264_reference_pic_settings(
+///
+/// Pushes the current frame as next reference, updates the DXVA H264 structure with the indices of the DPB and transitions the references
+///
+void d3d12_decoder_prepare_current_frame_references_h264(
 	struct d3d12_video_decoder *pD3D12Dec,
 	ID3D12Resource* pTexture2D,
 	UINT subresourceIndex
@@ -70,8 +66,8 @@ void d3d12_decoder_prepare_h264_reference_pic_settings(
 
 	d3d12_record_state_transitions
 	(
-	pD3D12Dec->m_spDecodeCommandList,
-	neededStateTransitions
+		pD3D12Dec->m_spDecodeCommandList,
+		neededStateTransitions
 	);
 
 	// Schedule reverse (back to common) transitions before command list closes for current frame

@@ -33,30 +33,33 @@ class TexturesArrayDPBManager : public ID3D12VideoDPBStorageManager
 // ID3D12VideoDPBStorageManager
 public:
 
-    // Adds a new reference frame at a given position and returns operation success
-    void InsertReferenceFrame(D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE pReconPicture, UINT dpbPosition);
+    // Adds a new reference frame at a given position
+    void InsertReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE pReconPicture, UINT dpbPosition);
+
+    // Assigns a reference frame at a given position
+    void AssignReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE pReconPicture, UINT dpbPosition);
 
     // Gets a reference frame at a given position
-    D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE GetReferenceFrame(UINT dpbPosition);
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE GetReferenceFrame(UINT dpbPosition);
 
     // Removes a new reference frame at a given position and returns operation success
     // pResourceUntracked is an optional output indicating if the removed resource was being tracked by the pool
     bool RemoveReferenceFrame(UINT dpbPosition, bool* pResourceUntracked = nullptr);
 
-    // Returns the resource allocation for a NEW reconstructed picture
-    D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE GetNewTrackedReconstructedPictureAllocation();
+    // Returns the resource allocation for a NEW picture
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE GetNewTrackedPictureAllocation();
 
     // Returns true if the trackedItem was allocated (and is being tracked) by this class
-    bool IsTrackedAllocation(D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE trackedItem);
+    bool IsTrackedAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE trackedItem);
 
     // Returns whether it found the tracked resource on this instance pool tracking and was able to free it
-    bool UntrackReconstructedPictureAllocation(D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE trackedItem);
+    bool UntrackReconstructedPictureAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE trackedItem);
 
     // Returns the number of pictures currently stored in the DPB
     UINT GetNumberOfPicsInDPB();
 
     // Returns all the current reference frames stored
-    D3D12_VIDEO_ENCODE_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();
+    D3D12_VIDEO_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();
 
     // Removes all pictures from DPB
     // returns the number of resources marked as reusable
@@ -70,7 +73,7 @@ public:
 // TexturesArrayDPBManager
 public:
     TexturesArrayDPBManager(
-        UINT16 dpbInitialSize,
+        UINT16 dpbInitialSize, // Maximum in use resources for a DPB of size x should be x+1 for cases when a P frame is using the x references in the L0 list and also using an extra resource to output it's own recon pic.
         ID3D12Device* pDevice,
         DXGI_FORMAT encodeSessionFormat,
         D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
@@ -94,6 +97,7 @@ private:
     {
         std::vector<ID3D12Resource*> pResources;
         std::vector<UINT> pSubresources;
+        std::vector<ID3D12VideoDecoderHeap*> pHeaps;
     } D3D12_DPB;
 
     D3D12_DPB m_D3D12DPB;
