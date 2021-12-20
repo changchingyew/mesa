@@ -1116,12 +1116,15 @@ bool GetSliceSizeAndOffset(size_t sliceIdx, size_t numSlices, D3D12DecoderByteBu
       return false;
    }
 
+   uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset; // Search the rest of the full frame buffer after the offset
+   int currentSlicePosition = GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
+   assert(currentSlicePosition >= 0);
+
+   // Save the offset until the next slice in the output param
+   outSliceOffset = currentSlicePosition + bufferOffset;
+
    if(sliceIdx == (numSlices - 1)) // If this is the last slice on the bitstream
    {
-      uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset; // Search the rest of the full frame buffer after the offset
-      int currentSlicePosition = GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
-      assert(currentSlicePosition >= 0);
-
       // Save the offset until the next slice in the output param
       outSliceOffset = currentSlicePosition + bufferOffset;
       
@@ -1130,14 +1133,7 @@ bool GetSliceSizeAndOffset(size_t sliceIdx, size_t numSlices, D3D12DecoderByteBu
       outSliceSize = buf.size() - outSliceOffset;
    }   
    else // If it's not the last slice on the bitstream
-   {
-      uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset; // Search the rest of the full frame buffer after the offset
-      int currentSlicePosition = GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
-      assert(currentSlicePosition >= 0); 
-
-      // Save the offset until the next slice in the output param
-      outSliceOffset = currentSlicePosition + bufferOffset;
-      
+   {      
       // As there's another slice after this one, look for it and calculate the size based on the next one's offset.
 
       // Skip current start code, to get the slice after this, to calculate its size
