@@ -965,7 +965,7 @@ void d3d12_decoder_reconfigure_dpb(
       || pD3D12Dec->m_decoderHeapDesc.MaxDecodePictureBufferCount < maxDPB)
    {
       // Detect the combination of AOT/ReferenceOnly to configure the DPB manager
-      bool fArrayOfTexture = (pD3D12Dec->m_tier >= D3D12_VIDEO_DECODE_TIER_2);
+      bool fArrayOfTexture = (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ARRAY_OF_TEXTURES) != 0;
       bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0;
 
       UINT16 referenceCount = (conversionArguments.Enable) ? (UINT16) conversionArguments.ReferenceFrameCount : maxDPB;
@@ -1248,7 +1248,7 @@ bool d3d12_video_dec_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT de
             break;
     }
 
-    return (decodeSupport.DecodeTier >= D3D12_VIDEO_DECODE_TIER_2 || (decodeSupport.ConfigurationFlags & D3D12_VIDEO_DECODE_CONFIGURATION_FLAG_REFERENCE_ONLY_ALLOCATIONS_REQUIRED) != 0)
+    return (decodeSupport.DecodeTier >= D3D12_VIDEO_DECODE_TIER_2)
         && supportedProfile;
 }
 

@@ -91,7 +91,6 @@ D3D12VidDecReferenceDataManager::D3D12VidDecReferenceDataManager(
     
     m_referenceDXVAIndices.resize(m_dpbDescriptor.dpbSize);
 
-    // TODO: Replace with Insert fine grain
     D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> reconPicture = 
     {
         nullptr,
@@ -193,8 +192,6 @@ UINT16 D3D12VidDecReferenceDataManager::StoreFutureReference(UINT16 index, ComPt
         decoderHeap.Get()
     };
     
-    // TODO: Replace with Insert fine grain
-    // m_upD3D12TexturesStorageManager->InsertReferenceFrame(reconPic, remappedIndex);
     m_upD3D12TexturesStorageManager->AssignReferenceFrame(reconPic, remappedIndex);
 
     // Store the index to use for error handling when caller specifies and invalid reference index.
@@ -243,10 +240,6 @@ void D3D12VidDecReferenceDataManager::ReleaseUnusedReferencesTexturesMemory()
         if (!m_referenceDXVAIndices[index].fUsed)
         {
             D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> reconPicture = m_upD3D12TexturesStorageManager->GetReferenceFrame(index);
-            // TODO: Replace with Remove fine grain
-            // TODO: Remove from storage, careful with remove/erase shifting the indices of the other resources in the DPB storage
-            // m_upD3D12TexturesStorageManager->RemoveReferenceFrame(reconPic, remappedIndex);
-
             if(reconPicture.pReconstructedPicture != nullptr)
             {
                 // Untrack this resource, will mark it as free un the underlying storage buffer pool
