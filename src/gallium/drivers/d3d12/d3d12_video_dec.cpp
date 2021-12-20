@@ -561,30 +561,31 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    const uint numPlanes = 2;// Y and UV planes
    for (size_t planeIdx = 0; planeIdx < numPlanes; planeIdx++)
    {
-      const D3D12_RESOURCE_DESC stagingDesc = pOutputD3D12Texture->GetDesc();
+      const D3D12_RESOURCE_DESC stagingDesc = d3d12OutputArguments.pOutputTexture2D->GetDesc();
+      uint planeSubresource = 2 * d3d12OutputArguments.OutputSubresource + planeIdx;
       D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
       UINT64 srcTextureTotalBytes = 0;
-      pD3D12Dec->m_pD3D12Screen->dev->GetCopyableFootprints(&stagingDesc, planeIdx, 1, 0, &layout, nullptr, nullptr, &srcTextureTotalBytes);
+      pD3D12Dec->m_pD3D12Screen->dev->GetCopyableFootprints(&stagingDesc, planeSubresource, 1, 0, &layout, nullptr, nullptr, &srcTextureTotalBytes);
       std::vector<uint8_t> pSrc(srcTextureTotalBytes);
 
       // Uncomment below if desired to mock an all violet decoded texture
       // std::vector<uint8_t> pTmp(srcTextureTotalBytes);
       // memset(pTmp.data(), 255u/*if on all YUV is RGB violet*/, pTmp.size());
       // pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(
-      //    pOutputD3D12Texture,
-      //    planeIdx,
+      //    d3d12OutputArguments.pOutputTexture2D,
+      //    planeSubresource,
       //    D3D12_RESOURCE_STATE_COMMON,
       //    pTmp.data(),
       //    layout.Footprint.RowPitch,
-      //    layout.Footprint.RowPitch
+      //    layout.Footprint.RowPitch * layout.Footprint.Height,
       // );
 
       pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
          pSrc.data(),
          layout.Footprint.RowPitch,
-         layout.Footprint.RowPitch * stagingDesc.Height,
-         pOutputD3D12Texture,
-         planeIdx,
+         layout.Footprint.RowPitch * layout.Footprint.Height,
+         d3d12OutputArguments.pOutputTexture2D,
+         planeSubresource,
          D3D12_RESOURCE_STATE_COMMON
       );
 
@@ -610,7 +611,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       }
       target->associated_data = &pD3D12Dec->m_DecodedPlanesBufferDesc;
 
-      // At this point pSrc has the srcTextureTotalBytes of raw pixel data of pOutputD3D12Texture/subresource/planeIdx
+      // At this point pSrc has the srcTextureTotalBytes of raw pixel data of d3d12OutputArguments.pOutputTexture2D/subresource/planeIdx
 
       // Upload pSrc into target using texture_map
       unsigned box_w = align(stagingDesc.Width, 2);
