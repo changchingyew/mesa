@@ -901,10 +901,12 @@ void d3d12_decoder_prepare_for_decode_frame(
       pD3D12VideoBuffer,
       conversionArgs);
 
+   // Refresh DPB active references for current frame, release memory for unused references.
+   d3d12_decoder_refresh_dpb_active_references(pD3D12Dec);
+
    // Get the texture for the current frame to be decoded
    pD3D12Dec->m_spDPBManager->GetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
 
-   d3d12_decoder_refresh_dpb_active_references(pD3D12Dec);
 
    switch (pD3D12Dec->m_d3d12DecProfileType)
    {
@@ -968,7 +970,7 @@ void d3d12_decoder_reconfigure_dpb(
       bool fArrayOfTexture = (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ARRAY_OF_TEXTURES) != 0;
       bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0;
 
-      UINT16 referenceCount = (conversionArguments.Enable) ? (UINT16) conversionArguments.ReferenceFrameCount : maxDPB;
+      UINT16 referenceCount = (conversionArguments.Enable) ? (UINT16) conversionArguments.ReferenceFrameCount + 1 /*extra slot for current picture*/: maxDPB;
       D3D12DPBDescriptor dpbDesc = { };
       dpbDesc.Width = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Width : outputResourceDesc.Width;
       dpbDesc.Height = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Height : outputResourceDesc.Height;
