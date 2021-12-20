@@ -94,6 +94,7 @@ typedef struct D3D12DPBDescriptor
     bool fArrayOfTexture = false;
     bool fReferenceOnly = false;
     UINT16 dpbSize = 0;
+    UINT m_NodeMask = 0;
 } D3D12DPBDescriptor;
 
 typedef struct D3D12DecVideoDecodeOutputConversionArguments

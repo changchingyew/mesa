@@ -36,7 +36,7 @@ void TexturesArrayDPBManager<TVideoHeap>::CreateReconstructedPicAllocations(ID3D
 {
     if(texArraySize > 0)
     {   
-        D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_nodeMask, m_nodeMask);
         CD3DX12_RESOURCE_DESC reconstructedPictureResourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(
             m_encodeFormat,
             m_encodeResolution.Width,
@@ -70,13 +70,15 @@ TexturesArrayDPBManager<TVideoHeap>::TexturesArrayDPBManager(
     ID3D12Device* pDevice,
     DXGI_FORMAT encodeSessionFormat,
     D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
-    D3D12_RESOURCE_FLAGS resourceAllocFlags
+    D3D12_RESOURCE_FLAGS resourceAllocFlags,
+    UINT nodeMask
 ) :
     m_dpbTextureArraySize(dpbTextureArraySize),
     m_pDevice(pDevice),
     m_encodeFormat(encodeSessionFormat),
     m_encodeResolution(encodeSessionResolution),    
-    m_resourceAllocFlags(resourceAllocFlags)
+    m_resourceAllocFlags(resourceAllocFlags),
+    m_nodeMask(nodeMask)
 {
     // Initialize D3D12 DPB exposed in this class implemented CRUD interface for a DPB
     assert(0u == ClearDecodePictureBuffer());

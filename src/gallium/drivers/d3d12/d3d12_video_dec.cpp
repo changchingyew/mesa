@@ -408,14 +408,25 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       )
    );
 
+   ///
+   /// Clear texture (no reference only flags in resource allocation) to use as decode output to send downstream for display/consumption
+   ///
    ID3D12Resource* pOutputD3D12Texture;
    uint outputD3D12Subresource = 0;
+
+   ///
+   /// Ref Only texture (with reference only flags in resource allocation) to use as reconstructed picture decode output and to store as future reference in DPB
+   ///
+   ID3D12Resource* pRefOnlyOutputD3D12Texture;
+   uint refOnlyOutputD3D12Subresource = 0;
 
    d3d12_decoder_prepare_for_decode_frame(
       pD3D12Dec,
       pD3D12VideoBuffer,
       &pOutputD3D12Texture, // output
       &outputD3D12Subresource, //output
+      &pRefOnlyOutputD3D12Texture, //output
+      &refOnlyOutputD3D12Subresource, //output
       requestedConversionArguments
    );
 
@@ -467,27 +478,9 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    {
       d3d12OutputArguments.ConversionArguments.Enable = TRUE;
 
-      bool needsTransitionToDecodeWrite = false;
-      pD3D12Dec->m_spDPBManager->GetReferenceOnlyOutput(d3d12OutputArguments.ConversionArguments.pReferenceTexture2D, d3d12OutputArguments.ConversionArguments.ReferenceSubresource, needsTransitionToDecodeWrite);
-      assert(needsTransitionToDecodeWrite);
-      
-      d3d12_record_state_transition(
-         pD3D12Dec->m_spDecodeCommandList,
-         d3d12OutputArguments.ConversionArguments.pReferenceTexture2D,
-         D3D12_RESOURCE_STATE_COMMON,
-         D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
-         d3d12OutputArguments.ConversionArguments.ReferenceSubresource
-      );
-
-      // Schedule reverse (back to common) transitions before command list closes for current frame
-      pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(
-         CD3DX12_RESOURCE_BARRIER::Transition(
-            d3d12OutputArguments.ConversionArguments.pReferenceTexture2D,
-            D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
-            D3D12_RESOURCE_STATE_COMMON,
-            d3d12OutputArguments.ConversionArguments.ReferenceSubresource
-         )
-      );
+      assert(pRefOnlyOutputD3D12Texture);
+      d3d12OutputArguments.ConversionArguments.pReferenceTexture2D = pRefOnlyOutputD3D12Texture;
+      d3d12OutputArguments.ConversionArguments.ReferenceSubresource = refOnlyOutputD3D12Subresource;
 
       const D3D12_RESOURCE_DESC &descReference = d3d12OutputArguments.ConversionArguments.pReferenceTexture2D->GetDesc();
       d3d12OutputArguments.ConversionArguments.DecodeColorSpace = 
@@ -894,6 +887,8 @@ void d3d12_decoder_prepare_for_decode_frame(
    struct d3d12_video_buffer* pD3D12VideoBuffer,
    ID3D12Resource** ppOutTexture2D,
    UINT* pOutSubresourceIndex,
+   ID3D12Resource** ppRefOnlyOutTexture2D,
+   UINT* pRefOnlyOutSubresourceIndex,
    const D3D12DecVideoDecodeOutputConversionArguments& conversionArgs
 )
 {   
@@ -905,9 +900,40 @@ void d3d12_decoder_prepare_for_decode_frame(
    // Refresh DPB active references for current frame, release memory for unused references.
    d3d12_decoder_refresh_dpb_active_references(pD3D12Dec);
 
-   // Get the texture for the current frame to be decoded
+   // Get the output texture for the current frame to be decoded
    pD3D12Dec->m_spDPBManager->GetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
 
+   // Get the reference only texture for the current frame to be decoded (if applicable)
+   bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0;
+   if (fReferenceOnly)
+   {
+      bool needsTransitionToDecodeWrite = false;
+      pD3D12Dec->m_spDPBManager->GetReferenceOnlyOutput(ppRefOnlyOutTexture2D, pRefOnlyOutSubresourceIndex, needsTransitionToDecodeWrite);
+      assert(needsTransitionToDecodeWrite);
+
+      d3d12_record_state_transition(
+         pD3D12Dec->m_spDecodeCommandList,
+         *ppRefOnlyOutTexture2D,
+         D3D12_RESOURCE_STATE_COMMON,
+         D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
+         *pRefOnlyOutSubresourceIndex
+      );
+
+      // Schedule reverse (back to common) transitions before command list closes for current frame
+      pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(
+         CD3DX12_RESOURCE_BARRIER::Transition(
+            *ppRefOnlyOutTexture2D,
+            D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
+            D3D12_RESOURCE_STATE_COMMON,
+            *pRefOnlyOutSubresourceIndex
+         )
+      );
+   }
+
+   // If decoded needs reference_only entries in the dpb, use the reference_only allocation for current frame
+   // otherwise, use the standard output resource
+   ID3D12Resource *pCurrentFrameDPBEntry = fReferenceOnly ? *ppRefOnlyOutTexture2D : *ppOutTexture2D;
+   UINT currentFrameDPBEntrySubresource = fReferenceOnly ? *pRefOnlyOutSubresourceIndex : *pOutSubresourceIndex;
 
    switch (pD3D12Dec->m_d3d12DecProfileType)
    {
@@ -915,8 +941,8 @@ void d3d12_decoder_prepare_for_decode_frame(
       {
          d3d12_decoder_prepare_current_frame_references_h264(
             pD3D12Dec,
-            *ppOutTexture2D, // Input - We pass the value of the ppOutTexture2D
-            *pOutSubresourceIndex // Input - We pass the value of the pOutSubresourceIndex
+            pCurrentFrameDPBEntry,
+            currentFrameDPBEntrySubresource
             );   
       } break;
 
@@ -968,23 +994,21 @@ void d3d12_decoder_reconfigure_dpb(
       || pD3D12Dec->m_decoderHeapDesc.MaxDecodePictureBufferCount < maxDPB)
    {
       // Detect the combination of AOT/ReferenceOnly to configure the DPB manager
-      bool fArrayOfTexture = (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ARRAY_OF_TEXTURES) != 0;
-      bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0;
-
       UINT16 referenceCount = (conversionArguments.Enable) ? (UINT16) conversionArguments.ReferenceFrameCount + 1 /*extra slot for current picture*/: maxDPB;
       D3D12DPBDescriptor dpbDesc = { };
       dpbDesc.Width = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Width : outputResourceDesc.Width;
       dpbDesc.Height = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Height : outputResourceDesc.Height;
       dpbDesc.Format = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Format.Format : outputResourceDesc.Format;
-      dpbDesc.fArrayOfTexture = fArrayOfTexture;
-      dpbDesc.fReferenceOnly = fReferenceOnly;
+      dpbDesc.fArrayOfTexture = ((pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ARRAY_OF_TEXTURES) != 0);
+      dpbDesc.fReferenceOnly = ((pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0);
       dpbDesc.dpbSize = referenceCount;
+      dpbDesc.m_NodeMask = pD3D12Dec->m_NodeMask;
 
       // Create DPB manager
       if(pD3D12Dec->m_spDPBManager == nullptr)
       {
          pD3D12Dec->m_spDPBManager.reset(new D3D12VidDecReferenceDataManager(pD3D12Dec->m_pD3D12Screen, pD3D12Dec->m_NodeMask, pD3D12Dec->m_d3d12DecProfileType, dpbDesc));
-      }      
+      }
 
       //
       // (Re)-create decoder heap

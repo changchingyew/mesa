@@ -78,7 +78,8 @@ public:
         ID3D12Device* pDevice,
         DXGI_FORMAT encodeSessionFormat,
         D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
-        D3D12_RESOURCE_FLAGS resourceAllocFlags = D3D12_RESOURCE_FLAG_NONE
+        D3D12_RESOURCE_FLAGS resourceAllocFlags = D3D12_RESOURCE_FLAG_NONE,
+        UINT nodeMask = 0
     );
     ~TexturesArrayDPBManager();
 
@@ -120,6 +121,8 @@ private:
 
     ComPtr<ID3D12Resource> m_baseTexArrayResource;
     std::vector<ReusableResource> m_ResourcesPool;
+
+    UINT m_nodeMask = 0u;
 };
 
 #include "d3d12_video_texture_array_dpb_manager.inl"

@@ -41,12 +41,76 @@ static UINT16 GetInvalidReferenceIndex(D3D12_VIDEO_DECODE_PROFILE_TYPE DecodePro
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
+///
+/// This should always be a clear (non ref only) texture, to be presented downstream as the decoded texture
+/// Please see GetReferenceOnlyOutput for the current frame recon pic ref only allocation
+///
 void D3D12VidDecReferenceDataManager::GetCurrentFrameDecodeOutputTexture(ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex)
 {
-    D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> pFreshAllocation = m_upD3D12TexturesStorageManager->GetNewTrackedPictureAllocation();
+    if(IsReferenceOnly())
+    {
+        // The DPB Storage only has REFERENCE_ONLY allocations, cannot use those for clear decoded texture allocations
 
-    *ppOutTexture2D = pFreshAllocation.pReconstructedPicture;
-    *pOutSubresourceIndex = pFreshAllocation.ReconstructedPictureSubresource;
+        // When using ReferenceOnly, the reference frames in the DPB and the current frame output must be REFERENCE_ONLY and are stored in m_upD3D12TexturesStorageManager
+        // but we need a +1 allocation without the REFERENCE_FRAME to use as clear decoded output. 
+        // Otherwise, this is not used and the decode output allocations come from m_upD3D12TexturesStorageManager as decode output == reconpic decode output
+        // As this texture does not need to be stored in the DPB after the decode operation finished for the current frame
+        // and the decode output is deep copied into the target pipe_video_buffer ID3D12Resource,
+        // we can just simply reuse/not preserve m_pClearDecodedOutputTexture between DecodeFrame calls
+        
+        if(m_pClearDecodedOutputTexture == nullptr)
+        {       
+            D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_dpbDescriptor.m_NodeMask, m_dpbDescriptor.m_NodeMask);
+            CD3DX12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+                m_dpbDescriptor.Format,
+                m_dpbDescriptor.Width,
+                m_dpbDescriptor.Height,
+                1,
+                1,
+                1,
+                0,
+                D3D12_RESOURCE_FLAG_NONE
+            );
+
+            VERIFY_SUCCEEDED(m_pD3D12Screen->dev->CreateCommittedResource(
+                &Properties,
+                D3D12_HEAP_FLAG_NONE,
+                &resDesc,
+                D3D12_RESOURCE_STATE_COMMON,
+                nullptr,
+                IID_PPV_ARGS(m_pClearDecodedOutputTexture.GetAddressOf())));
+        }
+
+        *ppOutTexture2D = m_pClearDecodedOutputTexture.Get();
+        *pOutSubresourceIndex = 0;
+    }
+    else
+    {
+        // The DPB Storage only has standard (without the ref only flags) allocations, directly use one of those.
+        D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> pFreshAllocation = m_upD3D12TexturesStorageManager->GetNewTrackedPictureAllocation();
+        *ppOutTexture2D = pFreshAllocation.pReconstructedPicture;
+        *pOutSubresourceIndex = pFreshAllocation.ReconstructedPictureSubresource;
+    }    
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
+_Use_decl_annotations_
+void D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput(
+    ID3D12Resource** ppOutputReference, // out -> new reference slot assigned or nullptr
+    UINT* pOutputSubresource, // out -> new reference slot assigned or nullptr
+    bool& outNeedsTransitionToDecodeWrite // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
+    )
+{
+    if(!IsReferenceOnly())
+    {
+        D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput expected IsReferenceOnly() to be true.\n");
+    }
+
+    // The DPB Storage only has REFERENCE_ONLY allocations, use one of those.
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> pFreshAllocation = m_upD3D12TexturesStorageManager->GetNewTrackedPictureAllocation();
+    *ppOutputReference = pFreshAllocation.pReconstructedPicture;
+    *pOutputSubresource = pFreshAllocation.ReconstructedPictureSubresource;
+    outNeedsTransitionToDecodeWrite = true;
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -82,11 +146,14 @@ D3D12VidDecReferenceDataManager::D3D12VidDecReferenceDataManager(
     
     if(m_dpbDescriptor.fArrayOfTexture)
     {        
-        m_upD3D12TexturesStorageManager = std::make_unique< ArrayOfTexturesDPBManager<ID3D12VideoDecoderHeap> >(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
+        // If all subresources are 0, the DPB is loaded with an array of individual textures, the D3D Encode API expects pSubresources to be null in this case
+        // The D3D Decode API expects it to be non-null even with all zeroes.
+        bool setNullSubresourcesOnAllZero = false;
+        m_upD3D12TexturesStorageManager = std::make_unique< ArrayOfTexturesDPBManager<ID3D12VideoDecoderHeap> >(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags, setNullSubresourcesOnAllZero, m_dpbDescriptor.m_NodeMask);
     }
     else
     {        
-        m_upD3D12TexturesStorageManager = std::make_unique< TexturesArrayDPBManager<ID3D12VideoDecoderHeap> >(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
+        m_upD3D12TexturesStorageManager = std::make_unique< TexturesArrayDPBManager<ID3D12VideoDecoderHeap> >(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags, m_dpbDescriptor.m_NodeMask);
     }
     
     m_referenceDXVAIndices.resize(m_dpbDescriptor.dpbSize);
@@ -125,7 +192,7 @@ UINT16 D3D12VidDecReferenceDataManager::FindRemappedIndex(UINT16 originalIndex)
 //----------------------------------------------------------------------------------------------------------------------------------
 UINT16 D3D12VidDecReferenceDataManager::UpdateEntry(
                                                         UINT16 index, // in
-                                                        ID3D12Resource*& pOutputReferenceNoRef, // out -> new reference slot assigned or nullptr
+                                                        ID3D12Resource*& pOutputReference, // out -> new reference slot assigned or nullptr
                                                         UINT& OutputSubresource, // out -> new reference slot assigned or 0
                                                         bool& outNeedsTransitionToDecodeRead // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
                                                     )
@@ -148,7 +215,7 @@ UINT16 D3D12VidDecReferenceDataManager::UpdateEntry(
         }
         
         D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> reconPicture = m_upD3D12TexturesStorageManager->GetReferenceFrame(remappedIndex);
-        pOutputReferenceNoRef = outNeedsTransitionToDecodeRead ? reconPicture.pReconstructedPicture : nullptr;
+        pOutputReference = outNeedsTransitionToDecodeRead ? reconPicture.pReconstructedPicture : nullptr;
         OutputSubresource = outNeedsTransitionToDecodeRead ? reconPicture.ReconstructedPictureSubresource : 0u;
     }
 
@@ -198,25 +265,6 @@ UINT16 D3D12VidDecReferenceDataManager::StoreFutureReference(UINT16 index, ComPt
     m_currentOutputIndex = remappedIndex;
 
     return remappedIndex;
-}
-
-//----------------------------------------------------------------------------------------------------------------------------------
-_Use_decl_annotations_
-void D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput(
-    ID3D12Resource*& pOutputReferenceNoRef, // out -> new reference slot assigned or nullptr
-    UINT& OutputSubresource, // out -> new reference slot assigned or nullptr
-    bool& outNeedsTransitionToDecodeWrite // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
-    )
-{
-    if(!IsReferenceOnly())
-    {
-        D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput expected IsReferenceOnly() to be true.\n");
-    }
-
-    D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> reconPic = m_upD3D12TexturesStorageManager->GetReferenceFrame(m_currentOutputIndex);
-
-    pOutputReferenceNoRef = reconPic.pReconstructedPicture;
-    OutputSubresource = reconPic.ReconstructedPictureSubresource;
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------

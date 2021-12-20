@@ -27,12 +27,6 @@
 #include "d3d12_video_dec_types.h"
 #include "d3d12_video_dpb_storage_manager.h"
 
-typedef struct D3D12ResourceHeapCombinedDesc
-{
-    D3D12_RESOURCE_DESC m_desc12;
-    D3D12_HEAP_DESC m_heapDesc;
-} D3D12ResourceHeapCombinedDesc;
-
 struct D3D12VidDecReferenceDataManager
 {
     D3D12VidDecReferenceDataManager(
@@ -58,8 +52,8 @@ struct D3D12VidDecReferenceDataManager
     void UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> & outNeededTransitions);
 
     void GetReferenceOnlyOutput(
-        ID3D12Resource*& pOutputReferenceNoRef, // out -> new reference slot assigned or nullptr
-        UINT& OutputSubresource, // out -> new reference slot assigned or nullptr
+        ID3D12Resource** ppOutputReferenceNoRef, // out -> new reference slot assigned or nullptr
+        UINT* pOutputSubresource, // out -> new reference slot assigned or nullptr
         bool& outNeedsTransitionToDecodeWrite // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
     );
 
@@ -85,8 +79,17 @@ private:
         bool fUsed;
     };
 
+    // Holds the DPB textures
     std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoDecoderHeap> > m_upD3D12TexturesStorageManager;
+
+    // Holds the mapping between DXVA PicParams indices and the D3D12 indices
     std::vector<ReferenceData> m_referenceDXVAIndices;
+
+    // When using ReferenceOnly, the reference frames in the DPB and the current frame output must be REFERENCE_ONLY and are stored in m_upD3D12TexturesStorageManager
+    // but we need a +1 allocation without the REFERENCE_FRAME to use as clear decoded output. 
+    // Otherwise, this is not used and the decode output allocations come from m_upD3D12TexturesStorageManager as decode output == reconpic decode output
+    ComPtr<ID3D12Resource> m_pClearDecodedOutputTexture;
+
     const struct d3d12_screen* m_pD3D12Screen;
     UINT                       m_NodeMask;
     UINT16                     m_invalidIndex;
