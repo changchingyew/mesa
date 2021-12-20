@@ -43,7 +43,7 @@ static UINT16 GetInvalidReferenceIndex(D3D12_VIDEO_DECODE_PROFILE_TYPE DecodePro
 //----------------------------------------------------------------------------------------------------------------------------------
 void D3D12VidDecReferenceDataManager::GetCurrentFrameDecodeOutputTexture(ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex)
 {
-    D3D12_VIDEO_RECONSTRUCTED_PICTURE pFreshAllocation = m_upD3D12TexturesStorageManager->GetNewTrackedPictureAllocation();
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> pFreshAllocation = m_upD3D12TexturesStorageManager->GetNewTrackedPictureAllocation();
 
     *ppOutTexture2D = pFreshAllocation.pReconstructedPicture;
     *pOutSubresourceIndex = pFreshAllocation.ReconstructedPictureSubresource;
@@ -52,7 +52,7 @@ void D3D12VidDecReferenceDataManager::GetCurrentFrameDecodeOutputTexture(ID3D12R
 //----------------------------------------------------------------------------------------------------------------------------------
 D3D12_VIDEO_DECODE_REFERENCE_FRAMES D3D12VidDecReferenceDataManager::GetCurrentFrameReferenceFrames()
 {
-    D3D12_VIDEO_REFERENCE_FRAMES args = m_upD3D12TexturesStorageManager->GetCurrentFrameReferenceFrames();
+    D3D12_VIDEO_REFERENCE_FRAMES<ID3D12VideoDecoderHeap> args = m_upD3D12TexturesStorageManager->GetCurrentFrameReferenceFrames();
     D3D12_VIDEO_DECODE_REFERENCE_FRAMES retVal =
     {
         args.NumTexture2Ds,
@@ -82,17 +82,17 @@ D3D12VidDecReferenceDataManager::D3D12VidDecReferenceDataManager(
     
     if(m_dpbDescriptor.fArrayOfTexture)
     {        
-        m_upD3D12TexturesStorageManager = std::make_unique<ArrayOfTexturesDPBManager>(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
+        m_upD3D12TexturesStorageManager = std::make_unique< ArrayOfTexturesDPBManager<ID3D12VideoDecoderHeap> >(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
     }
     else
     {        
-        m_upD3D12TexturesStorageManager = std::make_unique<TexturesArrayDPBManager>(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
+        m_upD3D12TexturesStorageManager = std::make_unique< TexturesArrayDPBManager<ID3D12VideoDecoderHeap> >(m_dpbDescriptor.dpbSize, m_pD3D12Screen->dev, m_dpbDescriptor.Format, targetFrameResolution, resourceAllocFlags);
     }
     
     m_referenceDXVAIndices.resize(m_dpbDescriptor.dpbSize);
 
     // TODO: Replace with Insert fine grain
-    D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPicture = 
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> reconPicture = 
     {
         nullptr,
         0,
@@ -148,7 +148,7 @@ UINT16 D3D12VidDecReferenceDataManager::UpdateEntry(
             outNeedsTransitionToDecodeRead = false;
         }
         
-        D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPicture = m_upD3D12TexturesStorageManager->GetReferenceFrame(remappedIndex);
+        D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> reconPicture = m_upD3D12TexturesStorageManager->GetReferenceFrame(remappedIndex);
         pOutputReferenceNoRef = outNeedsTransitionToDecodeRead ? reconPicture.pReconstructedPicture : nullptr;
         OutputSubresource = outNeedsTransitionToDecodeRead ? reconPicture.ReconstructedPictureSubresource : 0u;
     }
@@ -186,7 +186,7 @@ UINT16 D3D12VidDecReferenceDataManager::StoreFutureReference(UINT16 index, ComPt
 
     // Set the index as the key in this map entry.
     m_referenceDXVAIndices[remappedIndex].originalIndex = index;
-    D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPic =
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> reconPic =
     {
         pTexture2D,
         subresourceIndex,
@@ -216,7 +216,7 @@ void D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput(
         D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput expected IsReferenceOnly() to be true.\n");
     }
 
-    D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPic = m_upD3D12TexturesStorageManager->GetReferenceFrame(m_currentOutputIndex);
+    D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> reconPic = m_upD3D12TexturesStorageManager->GetReferenceFrame(m_currentOutputIndex);
 
     pOutputReferenceNoRef = reconPic.pReconstructedPicture;
     OutputSubresource = reconPic.ReconstructedPictureSubresource;
@@ -242,7 +242,7 @@ void D3D12VidDecReferenceDataManager::ReleaseUnusedReferencesTexturesMemory()
     {
         if (!m_referenceDXVAIndices[index].fUsed)
         {
-            D3D12_VIDEO_RECONSTRUCTED_PICTURE reconPicture = m_upD3D12TexturesStorageManager->GetReferenceFrame(index);
+            D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> reconPicture = m_upD3D12TexturesStorageManager->GetReferenceFrame(index);
             // TODO: Replace with Remove fine grain
             // TODO: Remove from storage, careful with remove/erase shifting the indices of the other resources in the DPB storage
             // m_upD3D12TexturesStorageManager->RemoveReferenceFrame(reconPic, remappedIndex);
@@ -251,7 +251,7 @@ void D3D12VidDecReferenceDataManager::ReleaseUnusedReferencesTexturesMemory()
             {
                 // Untrack this resource, will mark it as free un the underlying storage buffer pool
                 assert(m_upD3D12TexturesStorageManager->UntrackReconstructedPictureAllocation(reconPicture));                
-                D3D12_VIDEO_RECONSTRUCTED_PICTURE nullReconPic = 
+                D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> nullReconPic = 
                 {
                     nullptr,
                     0,

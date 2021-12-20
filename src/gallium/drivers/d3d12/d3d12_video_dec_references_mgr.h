@@ -85,7 +85,7 @@ private:
         bool fUsed;
     };
 
-    std::unique_ptr<ID3D12VideoDPBStorageManager> m_upD3D12TexturesStorageManager;
+    std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoDecoderHeap> > m_upD3D12TexturesStorageManager;
     std::vector<ReferenceData> m_referenceDXVAIndices;
     const struct d3d12_screen* m_pD3D12Screen;
     UINT                       m_NodeMask;
