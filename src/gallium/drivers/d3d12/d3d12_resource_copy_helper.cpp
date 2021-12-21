@@ -45,6 +45,67 @@ D3D12ResourceCopyHelper::D3D12ResourceCopyHelper(ID3D12CommandQueue* pCommandQue
         ));
 }
 
+void D3D12ResourceCopyHelper::CopySubresource(
+    ID3D12Resource* pSrcResource,
+    UINT srcSubresource,
+    D3D12_RESOURCE_STATES srcResourceState,
+    ID3D12Resource* pDstResource,
+    UINT dstSubresource,
+    D3D12_RESOURCE_STATES dstResourceState
+    )
+{
+    // Determine the layout necessary for copying
+    D3D12_RESOURCE_DESC srcResourceDesc = pSrcResource->GetDesc();
+    D3D12_RESOURCE_DESC dstResourceDesc = pDstResource->GetDesc();
+
+    assert(srcResourceDesc.Format == dstResourceDesc.Format);
+    assert(srcResourceDesc.Width == dstResourceDesc.Width);
+    assert(srcResourceDesc.Height == dstResourceDesc.Height);
+    assert(srcResourceDesc.Dimension == dstResourceDesc.Dimension);
+
+    // Record command to copy data from pSrcResource to pDstResource
+    {
+        TemporaryResourceTransition<ID3D12GraphicsCommandList> ResourceTransitionSrc(
+            m_pCommandList.Get(),
+            pSrcResource,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            srcResourceState
+            );
+
+        TemporaryResourceTransition<ID3D12GraphicsCommandList> ResourceTransitionDst(
+            m_pCommandList.Get(),
+            pDstResource,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            dstResourceState
+            );
+
+        if (srcResourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+        {
+            m_pCommandList->CopyBufferRegion(
+                pDstResource,
+                0,
+                pSrcResource,
+                0,
+                srcResourceDesc.Width
+                );
+        }
+        else
+        {
+            D3D12_TEXTURE_COPY_LOCATION srcResourceCopyLocation = CD3DX12_TEXTURE_COPY_LOCATION(pSrcResource, srcSubresource);
+            D3D12_TEXTURE_COPY_LOCATION dstResourceCopyLocation =  CD3DX12_TEXTURE_COPY_LOCATION(pDstResource, dstSubresource);            
+
+            m_pCommandList->CopyTextureRegion(
+                &dstResourceCopyLocation,
+                0, 0, 0,
+                &srcResourceCopyLocation,
+                nullptr
+                );
+        }
+    }
+
+    Epilog();
+}
+
 void D3D12ResourceCopyHelper::UploadData(
     ID3D12Resource* pResource,
     UINT Subresource,
