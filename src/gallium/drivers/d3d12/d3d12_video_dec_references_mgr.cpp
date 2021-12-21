@@ -58,31 +58,38 @@ void D3D12VidDecReferenceDataManager::GetCurrentFrameDecodeOutputTexture(ID3D12R
         // and the decode output is deep copied into the target pipe_video_buffer ID3D12Resource,
         // we can just simply reuse/not preserve m_pClearDecodedOutputTexture between DecodeFrame calls
         
-        if(m_pClearDecodedOutputTexture == nullptr)
-        {       
-            D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_dpbDescriptor.m_NodeMask, m_dpbDescriptor.m_NodeMask);
-            CD3DX12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-                m_dpbDescriptor.Format,
-                m_dpbDescriptor.Width,
-                m_dpbDescriptor.Height,
-                1,
-                1,
-                1,
-                0,
-                D3D12_RESOURCE_FLAG_NONE
-            );
+        if(m_dpbDescriptor.m_pfnGetCurrentFrameDecodeOutputTexture == nullptr)
+        {
+            if(m_pClearDecodedOutputTexture == nullptr)
+            {       
+                D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_dpbDescriptor.m_NodeMask, m_dpbDescriptor.m_NodeMask);
+                CD3DX12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+                    m_dpbDescriptor.Format,
+                    m_dpbDescriptor.Width,
+                    m_dpbDescriptor.Height,
+                    1,
+                    1,
+                    1,
+                    0,
+                    D3D12_RESOURCE_FLAG_NONE
+                );
 
-            VERIFY_SUCCEEDED(m_pD3D12Screen->dev->CreateCommittedResource(
-                &Properties,
-                D3D12_HEAP_FLAG_NONE,
-                &resDesc,
-                D3D12_RESOURCE_STATE_COMMON,
-                nullptr,
-                IID_PPV_ARGS(m_pClearDecodedOutputTexture.GetAddressOf())));
+                VERIFY_SUCCEEDED(m_pD3D12Screen->dev->CreateCommittedResource(
+                    &Properties,
+                    D3D12_HEAP_FLAG_NONE,
+                    &resDesc,
+                    D3D12_RESOURCE_STATE_COMMON,
+                    nullptr,
+                    IID_PPV_ARGS(m_pClearDecodedOutputTexture.GetAddressOf())));
+            }
+
+            *ppOutTexture2D = m_pClearDecodedOutputTexture.Get();
+            *pOutSubresourceIndex = 0;
         }
-
-        *ppOutTexture2D = m_pClearDecodedOutputTexture.Get();
-        *pOutSubresourceIndex = 0;
+        else
+        {
+            m_dpbDescriptor.m_pfnGetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
+        }
     }
     else
     {

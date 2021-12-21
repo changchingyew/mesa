@@ -545,7 +545,6 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    // and above layers (ie. VA) only allocate a single buffer for each frame
    ID3D12Resource* pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
 #else
-   
    ///
    /// TODO: Just writing into target->bo->res/d3d12_resource_resource(...) is not populating the pixels downstream (ie. vaGetImage readback with texture_map returns all zeroes)
    ///
@@ -1000,9 +999,18 @@ void d3d12_decoder_reconfigure_dpb(
       dpbDesc.Height = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Height : outputResourceDesc.Height;
       dpbDesc.Format = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Format.Format : outputResourceDesc.Format;
       dpbDesc.fArrayOfTexture = ((pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ARRAY_OF_TEXTURES) != 0);
-      dpbDesc.fReferenceOnly = ((pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0);
       dpbDesc.dpbSize = referenceCount;
       dpbDesc.m_NodeMask = pD3D12Dec->m_NodeMask;
+      dpbDesc.fReferenceOnly = ((pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0);
+      dpbDesc.m_pfnGetCurrentFrameDecodeOutputTexture = nullptr;
+      if(dpbDesc.fReferenceOnly)
+      {
+         dpbDesc.m_pfnGetCurrentFrameDecodeOutputTexture = [pPipeD3D12DstResource](ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex)
+         {
+           *ppOutTexture2D = pPipeD3D12DstResource;
+           pOutSubresourceIndex = 0;
+         };
+      }
 
       // Create DPB manager
       if(pD3D12Dec->m_spDPBManager == nullptr)

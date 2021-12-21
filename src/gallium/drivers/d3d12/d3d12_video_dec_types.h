@@ -53,6 +53,7 @@
 
 #include <dxguids/dxguids.h>
 
+#include <functional>
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 
@@ -95,6 +96,7 @@ typedef struct D3D12DPBDescriptor
     bool fReferenceOnly = false;
     UINT16 dpbSize = 0;
     UINT m_NodeMask = 0;
+    std::function<void(ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex)> m_pfnGetCurrentFrameDecodeOutputTexture;
 } D3D12DPBDescriptor;
 
 typedef struct D3D12DecVideoDecodeOutputConversionArguments
