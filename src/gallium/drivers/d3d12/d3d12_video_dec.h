@@ -129,6 +129,7 @@ struct d3d12_video_decoder
     D3D12_VIDEO_DECODER_HEAP_DESC          m_decoderHeapDesc = {};
     D3D12_VIDEO_DECODE_TIER                m_tier = D3D12_VIDEO_DECODE_TIER_NOT_SUPPORTED;
     DXGI_FORMAT                            m_decodeFormat;
+    D3D12_FEATURE_DATA_FORMAT_INFO m_decodeFormatInfo = { m_decodeFormat };
     D3D12_VIDEO_DECODE_CONFIGURATION_FLAGS m_configurationFlags = D3D12_VIDEO_DECODE_CONFIGURATION_FLAG_NONE;
     GUID m_d3d12DecProfile = { };
     D3D12_VIDEO_DECODE_PROFILE_TYPE m_d3d12DecProfileType = { };

@@ -70,6 +70,7 @@ void d3d12_decoder_prepare_current_frame_references_h264(
 	std::vector<D3D12_RESOURCE_BARRIER> neededStateTransitions; // Returned by UpdateEntries to perform by the method caller
 	pD3D12Dec->m_spDPBManager->UpdateEntries(d3d12_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList, neededStateTransitions);
 
+	// d3d12_record_state_transition(
 	d3d12_record_state_transitions
 	(
 		pD3D12Dec->m_spDecodeCommandList,

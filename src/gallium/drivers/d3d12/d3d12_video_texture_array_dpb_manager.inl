@@ -73,10 +73,10 @@ TexturesArrayDPBManager<TVideoHeap>::TexturesArrayDPBManager(
     D3D12_RESOURCE_FLAGS resourceAllocFlags,
     UINT nodeMask
 ) :
-    m_dpbTextureArraySize(dpbTextureArraySize),
     m_pDevice(pDevice),
     m_encodeFormat(encodeSessionFormat),
     m_encodeResolution(encodeSessionResolution),    
+    m_dpbTextureArraySize(dpbTextureArraySize),
     m_resourceAllocFlags(resourceAllocFlags),
     m_nodeMask(nodeMask)
 {

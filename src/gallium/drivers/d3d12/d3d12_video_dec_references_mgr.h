@@ -52,9 +52,9 @@ struct D3D12VidDecReferenceDataManager
     void UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> & outNeededTransitions);
 
     void GetReferenceOnlyOutput(
-        ID3D12Resource** ppOutputReferenceNoRef, // out -> new reference slot assigned or nullptr
+        ID3D12Resource** ppOutputReference, // out -> new reference slot assigned or nullptr
         UINT* pOutputSubresource, // out -> new reference slot assigned or nullptr
-        bool& outNeedsTransitionToDecodeWrite // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
+        bool& outNeedsTransitionToDecodeWrite // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE by the caller
     );
 
     // Gets the output texture for the current frame to be decoded
@@ -66,7 +66,7 @@ private:
 
     UINT16 UpdateEntry(
                 UINT16 index, // in
-                ID3D12Resource*& pOutputReferenceNoRef, // out -> new reference slot assigned or nullptr
+                ID3D12Resource*& pOutputReference, // out -> new reference slot assigned or nullptr
                 UINT& OutputSubresource, // out -> new reference slot assigned or 0
                 bool& outNeedsTransitionToDecodeRead // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
             );
@@ -99,6 +99,7 @@ private:
     UINT16                     m_invalidIndex;
     D3D12DPBDescriptor         m_dpbDescriptor = { };
     UINT16                     m_currentOutputIndex = 0;    
+    D3D12_FEATURE_DATA_FORMAT_INFO m_formatInfo = { m_dpbDescriptor.Format };    
 };
 
 
@@ -112,19 +113,32 @@ void D3D12VidDecReferenceDataManager::UpdateEntries(T (&picEntries)[size], std::
     {
             // UINT16 UpdateEntry(
             //     UINT16 index, // in
-            //     ID3D12Resource*& pOutputReferenceNoRef, // out -> new reference slot assigned or nullptr
+            //     ID3D12Resource*& pOutputReference, // out -> new reference slot assigned or nullptr
             //     UINT& OutputSubresource, // out -> new reference slot assigned or 0
             //     bool& outNeedsTransitionToDecodeRead // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
             // );
 
-        ID3D12Resource* pOutputReferenceNoRef = { };
+        ID3D12Resource* pOutputReference = { };
         UINT OutputSubresource = 0u;
         bool outNeedsTransitionToDecodeRead = false;
 
-        picEntry.Index7Bits = UpdateEntry(picEntry.Index7Bits, pOutputReferenceNoRef, OutputSubresource, outNeedsTransitionToDecodeRead);
+        picEntry.Index7Bits = UpdateEntry(picEntry.Index7Bits, pOutputReference, OutputSubresource, outNeedsTransitionToDecodeRead);
+
         if(outNeedsTransitionToDecodeRead)
         {
-            outNeededTransitions.push_back(CD3DX12_RESOURCE_BARRIER::Transition(pOutputReferenceNoRef, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_DECODE_READ, OutputSubresource));
+            ///
+            /// The subresource indexing in D3D12 Video within the DPB doesn't take into account the Y, UV planes (ie. subresource 0, 1, 2, 3..., N are different full NV12 references in the DPB)
+            /// but when using the subresources in other areas of D3D12 we need to convert it to the D3D12CalcSubresource format, explained in https://docs.microsoft.com/en-us/windows/win32/direct3d12/subresources 
+            ///
+            CD3DX12_RESOURCE_DESC refDesc(pOutputReference->GetDesc());
+            UINT MipLevel, PlaneSlice, ArraySlice;
+            D3D12DecomposeSubresource(OutputSubresource, refDesc.MipLevels, refDesc.ArraySize(), MipLevel, ArraySlice, PlaneSlice);
+
+            for(PlaneSlice = 0; PlaneSlice < m_formatInfo.PlaneCount; PlaneSlice++)
+            {
+                uint planeOutputSubresource = refDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
+                outNeededTransitions.push_back(CD3DX12_RESOURCE_BARRIER::Transition(pOutputReference, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_DECODE_READ, planeOutputSubresource));
+            }        
         }        
     }
 }

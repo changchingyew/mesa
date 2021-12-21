@@ -69,7 +69,7 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
 	pD3D12Dec->base.flush = d3d12_video_flush;   
    pD3D12Dec->m_MaxReferencePicsWithCurrentPic = codec->max_references + 1u; // Add an extra one for the current decoded picture recon picture.
    
-   pD3D12Dec->m_decodeFormat = d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);
+   pD3D12Dec->m_decodeFormat = d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);   
    pD3D12Dec->m_d3d12DecProfileType = d3d12_convert_pipe_video_profile_to_profile_type(codec->profile);
    pD3D12Dec->m_d3d12DecProfile = d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(codec->profile);
 
@@ -107,6 +107,9 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
       D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_create_decoder - Failure on d3d12_create_video_state_buffers\n");
       goto failed;
    }   
+
+   pD3D12Dec->m_decodeFormatInfo = { pD3D12Dec->m_decodeFormat };
+   VERIFY_SUCCEEDED(pD3D12Dec->m_pD3D12Screen->dev->CheckFeatureSupport(D3D12_FEATURE_FORMAT_INFO, &pD3D12Dec->m_decodeFormatInfo, sizeof(pD3D12Dec->m_decodeFormatInfo)));
 
    return &pD3D12Dec->base;
 
@@ -508,23 +511,34 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       d3d12OutputArguments.ConversionArguments.Enable = FALSE;
    }
 
-   d3d12_record_state_transition(
-      pD3D12Dec->m_spDecodeCommandList,
-      d3d12OutputArguments.pOutputTexture2D,
-      D3D12_RESOURCE_STATE_COMMON,
-      D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
-      d3d12OutputArguments.OutputSubresource
-   );
+   CD3DX12_RESOURCE_DESC outputDesc(d3d12OutputArguments.pOutputTexture2D->GetDesc());
+   UINT MipLevel, PlaneSlice, ArraySlice;
+   D3D12DecomposeSubresource(d3d12OutputArguments.OutputSubresource, outputDesc.MipLevels, outputDesc.ArraySize(), MipLevel, ArraySlice, PlaneSlice);
 
+   for(PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++)
+   {
+      uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
+      d3d12_record_state_transition(
+         pD3D12Dec->m_spDecodeCommandList,
+         d3d12OutputArguments.pOutputTexture2D,
+         D3D12_RESOURCE_STATE_COMMON,
+         D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
+         planeOutputSubresource
+      );
+   }
+   
    // Schedule reverse (back to common) transitions before command list closes for current frame
-   pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(
-      CD3DX12_RESOURCE_BARRIER::Transition(
+   for(PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++)
+   {
+      uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
+      d3d12_record_state_transition(
+         pD3D12Dec->m_spDecodeCommandList,
          d3d12OutputArguments.pOutputTexture2D,
          D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
          D3D12_RESOURCE_STATE_COMMON,
-         d3d12OutputArguments.OutputSubresource
-      )
-   );
+         planeOutputSubresource
+      );
+   }
    
    // Record DecodeFrame
 
@@ -558,7 +572,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       UINT outputMipLevel, outputPlaneSlice, outputArraySlice;
       D3D12DecomposeSubresource(d3d12OutputArguments.OutputSubresource, outputDesc.MipLevels, outputDesc.ArraySize(), outputMipLevel, outputArraySlice, outputPlaneSlice);
 
-      struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
+      // struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
       for(uint PlaneSlice = 0; PlaneSlice < outputFormatInfo.PlaneCount; PlaneSlice++)
       {
          uint planeOutputSubresource = outputDesc.CalcSubresource(outputMipLevel, outputArraySlice, PlaneSlice);
@@ -927,23 +941,34 @@ void d3d12_decoder_prepare_for_decode_frame(
       pD3D12Dec->m_spDPBManager->GetReferenceOnlyOutput(ppRefOnlyOutTexture2D, pRefOnlyOutSubresourceIndex, needsTransitionToDecodeWrite);
       assert(needsTransitionToDecodeWrite);
 
-      d3d12_record_state_transition(
-         pD3D12Dec->m_spDecodeCommandList,
-         *ppRefOnlyOutTexture2D,
-         D3D12_RESOURCE_STATE_COMMON,
-         D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
-         *pRefOnlyOutSubresourceIndex
-      );
+      CD3DX12_RESOURCE_DESC outputDesc((*ppRefOnlyOutTexture2D)->GetDesc());
+      UINT MipLevel, PlaneSlice, ArraySlice;
+      D3D12DecomposeSubresource(*pRefOnlyOutSubresourceIndex, outputDesc.MipLevels, outputDesc.ArraySize(), MipLevel, ArraySlice, PlaneSlice);
 
+      for(PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++)
+      {
+         uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
+         d3d12_record_state_transition(
+            pD3D12Dec->m_spDecodeCommandList,
+            *ppRefOnlyOutTexture2D,
+            D3D12_RESOURCE_STATE_COMMON,
+            D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
+            planeOutputSubresource
+         );
+      }
+      
       // Schedule reverse (back to common) transitions before command list closes for current frame
-      pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(
-         CD3DX12_RESOURCE_BARRIER::Transition(
+      for(PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++)
+      {
+         uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
+         d3d12_record_state_transition(
+            pD3D12Dec->m_spDecodeCommandList,
             *ppRefOnlyOutTexture2D,
             D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
             D3D12_RESOURCE_STATE_COMMON,
-            *pRefOnlyOutSubresourceIndex
-         )
-      );
+            planeOutputSubresource
+         );
+      }
    }
 
    // If decoded needs reference_only entries in the dpb, use the reference_only allocation for current frame

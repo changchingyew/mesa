@@ -147,8 +147,10 @@ D3D12VidDecReferenceDataManager::D3D12VidDecReferenceDataManager(
     , m_NodeMask(NodeMask)
     , m_invalidIndex(GetInvalidReferenceIndex(DecodeProfileType))
     , m_dpbDescriptor(m_dpbDescriptor)
+    , m_formatInfo({ m_dpbDescriptor.Format })
 {
-    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC targetFrameResolution = {m_dpbDescriptor.Width, m_dpbDescriptor.Height};
+    VERIFY_SUCCEEDED(m_pD3D12Screen->dev->CheckFeatureSupport(D3D12_FEATURE_FORMAT_INFO, &m_formatInfo, sizeof(m_formatInfo)));
+    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC targetFrameResolution = {static_cast<UINT>(m_dpbDescriptor.Width), m_dpbDescriptor.Height};
     D3D12_RESOURCE_FLAGS resourceAllocFlags = m_dpbDescriptor.fReferenceOnly ? (D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) : D3D12_RESOURCE_FLAG_NONE;
     
     if(m_dpbDescriptor.fArrayOfTexture)
