@@ -196,7 +196,8 @@ void D3D12ResourceCopyHelper::UploadData(
             m_pCommandList.Get(),
             pResource,
             D3D12_RESOURCE_STATE_COPY_DEST,
-            ResourceState
+            ResourceState,
+            Subresource
             );
 
         if (ResourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
@@ -278,7 +279,8 @@ void D3D12ResourceCopyHelper::ReadbackData(
             m_pCommandList.Get(),
             pResource,
             D3D12_RESOURCE_STATE_COPY_SOURCE,
-            ResourceState
+            ResourceState,
+            Subresource
             );
 
         if (ResourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
