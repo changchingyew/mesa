@@ -166,10 +166,21 @@ void D3D12ResourceCopyHelper::UploadData(
             SlicePitch
         };
 
+        size_t copySize = static_cast<size_t>(RowSize);
+        if (ResourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+        {
+            // Allow suballocation of dst buffers, if src is smaller than dst, just copy the src size into dst.
+            assert(NumRows == 1);
+            assert(Layout.Footprint.Depth == 1);
+            assert(RowPitch == SlicePitch);
+
+            copySize = std::min(RowSize, static_cast<UINT64>(RowPitch));
+        }
+        
         MemcpySubresource(
             &DestRecord,
             &SrcRecord,
-            static_cast<size_t>(RowSize),
+            copySize,
             NumRows,
             Layout.Footprint.Depth
             );

@@ -342,11 +342,8 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    uint64_t sliceDataStagingBufferSize = pD3D12Dec->m_stagingDecodeBitstream.size();
    BYTE* sliceDataStagingBufferPtr = pD3D12Dec->m_stagingDecodeBitstream.data();
 
-   // TODO: If doesn't work with >= size, fix m_D3D12ResourceCopyHelper to support that (don't try to read the whole resource size from the pData src buffer that might be smaller).
-
    // Reallocate if necessary to accomodate the current frame bitstream buffer in GPU memory
-   // if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize < sliceDataStagingBufferSize)
-   if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize != sliceDataStagingBufferSize)
+   if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize < sliceDataStagingBufferSize)
    {
       if(!d3d12_create_video_staging_bitstream_buffer(pD3D12Screen, pD3D12Dec, sliceDataStagingBufferSize))
       {
@@ -569,7 +566,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       //    D3D12_RESOURCE_STATE_COMMON,
       //    pTmp.data(),
       //    layout.Footprint.RowPitch,
-      //    layout.Footprint.RowPitch * layout.Footprint.Height,
+      //    layout.Footprint.RowPitch * layout.Footprint.Height
       // );
 
       pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(

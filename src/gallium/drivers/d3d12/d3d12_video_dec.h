@@ -160,7 +160,7 @@ struct d3d12_video_decoder
     // Holds the input bitstream buffer in GPU video memory
     ComPtr<ID3D12Resource> m_curFrameCompressedBitstreamBuffer;
     UINT64 m_curFrameCompressedBitstreamBufferAllocatedSize = m_InitialCompBitstreamGPUBufferSize; // Actual number of allocated bytes available in the buffer (after m_curFrameCompressedBitstreamBufferPayloadSize might be garbage)
-    UINT64 m_curFrameCompressedBitstreamBufferPayloadSize = m_InitialCompBitstreamGPUBufferSize; // Actual number of bytes of valid data
+    UINT64 m_curFrameCompressedBitstreamBufferPayloadSize = 0u; // Actual number of bytes of valid data
 
     // Holds a buffer for the DXVA struct layout of the picture params of the current frame
     std::vector<BYTE> m_picParamsBuffer;   // size() has the byte size of the currently held picparams ; capacity() has the underlying container allocation size 
