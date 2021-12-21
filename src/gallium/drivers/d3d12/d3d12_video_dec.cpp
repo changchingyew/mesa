@@ -588,6 +588,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
          std::vector<uint8_t> pSrc(totalBytes);
 
          // Uncomment below if desired to mock an all violet decoded texture
+         
          // std::vector<uint8_t> pTmp(totalBytes);
          // memset(pTmp.data(), 255u/*if on all YUV is RGB violet*/, pTmp.size());
          // pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(
@@ -599,36 +600,34 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
          //    layout.Footprint.RowPitch * numRows
          // );
 
-         pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
-            pSrc.data(),
-            layout.Footprint.RowPitch,
-            layout.Footprint.RowPitch * numRows,
-            d3d12OutputArguments.pOutputTexture2D,
-            planeOutputSubresource,
-            D3D12_RESOURCE_STATE_COMMON
-         );
-
          if(PlaneSlice == 0)
          {
-            pD3D12Dec->m_DecodedTexturePixelsY.resize(totalBytes);
-            memcpy(pD3D12Dec->m_DecodedTexturePixelsY.data(), pSrc.data(), pSrc.size());
-            
-            pD3D12Dec->m_DecodedPlanesBufferDesc.m_pDecodedTexturePixelsY = pSrc.data();
-            pD3D12Dec->m_DecodedPlanesBufferDesc.m_decodedTexturePixelsYSize = pSrc.size();
-            pD3D12Dec->m_DecodedPlanesBufferDesc.m_YStride = layout.Footprint.RowPitch;
+            assert(totalBytes == pD3D12VideoBuffer->cpuPixelsDesc.m_decodedTexturePixelsYSize);
+            assert(pD3D12VideoBuffer->cpuPixelsDesc.m_YStride == layout.Footprint.RowPitch);
 
+            pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
+               pD3D12VideoBuffer->cpuPixelsDesc.m_pDecodedTexturePixelsY,
+               layout.Footprint.RowPitch,
+               layout.Footprint.RowPitch * numRows,
+               d3d12OutputArguments.pOutputTexture2D,
+               planeOutputSubresource,
+               D3D12_RESOURCE_STATE_COMMON
+            );
          }
          else if(PlaneSlice==1)
          {
-            pD3D12Dec->m_DecodedTexturePixelsUV.resize(totalBytes);
-            memcpy(pD3D12Dec->m_DecodedTexturePixelsUV.data(), pSrc.data(), pSrc.size());
-            
-            pD3D12Dec->m_DecodedPlanesBufferDesc.m_pDecodedTexturePixelsUV = pSrc.data();
-            pD3D12Dec->m_DecodedPlanesBufferDesc.m_decodedTexturePixelsUVSize = pSrc.size();
-            pD3D12Dec->m_DecodedPlanesBufferDesc.m_UVStride = layout.Footprint.RowPitch;
+            assert(totalBytes == pD3D12VideoBuffer->cpuPixelsDesc.m_decodedTexturePixelsUVSize);
+            assert(pD3D12VideoBuffer->cpuPixelsDesc.m_UVStride == layout.Footprint.RowPitch);
 
+            pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
+               pD3D12VideoBuffer->cpuPixelsDesc.m_pDecodedTexturePixelsUV,
+               layout.Footprint.RowPitch,
+               layout.Footprint.RowPitch * numRows,
+               d3d12OutputArguments.pOutputTexture2D,
+               planeOutputSubresource,
+               D3D12_RESOURCE_STATE_COMMON
+            );
          }
-         target->associated_data = &pD3D12Dec->m_DecodedPlanesBufferDesc;
 
          // // Upload pSrc into target using texture_map
          // struct pipe_box box = {0, 0, 0, layout.Footprint.Width, layout.Footprint.Height, 1};

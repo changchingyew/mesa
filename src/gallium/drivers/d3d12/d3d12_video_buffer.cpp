@@ -112,6 +112,35 @@ struct pipe_video_buffer *d3d12_video_buffer_create(struct pipe_context *pipe,
 
    pD3D12VideoBuffer->m_NumPlanes = util_format_get_num_planes(pD3D12VideoBuffer->m_pD3D12Resource->overall_format);
    assert(pD3D12VideoBuffer->m_NumPlanes == 2);
+
+   // TODO: Remove after NV12 GPU resource works - Initialize CPU buffer for planes
+   memset(&pD3D12VideoBuffer->cpuPixelsDesc, 0, sizeof(D3D12OutputTexturePlanesBufferDesc));
+   pD3D12VideoBuffer->base.associated_data = &pD3D12VideoBuffer->cpuPixelsDesc;
+   for(uint PlaneSlice = 0; PlaneSlice < pD3D12VideoBuffer->m_NumPlanes; PlaneSlice++)
+   {
+      const D3D12_RESOURCE_DESC decodeOutputDesc = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource)->GetDesc();
+      D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
+      UINT64 totalBytes = 0;
+
+      struct d3d12_screen* pD3D12Screen = d3d12_screen(pipe->screen);
+      pD3D12Screen->dev->GetCopyableFootprints(&decodeOutputDesc, PlaneSlice, 1, 0, &layout, nullptr, nullptr, &totalBytes);
+   
+      if(PlaneSlice == 0)
+      {
+         pD3D12VideoBuffer->m_DecodedTexturePixelsY.resize(totalBytes);
+         pD3D12VideoBuffer->cpuPixelsDesc.m_pDecodedTexturePixelsY = pD3D12VideoBuffer->m_DecodedTexturePixelsY.data();
+         pD3D12VideoBuffer->cpuPixelsDesc.m_decodedTexturePixelsYSize = totalBytes;
+         pD3D12VideoBuffer->cpuPixelsDesc.m_YStride = layout.Footprint.RowPitch;
+      }
+      else if(PlaneSlice==1)
+      {
+         pD3D12VideoBuffer->m_DecodedTexturePixelsUV.resize(totalBytes);
+         pD3D12VideoBuffer->cpuPixelsDesc.m_pDecodedTexturePixelsUV = pD3D12VideoBuffer->m_DecodedTexturePixelsUV.data();
+         pD3D12VideoBuffer->cpuPixelsDesc.m_decodedTexturePixelsUVSize = totalBytes;
+         pD3D12VideoBuffer->cpuPixelsDesc.m_UVStride = layout.Footprint.RowPitch;
+      }
+   }
+
    return &pD3D12VideoBuffer->base;
 
 failed:
@@ -187,17 +216,8 @@ void  d3d12_video_buffer_destroy(struct pipe_video_buffer *buffer)
 */
 void  d3d12_video_buffer_destroy_associated_data(void *associated_data)
 {
-   // if(associated_data == nullptr)
-   // {
-   //    return;
-   // }
-   // else
-   // {
-   //    // Received non-null associated_data -> should be implemented along with the addition of associated_data
-   //    D3D12_LOG_ERROR("[D3D12 Video Driver Error] E_NOIMPL - Implementors adding associated data must also implement the destroy function\n");
-   // }
+   
 }
-
 
 /**
 * get an individual surfaces for each plane

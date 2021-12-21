@@ -98,16 +98,6 @@ void d3d12_video_flush(struct pipe_video_codec *codec);
 /// d3d12_video_decoder functions starts
 ///
 
-typedef struct D3D12OutputTexturePlanesBufferDesc
-{
-    uint8_t* m_pDecodedTexturePixelsY;
-    size_t m_decodedTexturePixelsYSize;
-    uint64_t m_YStride;
-    uint8_t* m_pDecodedTexturePixelsUV;
-    size_t m_decodedTexturePixelsUVSize;
-    uint64_t m_UVStride;
-} D3D12OutputTexturePlanesBufferDesc;
-
 struct d3d12_video_decoder
 {
     struct pipe_video_codec base;
@@ -170,10 +160,6 @@ struct d3d12_video_decoder
     // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL of the current frame
     // m_SliceControlBuffer.size() == 0 means no quantization matrix buffer is set for current frame
     std::vector<BYTE> m_SliceControlBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL ; capacity() has the underlying container allocation size 
-
-    D3D12OutputTexturePlanesBufferDesc m_DecodedPlanesBufferDesc;
-    std::vector<BYTE> m_DecodedTexturePixelsY;
-    std::vector<BYTE> m_DecodedTexturePixelsUV;
 
     // Number of consecutive decode_frame calls without end_frame call
     UINT m_numConsecutiveDecodeFrame = 0;
