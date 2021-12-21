@@ -69,14 +69,16 @@ void D3D12ResourceCopyHelper::CopySubresource(
             m_pCommandList.Get(),
             pSrcResource,
             D3D12_RESOURCE_STATE_COPY_SOURCE,
-            srcResourceState
+            srcResourceState,
+            srcSubresource
             );
 
         TemporaryResourceTransition<ID3D12GraphicsCommandList> ResourceTransitionDst(
             m_pCommandList.Get(),
             pDstResource,
             D3D12_RESOURCE_STATE_COPY_DEST,
-            dstResourceState
+            dstResourceState,
+            dstSubresource
             );
 
         if (srcResourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
