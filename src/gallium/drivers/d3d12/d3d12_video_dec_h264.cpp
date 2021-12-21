@@ -330,25 +330,9 @@ DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
 	// MbaffFrameFlag = ( mb_adaptive_frame_field_flag && !field_pic_flag )
 	dxvaStructure.MbaffFrameFlag = ( pPipeDesc->pps->sps->mb_adaptive_frame_field_flag && !pPipeDesc->field_pic_flag );
 
-	dxvaStructure.MbsConsecutiveFlag = 1; // Depends upon the current decoder GUID.
-
-	// profile input argument can be the following values for H264...
-	// PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE
-	// PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE
-	// PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN
-	// PIPE_VIDEO_PROFILE_MPEG4_AVC_EXTENDED
-	// PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH
-	// PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10
-	// PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422
-	// PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444
-
-	// TODO: constrained_set1_flag is not included in pPipeDesc, assume profiles are main+ for now.
-    // if (profile != PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH
-    //     && profile != PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN
-    //     && pPipeDesc->pps->sps->constrained_set1_flag != 1)
-    // {
-    //     dxvaStructure.MbsConsecutiveFlag = 0;
-    // }
+	// From DXVA spec:
+	// The value shall be 1 unless the restricted-mode profile in use explicitly supports the value 0.
+	dxvaStructure.MbsConsecutiveFlag = 1;
 
     if (
         ((profile == PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN) ||
