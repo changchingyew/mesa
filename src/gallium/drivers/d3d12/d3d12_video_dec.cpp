@@ -510,17 +510,19 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 
    d3d12_record_state_transition(
       pD3D12Dec->m_spDecodeCommandList,
-      pOutputD3D12Texture,
+      d3d12OutputArguments.pOutputTexture2D,
       D3D12_RESOURCE_STATE_COMMON,
-      D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE
+      D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
+      d3d12OutputArguments.OutputSubresource
    );
 
    // Schedule reverse (back to common) transitions before command list closes for current frame
    pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(
       CD3DX12_RESOURCE_BARRIER::Transition(
-         pOutputD3D12Texture,
+         d3d12OutputArguments.pOutputTexture2D,
          D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
-         D3D12_RESOURCE_STATE_COMMON
+         D3D12_RESOURCE_STATE_COMMON,
+         d3d12OutputArguments.OutputSubresource
       )
    );
    
