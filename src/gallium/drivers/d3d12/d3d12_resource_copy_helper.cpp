@@ -68,7 +68,7 @@ void D3D12ResourceCopyHelper::CopySubresource(
         TemporaryResourceTransition<ID3D12GraphicsCommandList> ResourceTransitionSrc(
             m_pCommandList.Get(),
             pSrcResource,
-            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_COPY_SOURCE,
             srcResourceState
             );
 
