@@ -41,6 +41,8 @@ constexpr UINT16 DXVA_H264_INVALID_PICTURE_ENTRY_VALUE = 0xFF; // This correspon
 constexpr unsigned int DXVA_H264_START_CODE = 0x000001; // 3 byte start code
 constexpr unsigned int DXVA_H264_START_CODE_LEN_BITS = 24; // 3 byte start code
 
+constexpr unsigned int D3D12_VIDEO_H264_MB_IN_PIXELS = 16;
+
 /* H.264/AVC picture entry data structure */
 typedef struct _DXVA_PicEntry_H264 {
   union {
@@ -144,5 +146,7 @@ DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264(UINT frame
 void d3d12_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB);
 void d3d12_decoder_prepare_current_frame_references_h264(struct d3d12_video_decoder *pD3D12Dec, ID3D12Resource* pTexture2D, UINT subresourceIndex);
 void d3d12_dec_dxva_qmatrix_from_pipe_picparams_h264 (pipe_h264_picture_desc* pPipeDesc, DXVA_Qmatrix_H264 & outMatrixBuffer, bool & outSeq_scaling_matrix_present_flag);
-
+void d3d12_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec);
+bool get_slice_size_and_offset_h264(size_t sliceIdx, size_t numSlices, std::vector<BYTE> &buf, unsigned int bufferOffset, UINT& outSliceSize, UINT& outSliceOffset);
+void d3d12_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *pD3D12Dec, size_t numSlices, std::vector<DXVA_Slice_H264_Short>& pOutSliceControlBuffers);
 #endif

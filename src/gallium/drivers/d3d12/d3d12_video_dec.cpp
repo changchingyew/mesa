@@ -332,7 +332,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 /// Prepare Slice control buffers before clearing staging buffer
 ///
    assert(pD3D12Dec->m_stagingDecodeBitstream.size() > 0); // Make sure the staging wasn't cleared yet in end_frame
-   d3d12_prepare_converted_dxva_slices_control(pD3D12Dec);
+   d3d12_prepare_dxva_slices_control(pD3D12Dec);
    assert(pD3D12Dec->m_SliceControlBuffer.size() > 0);
 
 ///
@@ -1052,8 +1052,7 @@ void d3d12_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {
-         pD3D12Dec->m_spDPBManager->MarkAllReferencesAsUnused();
-         pD3D12Dec->m_spDPBManager->MarkReferencesInUse(d3d12_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList);
+         d3d12_decoder_refresh_dpb_active_references_h264(pD3D12Dec);         
       }
       break;
 
@@ -1096,7 +1095,7 @@ void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *p
 /// Returns the number of bytes starting from [buf.data() + buffsetOffset] where the _targetCode_ is found
 /// Returns -1 if start code not found
 ///
-int GetNextStartCodeOffset(D3D12DecoderByteBuffer &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer)
+int GetNextStartCodeOffset(std::vector<BYTE> &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer)
 {
    struct vl_vlc vlc = {0};
 
@@ -1115,44 +1114,6 @@ int GetNextStartCodeOffset(D3D12DecoderByteBuffer &buf, unsigned int bufferOffse
    }
 
    return -1;
-}
-
-bool GetSliceSizeAndOffset(size_t sliceIdx, size_t numSlices, D3D12DecoderByteBuffer &buf, unsigned int bufferOffset, UINT& outSliceSize, UINT& outSliceOffset)
-{
-   if(sliceIdx >= numSlices)
-   {
-      return false;
-   }
-
-   uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset; // Search the rest of the full frame buffer after the offset
-   int currentSlicePosition = GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
-   assert(currentSlicePosition >= 0);
-
-   // Save the offset until the next slice in the output param
-   outSliceOffset = currentSlicePosition + bufferOffset;
-
-   if(sliceIdx == (numSlices - 1)) // If this is the last slice on the bitstream
-   {
-      // Save the offset until the next slice in the output param
-      outSliceOffset = currentSlicePosition + bufferOffset;
-      
-      // As there is not another slice after this one, the size will be the difference between the bitsteam total size and the offset current slice
-
-      outSliceSize = buf.size() - outSliceOffset;
-   }   
-   else // If it's not the last slice on the bitstream
-   {      
-      // As there's another slice after this one, look for it and calculate the size based on the next one's offset.
-
-      // Skip current start code, to get the slice after this, to calculate its size
-      bufferOffset += DXVA_H264_START_CODE_LEN_BITS;
-
-      int nextSlicePosition = DXVA_H264_START_CODE_LEN_BITS + GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
-      assert(nextSlicePosition >= 0); // if currentSlicePosition was the last slice, this might fail
-
-      outSliceSize = nextSlicePosition - currentSlicePosition;
-   }
-   return true;
 }
 
 void d3d12_store_converted_dxva_picparams_from_pipe_input (
@@ -1197,7 +1158,7 @@ void d3d12_store_converted_dxva_picparams_from_pipe_input (
    }
 }
 
-void d3d12_prepare_converted_dxva_slices_control (
+void d3d12_prepare_dxva_slices_control (
     struct d3d12_video_decoder *pD3D12Dec // input argument, current decoder    
 )
 {
@@ -1207,23 +1168,15 @@ void d3d12_prepare_converted_dxva_slices_control (
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {
          size_t numSlices = pD3D12Dec->m_numConsecutiveDecodeFrame;
-         std::vector<DXVA_Slice_H264_Short> pSliceControlBuffers(numSlices);
-         pSliceControlBuffers.resize(numSlices);
-         size_t processedBitstreamBytes = 0u;
-         for (size_t sliceIdx = 0; sliceIdx < numSlices; sliceIdx++)
-         {
-            // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
-            pSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
-            bool sliceFound = GetSliceSizeAndOffset(sliceIdx, numSlices, pD3D12Dec->m_stagingDecodeBitstream, processedBitstreamBytes, pSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
-            assert(sliceFound);
-            D3D12_LOG_DBG("[D3D12 Video Driver] Detected slice index %ld with size %d and offset %d for frame with fenceValue: %d\n", sliceIdx, pSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pSliceControlBuffers[sliceIdx].BSNALunitDataLocation, pD3D12Dec->m_fenceValue);
-            
-            processedBitstreamBytes += pSliceControlBuffers[sliceIdx].SliceBytesInBuffer;
-         }
+         std::vector<DXVA_Slice_H264_Short> pOutSliceControlBuffers(numSlices);
+         
+         d3d12_prepare_dxva_slices_control_h264(pD3D12Dec, numSlices, pOutSliceControlBuffers);
 
-         assert( sizeof(pSliceControlBuffers.data()[0]) == sizeof(DXVA_Slice_H264_Short) );
-         d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(pD3D12Dec, pSliceControlBuffers.data(), pSliceControlBuffers.size() * sizeof((pSliceControlBuffers.data()[0])));
-         assert(pD3D12Dec->m_SliceControlBuffer.size() > 0);
+         assert( sizeof(pOutSliceControlBuffers.data()[0]) == sizeof(DXVA_Slice_H264_Short) );
+         UINT64 DXVAStructSize = pOutSliceControlBuffers.size() * sizeof((pOutSliceControlBuffers.data()[0]));
+         assert((DXVAStructSize % sizeof(DXVA_Slice_H264_Short)) == 0);
+         d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(pD3D12Dec, pOutSliceControlBuffers.data(), DXVAStructSize);
+         assert(pD3D12Dec->m_SliceControlBuffer.size() == DXVAStructSize);
       }
       break;
       default:
@@ -1233,8 +1186,7 @@ void d3d12_prepare_converted_dxva_slices_control (
 }
 
 void d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
-{
-   assert((DXVAStructSize % sizeof(DXVA_Slice_H264_Short)) == 0);
+{   
    if (pD3D12Dec->m_SliceControlBuffer.capacity() < DXVAStructSize)
    {
       pD3D12Dec->m_SliceControlBuffer.reserve(DXVAStructSize);

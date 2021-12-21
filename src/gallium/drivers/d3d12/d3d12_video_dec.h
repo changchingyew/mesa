@@ -98,8 +98,6 @@ void d3d12_video_flush(struct pipe_video_codec *codec);
 /// d3d12_video_decoder functions starts
 ///
 
-typedef std::vector<BYTE> D3D12DecoderByteBuffer;
-
 typedef struct D3D12OutputTexturePlanesBufferDesc
 {
     uint8_t* m_pDecodedTexturePixelsY;
@@ -157,7 +155,7 @@ struct d3d12_video_decoder
     std::unique_ptr<D3D12VidDecReferenceDataManager> m_spDPBManager;
     
     // Holds the input bitstream buffer while it's being constructed in decode_bitstream calls
-    D3D12DecoderByteBuffer m_stagingDecodeBitstream;
+    std::vector<BYTE> m_stagingDecodeBitstream;
 
     // Holds the input bitstream buffer in GPU video memory
     ComPtr<ID3D12Resource> m_curFrameCompressedBitstreamBuffer;
@@ -165,19 +163,19 @@ struct d3d12_video_decoder
     UINT64 m_curFrameCompressedBitstreamBufferPayloadSize = m_InitialCompBitstreamGPUBufferSize; // Actual number of bytes of valid data
 
     // Holds a buffer for the DXVA struct layout of the picture params of the current frame
-    D3D12DecoderByteBuffer m_picParamsBuffer;   // size() has the byte size of the currently held picparams ; capacity() has the underlying container allocation size 
+    std::vector<BYTE> m_picParamsBuffer;   // size() has the byte size of the currently held picparams ; capacity() has the underlying container allocation size 
 
     // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX of the current frame
     // m_InverseQuantMatrixBuffer.size() == 0 means no quantization matrix buffer is set for current frame
-    D3D12DecoderByteBuffer m_InverseQuantMatrixBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX ; capacity() has the underlying container allocation size 
+    std::vector<BYTE> m_InverseQuantMatrixBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX ; capacity() has the underlying container allocation size 
 
     // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL of the current frame
     // m_SliceControlBuffer.size() == 0 means no quantization matrix buffer is set for current frame
-    D3D12DecoderByteBuffer m_SliceControlBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL ; capacity() has the underlying container allocation size 
+    std::vector<BYTE> m_SliceControlBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL ; capacity() has the underlying container allocation size 
 
     D3D12OutputTexturePlanesBufferDesc m_DecodedPlanesBufferDesc;
-    D3D12DecoderByteBuffer m_DecodedTexturePixelsY;
-    D3D12DecoderByteBuffer m_DecodedTexturePixelsUV;
+    std::vector<BYTE> m_DecodedTexturePixelsY;
+    std::vector<BYTE> m_DecodedTexturePixelsUV;
 
     // Number of consecutive decode_frame calls without end_frame call
     UINT m_numConsecutiveDecodeFrame = 0;
@@ -209,10 +207,9 @@ GUID d3d12_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profileType, 
 VIDEO_DECODE_PROFILE_BIT_DEPTH d3d12_dec_get_format_bitdepth(DXGI_FORMAT Format);
 void d3d12_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *codec, void* pDXVABuffer, UINT64 DXVABufferSize);
 void d3d12_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize);
-void d3d12_prepare_converted_dxva_slices_control(struct d3d12_video_decoder *pD3D12Dec);
+void d3d12_prepare_dxva_slices_control(struct d3d12_video_decoder *pD3D12Dec);
 void d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize);
-int GetNextStartCodeOffset(D3D12DecoderByteBuffer &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer);
-bool GetSliceSizeAndOffset(size_t sliceIdx, size_t numSlices, D3D12DecoderByteBuffer &buf, unsigned int bufferOffset, UINT& outSliceSize, UINT& outSliceOffset);
+int GetNextStartCodeOffset(std::vector<BYTE> &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer);
 
 ///
 /// d3d12_video_decoder functions ends
