@@ -108,8 +108,6 @@ typedef struct D3D12OutputTexturePlanesBufferDesc
     uint64_t m_UVStride;
 } D3D12OutputTexturePlanesBufferDesc;
 
-#define D3D12_DECODER_COPY_OUTPUT_AS_CPU_BUFFER true
-
 struct d3d12_video_decoder
 {
     struct pipe_video_codec base;

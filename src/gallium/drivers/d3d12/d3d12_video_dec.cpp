@@ -534,117 +534,136 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_end_frame finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
-   // Flush work to the GPU
+   ///
+   /// Flush work to the GPU and blocking wait until decode finishes 
+   ///
    d3d12_video_flush(codec);
 
-#if !D3D12_DECODER_COPY_OUTPUT_AS_CPU_BUFFER
-   // TODO : Need to deep copy m_spDecodeOutputStagingTexture into pPipeD3D12DstResource as need to keep the original decoded picture in the DPB without touching it while in use for next frames
-   // and above layers (ie. VA) only allocate a single buffer for each frame
-   ID3D12Resource* pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
-#else
    ///
+   /// Due to DPB allocations tracking/management reasons, in some cases we need to deep copy the texture output into pD3D12VideoBuffer target
+   /// When reference_only is used, we directly use (pPipeD3D12DstResource, 0) as the destination output decode texture
+   /// When DPB allocations do not need D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY, need to keep the (tex, subres) allocation untouched in the DPB for texture usage on next frames as reference frame
+   ///
+   
    /// TODO: Just writing into target->bo->res/d3d12_resource_resource(...) is not populating the pixels downstream (ie. vaGetImage readback with texture_map returns all zeroes)
-   ///
-
-   struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
-   const uint numPlanes = 2;// Y and UV planes
-   for (size_t planeIdx = 0; planeIdx < numPlanes; planeIdx++)
+   /// but some changes are populated (with artifacts) if we upload the pixels to target->bo->res using texture_map in their plane's sampler views
+   // When GPU write to target->bo->res works, only perform this copy for !fReferenceOnly and perform the copy in GPU without pixel readback/upload to/from CPU.
+   // if (!fReferenceOnly)
    {
-      const D3D12_RESOURCE_DESC stagingDesc = d3d12OutputArguments.pOutputTexture2D->GetDesc();
-      uint planeSubresource = 2 * d3d12OutputArguments.OutputSubresource + planeIdx;
-      D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
-      UINT64 srcTextureTotalBytes = 0;
-      pD3D12Dec->m_pD3D12Screen->dev->GetCopyableFootprints(&stagingDesc, planeSubresource, 1, 0, &layout, nullptr, nullptr, &srcTextureTotalBytes);
-      std::vector<uint8_t> pSrc(srcTextureTotalBytes);
+      CD3DX12_RESOURCE_DESC outputDesc(d3d12OutputArguments.pOutputTexture2D->GetDesc());
+      D3D12_FEATURE_DATA_FORMAT_INFO outputFormatInfo = {outputDesc.Format};
+      VERIFY_SUCCEEDED(pD3D12Dec->m_pD3D12Screen->dev->CheckFeatureSupport(D3D12_FEATURE_FORMAT_INFO, &outputFormatInfo, sizeof(outputFormatInfo)));
+      UINT outputMipLevel, outputPlaneSlice, outputArraySlice;
+      D3D12DecomposeSubresource(d3d12OutputArguments.OutputSubresource, outputDesc.MipLevels, outputDesc.ArraySize(), outputMipLevel, outputArraySlice, outputPlaneSlice);
 
-      // Uncomment below if desired to mock an all violet decoded texture
-      // std::vector<uint8_t> pTmp(srcTextureTotalBytes);
-      // memset(pTmp.data(), 255u/*if on all YUV is RGB violet*/, pTmp.size());
-      // pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(
-      //    d3d12OutputArguments.pOutputTexture2D,
-      //    planeSubresource,
-      //    D3D12_RESOURCE_STATE_COMMON,
-      //    pTmp.data(),
-      //    layout.Footprint.RowPitch,
-      //    layout.Footprint.RowPitch * layout.Footprint.Height
-      // );
-
-      pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
-         pSrc.data(),
-         layout.Footprint.RowPitch,
-         layout.Footprint.RowPitch * layout.Footprint.Height,
-         d3d12OutputArguments.pOutputTexture2D,
-         planeSubresource,
-         D3D12_RESOURCE_STATE_COMMON
-      );
-
-      if(planeIdx == 0)
+      struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
+      for(uint PlaneSlice = 0; PlaneSlice < outputFormatInfo.PlaneCount; PlaneSlice++)
       {
-         pD3D12Dec->m_DecodedTexturePixelsY.resize(srcTextureTotalBytes);
-         memcpy(pD3D12Dec->m_DecodedTexturePixelsY.data(), pSrc.data(), pSrc.size());
-         
-         pD3D12Dec->m_DecodedPlanesBufferDesc.m_pDecodedTexturePixelsY = pSrc.data();
-         pD3D12Dec->m_DecodedPlanesBufferDesc.m_decodedTexturePixelsYSize = pSrc.size();
-         pD3D12Dec->m_DecodedPlanesBufferDesc.m_YStride = layout.Footprint.RowPitch;
+         uint planeOutputSubresource = outputDesc.CalcSubresource(outputMipLevel, outputArraySlice, PlaneSlice);
 
-      }
-      else if(planeIdx==1)
-      {
-         pD3D12Dec->m_DecodedTexturePixelsUV.resize(srcTextureTotalBytes);
-         memcpy(pD3D12Dec->m_DecodedTexturePixelsUV.data(), pSrc.data(), pSrc.size());
-         
-         pD3D12Dec->m_DecodedPlanesBufferDesc.m_pDecodedTexturePixelsUV = pSrc.data();
-         pD3D12Dec->m_DecodedPlanesBufferDesc.m_decodedTexturePixelsUVSize = pSrc.size();
-         pD3D12Dec->m_DecodedPlanesBufferDesc.m_UVStride = layout.Footprint.RowPitch;
+         ///
+         /// GPU Copy from decode output to pipe target decode texture
+         ///
 
-      }
-      target->associated_data = &pD3D12Dec->m_DecodedPlanesBufferDesc;
+         // pD3D12Dec->m_D3D12ResourceCopyHelper->CopySubresource(
+         //    d3d12OutputArguments.pOutputTexture2D,
+         //    planeOutputSubresource,
+         //    D3D12_RESOURCE_STATE_COMMON,
+         //    d3d12_resource_resource(d3d12_resource(views[PlaneSlice]->texture)),
+         //    PlaneSlice,
+         //    D3D12_RESOURCE_STATE_COMMON
+         // );
 
-      // At this point pSrc has the srcTextureTotalBytes of raw pixel data of d3d12OutputArguments.pOutputTexture2D/subresource/planeIdx
+         // TODO: Workaround: GPU copy by itself is not working, copying with texture_map does shows artifacts, but sending the CPU buffers directly to vaGetImage works
 
-      // Upload pSrc into target using texture_map
-      unsigned box_w = align(stagingDesc.Width, 2);
-      unsigned box_h = align(stagingDesc.Height, 2);
-      unsigned box_x = 0 & ~1;
-      unsigned box_y = 0 & ~1;
-      vl_video_buffer_adjust_size(&box_w, &box_h, planeIdx,
-                                  pipe_format_to_chroma_format(target->buffer_format),
-                                  target->interlaced);
-      vl_video_buffer_adjust_size(&box_x, &box_y, planeIdx,
-                                  pipe_format_to_chroma_format(target->buffer_format),
-                                  target->interlaced);
-      struct pipe_box box = {box_x, box_y, 0, box_w, box_h, 1};
-      struct pipe_transfer *transfer;
-      void *pMappedTexture = pD3D12Dec->base.context->texture_map(
-            pD3D12Dec->base.context,
-            views[planeIdx]->texture,
-            0,
-            PIPE_MAP_WRITE,
-            &box,
-            &transfer);
-      
-      assert(pMappedTexture);
+         ///
+         /// Readback decode output to CPU, upload pixels to GPU in views[PlaneSlice]
+         ///
 
-      uint8_t* pDstData = (uint8_t*) pMappedTexture;
-      for (size_t pixRow = 0; pixRow < box.height; pixRow++)
-      {
-         if(planeIdx == 0)
+         const D3D12_RESOURCE_DESC decodeOutputDesc = d3d12OutputArguments.pOutputTexture2D->GetDesc();
+         D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
+         UINT64 totalBytes = 0;
+         UINT numRows = 0;
+         pD3D12Dec->m_pD3D12Screen->dev->GetCopyableFootprints(&decodeOutputDesc, planeOutputSubresource, 1, 0, &layout, &numRows, nullptr, &totalBytes);
+         std::vector<uint8_t> pSrc(totalBytes);
+
+         // Uncomment below if desired to mock an all violet decoded texture
+         // std::vector<uint8_t> pTmp(totalBytes);
+         // memset(pTmp.data(), 255u/*if on all YUV is RGB violet*/, pTmp.size());
+         // pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(
+         //    d3d12OutputArguments.pOutputTexture2D,
+         //    planeOutputSubresource,
+         //    D3D12_RESOURCE_STATE_COMMON,
+         //    pTmp.data(),
+         //    layout.Footprint.RowPitch,
+         //    layout.Footprint.RowPitch * numRows
+         // );
+
+         pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
+            pSrc.data(),
+            layout.Footprint.RowPitch,
+            layout.Footprint.RowPitch * numRows,
+            d3d12OutputArguments.pOutputTexture2D,
+            planeOutputSubresource,
+            D3D12_RESOURCE_STATE_COMMON
+         );
+
+         if(PlaneSlice == 0)
          {
-            // Copy box.width Y pixels from src but increment pDstData stride
-            memcpy(pDstData, pSrc.data(), box.width);
-         }
-         else if(planeIdx == 1)
-         {
-            // box.width counts the number of combined UV components in WORDs.So we gotta copy 2*box.width 8-bit components but increment pDstData stride
-            memcpy(pDstData, pSrc.data(), 2*box.width);
-         }
-         assert(sizeof(*pDstData) == sizeof(uint8_t)); // to make sure the stride increment is in bytes as transfer->stride.
-         pDstData += transfer->stride;
-      }
+            pD3D12Dec->m_DecodedTexturePixelsY.resize(totalBytes);
+            memcpy(pD3D12Dec->m_DecodedTexturePixelsY.data(), pSrc.data(), pSrc.size());
+            
+            pD3D12Dec->m_DecodedPlanesBufferDesc.m_pDecodedTexturePixelsY = pSrc.data();
+            pD3D12Dec->m_DecodedPlanesBufferDesc.m_decodedTexturePixelsYSize = pSrc.size();
+            pD3D12Dec->m_DecodedPlanesBufferDesc.m_YStride = layout.Footprint.RowPitch;
 
-      pipe_texture_unmap(pD3D12Dec->base.context, transfer);
+         }
+         else if(PlaneSlice==1)
+         {
+            pD3D12Dec->m_DecodedTexturePixelsUV.resize(totalBytes);
+            memcpy(pD3D12Dec->m_DecodedTexturePixelsUV.data(), pSrc.data(), pSrc.size());
+            
+            pD3D12Dec->m_DecodedPlanesBufferDesc.m_pDecodedTexturePixelsUV = pSrc.data();
+            pD3D12Dec->m_DecodedPlanesBufferDesc.m_decodedTexturePixelsUVSize = pSrc.size();
+            pD3D12Dec->m_DecodedPlanesBufferDesc.m_UVStride = layout.Footprint.RowPitch;
+
+         }
+         target->associated_data = &pD3D12Dec->m_DecodedPlanesBufferDesc;
+
+         // // Upload pSrc into target using texture_map
+         // struct pipe_box box = {0, 0, 0, layout.Footprint.Width, layout.Footprint.Height, 1};
+         // struct pipe_transfer *transfer;
+         // uint8_t* pDstData = (uint8_t*) pD3D12Dec->base.context->texture_map(
+         //       pD3D12Dec->base.context,
+         //       views[PlaneSlice]->texture,
+         //       0,
+         //       PIPE_MAP_WRITE,
+         //       &box,
+         //       &transfer);
+         
+
+         // uint8_t* pSrcData = pSrc.data();
+         // for (size_t pixRow = 0; pixRow < box.height; pixRow++)
+         // {
+         //    if(PlaneSlice == 0)
+         //    {
+         //       // Copy box.width Y pixels from src but increment pDstData stride
+         //       memcpy(pDstData, pSrcData, box.width);
+         //    }
+         //    else if(PlaneSlice == 1)
+         //    {
+         //       // box.width counts the number of combined UV components in WORDs.So we gotta copy 2*box.width 8-bit components but increment pDstData stride
+         //       memcpy(pDstData, pSrcData, 2*box.width);
+         //    }
+         //    assert(sizeof(*pDstData) == sizeof(uint8_t)); // to make sure the stride increment is in bytes as transfer->stride.
+         //    pDstData += transfer->stride;
+         //    assert(sizeof(*pSrcData) == sizeof(uint8_t)); // to make sure the stride increment is in bytes as transfer->stride.
+         //    pSrcData += layout.Footprint.RowPitch;
+         // }
+
+         // pipe_texture_unmap(pD3D12Dec->base.context, transfer);
+      }
    }
-#endif
 }
 
 /**
