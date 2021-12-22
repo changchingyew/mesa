@@ -128,4 +128,8 @@ d3d12_screen_resource_init(struct pipe_screen *pscreen);
 void
 d3d12_context_resource_init(struct pipe_context *pctx);
 
+struct pipe_resource *
+d3d12_resource_from_resource(struct pipe_screen *pscreen,
+                              ID3D12Resource* inputRes);
+
 #endif

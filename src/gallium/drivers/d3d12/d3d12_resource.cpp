@@ -581,6 +581,38 @@ d3d12_resource_get_handle(struct pipe_screen *pscreen,
    }
 }
 
+struct pipe_resource *
+d3d12_resource_from_resource(struct pipe_screen *pscreen,
+                              ID3D12Resource* inputRes)
+{
+    D3D12_RESOURCE_DESC inputDesc = inputRes->GetDesc();
+    struct winsys_handle handle;
+    memset(&handle, 0, sizeof(handle));
+    handle.type = WINSYS_HANDLE_TYPE_D3D12_RES;
+    handle.format = d3d12_get_pipe_format(inputDesc.Format);
+    handle.com_obj = inputRes;
+
+    struct pipe_resource templ;
+    memset(&templ, 0, sizeof(templ));
+    templ.target = (inputDesc.DepthOrArraySize > 1) ? PIPE_TEXTURE_2D_ARRAY : PIPE_TEXTURE_2D;
+    templ.bind = PIPE_BIND_SAMPLER_VIEW;
+    templ.format = d3d12_get_pipe_format(inputDesc.Format);
+    templ.width0 = inputDesc.Width;
+    templ.height0 = inputDesc.Height;
+    templ.depth0 = inputDesc.DepthOrArraySize;
+    templ.array_size = inputDesc.DepthOrArraySize;
+    templ.flags = 0;
+
+    pipe_resource* pPipeSrc = d3d12_resource_from_handle(
+        pscreen,
+        &templ,
+        &handle,
+        PIPE_USAGE_DEFAULT
+    );
+
+    return pPipeSrc;
+}
+
 void
 d3d12_screen_resource_init(struct pipe_screen *pscreen)
 {
