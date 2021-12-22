@@ -34,15 +34,6 @@ class D3D12ResourceCopyHelper
 public:
     D3D12ResourceCopyHelper(ID3D12CommandQueue* pCommandQueue);
 
-    void CopySubresource(
-        ID3D12Resource* pSrcResource,
-        UINT srcSubresource,
-        D3D12_RESOURCE_STATES srcResourceState,
-        ID3D12Resource* pDstResource,
-        UINT dstSubresource,
-        D3D12_RESOURCE_STATES dstResourceState
-        );
-
     void UploadData(
         ID3D12Resource* pResource,
         UINT Subresource,
