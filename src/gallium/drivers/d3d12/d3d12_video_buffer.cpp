@@ -92,7 +92,7 @@ struct pipe_video_buffer *d3d12_video_buffer_create(struct pipe_context *pipe,
 
    struct pipe_resource templ;   
    memset(&templ, 0, sizeof(templ));
-   templ.target = PIPE_TEXTURE_2D_ARRAY;
+   templ.target = PIPE_TEXTURE_2D;
    templ.bind = pD3D12VideoBuffer->base.bind;
    templ.format = pD3D12VideoBuffer->base.buffer_format;
    templ.width0 = pD3D12VideoBuffer->base.width;
