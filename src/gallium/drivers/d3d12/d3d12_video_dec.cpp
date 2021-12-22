@@ -561,90 +561,82 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    /// When DPB allocations do not need D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY, need to keep the (tex, subres) allocation untouched in the DPB for texture usage on next frames as reference frame
    ///
    
-   /// TODO: Just writing into views[PlaneSlice]->texture/d3d12_resource_resource(...) is not populating the pixels downstream (ie. vaGetImage readback with texture_map returns all zeroes)
+   /// TODO: Just writing into views[PlaneSlice]->texture is not populating the pixels downstream (ie. vaGetImage readback with texture_map returns all zeroes) even when calling pipe_context flush()
    /// but changes are populated if we upload the pixels to views[PlaneSlice]->texture using texture_map using the plane's sampler views and then flushing the pipe_context
-   // When GPU write to views[PlaneSlice]->texture works, only perform this copy for !fReferenceOnly and perform the copy in GPU without pixel readback/upload to/from CPU.
+   // When GPU write to views[PlaneSlice]->texture works, only perform this copy for !fReferenceOnly and perform the copy in GPU removing the code below that does the pixel readback/upload to/from CPU.
    // if (!fReferenceOnly)
    {
-      CD3DX12_RESOURCE_DESC outputDesc(d3d12OutputArguments.pOutputTexture2D->GetDesc());
-      D3D12_FEATURE_DATA_FORMAT_INFO outputFormatInfo = {outputDesc.Format};
-      VERIFY_SUCCEEDED(pD3D12Dec->m_pD3D12Screen->dev->CheckFeatureSupport(D3D12_FEATURE_FORMAT_INFO, &outputFormatInfo, sizeof(outputFormatInfo)));
+      ///
+      /// GPU Copy from decode output to pipe target decode texture
+      ///
+
+      // Get destination resource
+      struct pipe_sampler_view **pPipeDstViews = target->get_sampler_view_planes(target);
+
+      // Get source pipe_resource
+      pipe_resource* pPipeSrc = d3d12_resource_from_resource(&pD3D12Screen->base, d3d12OutputArguments.pOutputTexture2D);
+      assert(pPipeSrc);
+
       UINT outputMipLevel, outputPlaneSlice, outputArraySlice;
       D3D12DecomposeSubresource(d3d12OutputArguments.OutputSubresource, outputDesc.MipLevels, outputDesc.ArraySize(), outputMipLevel, outputArraySlice, outputPlaneSlice);
-      
-      struct pipe_sampler_view **views = target->get_sampler_view_planes(target);
-      
-      for(uint PlaneSlice = 0; PlaneSlice < outputFormatInfo.PlaneCount; PlaneSlice++)
+
+      // Copy all format subresources/texture planes
+
+      for(PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++)
       {
          uint planeOutputSubresource = outputDesc.CalcSubresource(outputMipLevel, outputArraySlice, PlaneSlice);
-      
-         ID3D12Resource *pTargetRes = d3d12_resource_resource(d3d12_resource(views[PlaneSlice]->texture));
-         CD3DX12_RESOURCE_DESC targetDesc(pTargetRes->GetDesc());
-         UINT targetMipLevel, targetPlaneSlice, targetArraySlice;
-         D3D12DecomposeSubresource(0, targetDesc.MipLevels, targetDesc.ArraySize(), targetMipLevel, targetArraySlice, targetPlaneSlice);
-
-         ///
-         /// GPU Copy from decode output to pipe target decode texture
-         ///
-         
-         // uint planeTargetSubresource = targetDesc.CalcSubresource(targetMipLevel, targetArraySlice, PlaneSlice);
-         // pD3D12Dec->m_D3D12ResourceCopyHelper->CopySubresource(
-         //    d3d12OutputArguments.pOutputTexture2D,
-         //    planeOutputSubresource,
-         //    D3D12_RESOURCE_STATE_COMMON,
-         //    pTargetRes,
-         //    planeTargetSubresource,
-         //    D3D12_RESOURCE_STATE_COMMON
-         // );
-
-         ///
-         /// Readback decode output to CPU, then upload pixels to GPU in views[PlaneSlice]
-         ///
-
-         const D3D12_RESOURCE_DESC decodeOutputDesc = d3d12OutputArguments.pOutputTexture2D->GetDesc();
          D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
-         UINT64 totalBytes = 0;
-         UINT numRows = 0;
-         pD3D12Dec->m_pD3D12Screen->dev->GetCopyableFootprints(&decodeOutputDesc, planeOutputSubresource, 1, 0, &layout, &numRows, nullptr, &totalBytes);
+         UINT64 totalPlaneBytes = 0;
+         pD3D12Screen->dev->GetCopyableFootprints(&outputDesc, planeOutputSubresource, 1, 0, &layout, nullptr, nullptr, &totalPlaneBytes);
+         struct pipe_box box = {0, 0, 0, static_cast<int>(layout.Footprint.Width), static_cast<int16_t>(layout.Footprint.Height), 1};
+
+         // Beware that copy commands are not executed until there's context flush() like pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
+         pD3D12Dec->base.context->resource_copy_region(
+            pD3D12Dec->base.context,
+            pPipeDstViews[PlaneSlice]->texture, 0, 0, 0, 0,
+            pPipeSrc,
+            planeOutputSubresource,
+            &box
+         );
+
+         ///
+         /// Readback decode output to CPU, then upload pixels to GPU in pPipeDstViews[PlaneSlice]
+         ///         
          
          // Need this extra copy because d3d12OutputArguments.pOutputTexture2D doesn't have D3D12_HEAP_TYPE_READBACK to copy directly from the mapped area
-         std::vector<uint8_t> pTmp(totalBytes);
-
+         std::vector<uint8_t> pTmp(totalPlaneBytes);
          uint8_t* pSrcData = pTmp.data();
          pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
             pSrcData,
             layout.Footprint.RowPitch,
-            layout.Footprint.RowPitch * numRows,
+            layout.Footprint.RowPitch * layout.Footprint.Height,
             d3d12OutputArguments.pOutputTexture2D,
             planeOutputSubresource,
             D3D12_RESOURCE_STATE_COMMON
          );     
 
-         // Upload pSrc into target using texture_map
-                  
-         assert(layout.Footprint.Width < INT_MAX);
-         assert(layout.Footprint.Height < INT16_MAX);
-         struct pipe_box box = {0, 0, 0, static_cast<int>(layout.Footprint.Width), static_cast<int16_t>(layout.Footprint.Height), 1};
+         // Upload pSrc into target using texture_map         
          struct pipe_transfer *transfer;
          uint8_t* pDstData = (uint8_t*) pD3D12Dec->base.context->texture_map(
                pD3D12Dec->base.context,
-               views[PlaneSlice]->texture,
+               pPipeDstViews[PlaneSlice]->texture,
                0,
                PIPE_MAP_WRITE,
                &box,
                &transfer);
 
          util_copy_rect(pDstData,
-            views[PlaneSlice]->texture->format,
+            pPipeDstViews[PlaneSlice]->texture->format,
             transfer->stride, 0, 0,
             box.width, box.height, pSrcData, layout.Footprint.RowPitch, 0, 0);
 
          pipe_texture_unmap(pD3D12Dec->base.context, transfer);
-      }
-   }
+      }      
 
-   // Flush changes to pD3D12VideoBuffer (pipe_video_codec target destination texture). Not doing this causes readbacks to that texture to be all zeroes (ie. in vaGetInage)
-   pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
+      // Flush changes to pD3D12VideoBuffer (pipe_video_codec target destination texture). 
+      // Not doing this causes readbacks to that texture to be all zeroes (ie. in vaGetImage) because the copies aren't flushed in the context
+      pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
+   }
 }
 
 /**
