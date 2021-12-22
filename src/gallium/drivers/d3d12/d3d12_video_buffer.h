@@ -64,17 +64,6 @@ struct pipe_surface ** d3d12_video_buffer_get_surfaces(struct pipe_video_buffer 
 */
 void  d3d12_video_buffer_destroy_associated_data(void *associated_data);
 
-// TODO: Remove after fixing d3d12_resource NV12
-typedef struct D3D12OutputTexturePlanesBufferDesc
-{
-    uint8_t* m_pDecodedTexturePixelsY;
-    size_t m_decodedTexturePixelsYSize;
-    uint64_t m_YStride;
-    uint8_t* m_pDecodedTexturePixelsUV;
-    size_t m_decodedTexturePixelsUVSize;
-    uint64_t m_UVStride;
-} D3D12OutputTexturePlanesBufferDesc;
-
 /**
  * output for decoding / input for displaying
  */
@@ -86,9 +75,6 @@ struct d3d12_video_buffer
     struct std::vector<pipe_surface*> m_SurfacePlanes;
     struct std::vector<pipe_sampler_view*> m_SurfacePlaneSamplerViews;   
     struct std::vector<pipe_sampler_view*> m_SurfaceComponentSamplerViews;
-    D3D12OutputTexturePlanesBufferDesc cpuPixelsDesc = { };
-    std::vector<uint8_t> m_DecodedTexturePixelsY;
-    std::vector<uint8_t> m_DecodedTexturePixelsUV;
 };
 
 bool d3d12_video_buffer_is_format_supported(struct pipe_screen *screen,
