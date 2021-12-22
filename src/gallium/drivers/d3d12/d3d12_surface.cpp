@@ -193,6 +193,19 @@ initialize_rtv(struct pipe_context *pctx,
 
       desc.Texture2D.MipSlice = tpl->u.tex.level;
       desc.Texture2D.PlaneSlice = 0;
+      if(util_format_is_yuv(res->overall_format))
+      {
+         unsigned int nPlanes = util_format_get_num_planes(res->overall_format);
+         for (unsigned int planeIdx = 0; planeIdx < nPlanes; planeIdx++)
+         {
+            pipe_format planeFmt = util_format_get_plane_format(res->overall_format, planeIdx);
+            if(planeFmt == d3d12_get_pipe_format(desc.Format))
+            {
+               desc.Texture2D.PlaneSlice = planeIdx;
+               break;
+            }
+         }
+      }
       break;
 
    case D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY:
