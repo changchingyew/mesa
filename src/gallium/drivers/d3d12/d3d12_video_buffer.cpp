@@ -209,37 +209,33 @@ struct pipe_surface ** d3d12_video_buffer_get_surfaces(struct pipe_video_buffer 
    // in d3d12_resource this is handled by having a linked list of planes with 
    // d3dRes->base.next ptr to next plane resource
    // starting with the plane 0 being the overall resource
-   struct pipe_resource* pCurPlaneResource = &pD3D12VideoBuffer->m_pD3D12Resource->base.b; 
+   struct pipe_resource* pBaseResource = &pD3D12VideoBuffer->m_pD3D12Resource->base.b; 
 
-   for (uint i = 0; i < pD3D12VideoBuffer->m_NumPlanes; ++i ) {
-      if (!pD3D12VideoBuffer->m_SurfacePlanes[i])
+   for (uint PlaneSlice = 0; PlaneSlice < pD3D12VideoBuffer->m_NumPlanes; ++PlaneSlice ) {
+      if (!pD3D12VideoBuffer->m_SurfacePlanes[PlaneSlice])
       {
          memset(&surface_template, 0, sizeof(surface_template));
-         surface_template.format = util_format_get_plane_format(pD3D12VideoBuffer->m_pD3D12Resource->base.b.format, i);
-         
-         assert(pCurPlaneResource); // the d3d12_resource has a linked list with the exact name of number of elements as planes
+         surface_template.format = util_format_get_plane_format(pD3D12VideoBuffer->m_pD3D12Resource->overall_format, PlaneSlice);         
 
-         pD3D12VideoBuffer->m_SurfacePlanes[i] = pipe->create_surface(
+         pD3D12VideoBuffer->m_SurfacePlanes[PlaneSlice] = pipe->create_surface(
             pipe,
-            pCurPlaneResource, 
+            pBaseResource, 
             &surface_template
          );
          
-         if (!pD3D12VideoBuffer->m_SurfacePlanes[i])
+         if (!pD3D12VideoBuffer->m_SurfacePlanes[PlaneSlice])
          {
             goto error;
          }
       }
-
-      pCurPlaneResource = pCurPlaneResource->next;
    }
 
    return pD3D12VideoBuffer->m_SurfacePlanes.data();
 
 error:
-   for (uint i = 0; i < pD3D12VideoBuffer->m_NumPlanes; ++i )
+   for (uint PlaneSlice = 0; PlaneSlice < pD3D12VideoBuffer->m_NumPlanes; ++PlaneSlice )
    {
-      pipe_surface_reference(&pD3D12VideoBuffer->m_SurfacePlanes[i], NULL);
+      pipe_surface_reference(&pD3D12VideoBuffer->m_SurfacePlanes[PlaneSlice], NULL);
    }
 
    return nullptr;
