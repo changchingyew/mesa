@@ -67,7 +67,6 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
 	pD3D12Dec->base.decode_bitstream = d3d12_video_decode_bitstream;
 	pD3D12Dec->base.end_frame = d3d12_video_end_frame;
 	pD3D12Dec->base.flush = d3d12_video_flush;   
-   pD3D12Dec->m_MaxReferencePicsWithCurrentPic = codec->max_references + 1u; // Add an extra one for the current decoded picture recon picture.
    
    pD3D12Dec->m_decodeFormat = d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);   
    pD3D12Dec->m_d3d12DecProfileType = d3d12_convert_pipe_video_profile_to_profile_type(codec->profile);
@@ -168,6 +167,14 @@ void d3d12_video_begin_frame(struct pipe_video_codec *codec,
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
    assert(pD3D12Dec);
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_begin_frame started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+
+   if(pD3D12Dec->m_numNestedBeginFrame > 0)
+   {
+      D3D12_LOG_ERROR("[D3D12 Video Driver] Nested d3d12_video_begin_frame calls are not supported. Call d3d12_video_end_frame to finalize current frame before calling d3d12_video_begin_frame again.\n");
+   }
+
+   pD3D12Dec->m_numNestedBeginFrame++;
+
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_begin_frame finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 }
 
@@ -371,6 +378,9 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    
    // Reset decode_frame counter at end_frame call
    pD3D12Dec->m_numConsecutiveDecodeFrame = 0;
+
+   // Decrement begin_frame counter at end_frame call
+   pD3D12Dec->m_numNestedBeginFrame--;
 
 ///
 /// Proceed to record the GPU Decode commands

@@ -133,7 +133,6 @@ struct d3d12_video_decoder
     D3D12_VIDEO_DECODE_CONFIGURATION_FLAGS m_configurationFlags = D3D12_VIDEO_DECODE_CONFIGURATION_FLAG_NONE;
     GUID m_d3d12DecProfile = { };
     D3D12_VIDEO_DECODE_PROFILE_TYPE m_d3d12DecProfileType = { };
-    uint m_MaxReferencePicsWithCurrentPic = 0u;
     uint m_ConfigDecoderSpecificFlags = 0u;
 
     ///
@@ -164,6 +163,9 @@ struct d3d12_video_decoder
 
     // Number of consecutive decode_frame calls without end_frame call
     UINT m_numConsecutiveDecodeFrame = 0;
+
+    // Number of consecutive begin_frame calls without end_frame call
+    UINT m_numNestedBeginFrame = 0;
 
     ///
     /// Config variables
