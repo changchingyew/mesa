@@ -25,7 +25,7 @@
 #ifndef D3D12_VIDEO_DPB_MANAGER_INTERFACE_H
 #define D3D12_VIDEO_DPB_MANAGER_INTERFACE_H
 
-#include "d3d12_video_dec_types.h"
+#include "d3d12_video_types.h"
 
 template <typename TVideoHeap>
 struct D3D12_VIDEO_RECONSTRUCTED_PICTURE

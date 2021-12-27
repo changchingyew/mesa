@@ -26,7 +26,7 @@
 #define D3D12_VIDEO_TEXTURE_ARRAY_DPB_MANAGER_H
 
 #include "d3d12_video_dpb_storage_manager.h"
-#include "d3d12_video_dec_types.h"
+#include "d3d12_video_types.h"
 
 template <typename TVideoHeap>
 class TexturesArrayDPBManager : public ID3D12VideoDPBStorageManager<TVideoHeap>

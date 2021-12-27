@@ -21,8 +21,8 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef D3D12_VIDEO_DEC_TYPES_H
-#define D3D12_VIDEO_DEC_TYPES_H
+#ifndef D3D12_VIDEO_TYPES_H
+#define D3D12_VIDEO_TYPES_H
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch"

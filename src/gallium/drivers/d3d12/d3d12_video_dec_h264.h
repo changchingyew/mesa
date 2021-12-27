@@ -25,7 +25,7 @@
 #ifndef D3D12_VIDEO_DEC_H264_H
 #define D3D12_VIDEO_DEC_H264_H
 
-#include "d3d12_video_dec_types.h"
+#include "d3d12_video_types.h"
 
 typedef unsigned short USHORT;
 

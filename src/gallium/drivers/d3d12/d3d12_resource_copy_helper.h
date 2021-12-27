@@ -24,7 +24,7 @@
 #ifndef D3D12_RESOURCE_COPY_HELPER_H
 #define D3D12_RESOURCE_COPY_HELPER_H
 
-#include "d3d12_video_dec_types.h"
+#include "d3d12_video_types.h"
 #include "d3d12_state_transition_helper.h"
 
 // Copies data into/out of D3D12 resources

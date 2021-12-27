@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 #pragma once
 
-#include "d3d12_video_dec_types.h"
+#include "d3d12_video_types.h"
 
 #define D3DFORMATDESC 1
 

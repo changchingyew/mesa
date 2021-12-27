@@ -24,7 +24,7 @@
 #ifndef D3D12_VIDEO_DEC_H
 #define D3D12_VIDEO_DEC_H
 
-#include "d3d12_video_dec_types.h"
+#include "d3d12_video_types.h"
 #include "d3d12_video_dec_references_mgr.h"
 #include "d3d12_resource_copy_helper.h"
 
