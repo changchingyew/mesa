@@ -51,15 +51,6 @@ void d3d12_video_begin_frame(struct pipe_video_codec *codec,
                      struct pipe_picture_desc *picture);
 
 /**
- * decode a macroblock
- */
-void d3d12_video_decode_macroblock(struct pipe_video_codec *codec,
-                           struct pipe_video_buffer *target,
-                           struct pipe_picture_desc *picture,
-                           const struct pipe_macroblock *macroblocks,
-                           unsigned num_macroblocks);
-
-/**
  * decode a bitstream
  */
 void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
@@ -68,14 +59,6 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
                            unsigned num_buffers,
                            const void * const *buffers,
                            const unsigned *sizes);
-
-/**
- * encode to a bitstream
- */
-void d3d12_video_encode_bitstream(struct pipe_video_codec *codec,
-                           struct pipe_video_buffer *source,
-                           struct pipe_resource *destination,
-                           void **feedback);
 
 /**
  * end decoding of the current frame
@@ -175,7 +158,6 @@ struct d3d12_video_decoder
 
 };
 
-// bool d3d12_video_decoder_is_array_of_textures_enabled(const struct d3d12_video_decoder* pD3D12Dec);
 bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
 bool d3d12_check_caps_and_create_video_decoder_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
 bool d3d12_create_video_state_buffers(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
@@ -187,7 +169,6 @@ void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *p
 void d3d12_store_converted_dxva_picparams_from_pipe_input(struct d3d12_video_decoder *codec, struct pipe_picture_desc *picture, struct d3d12_video_buffer* pD3D12VideoBuffer);
 template <typename T> T * d3d12_current_dxva_picparams(struct d3d12_video_decoder *codec) { return reinterpret_cast<T*>(codec->m_picParamsBuffer.data()); }
 bool d3d12_video_dec_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport, D3D12_VIDEO_DECODE_PROFILE_TYPE profileType);
-DXGI_FORMAT d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile);
 D3D12_VIDEO_DECODE_PROFILE_TYPE d3d12_convert_pipe_video_profile_to_profile_type(enum pipe_video_profile profile);
 GUID d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(enum pipe_video_profile profile);
 GUID d3d12_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profileType, UINT resourceBitDepth);

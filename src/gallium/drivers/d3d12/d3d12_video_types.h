@@ -33,7 +33,9 @@
 #define D3D12_LOG_DBG(args...) if(D3D12_LOG_DBG_ON) fprintf(stderr, args);
 #define D3D12_ASSERT_ON_ERROR true
 #define D3D12_LOG_ERROR(args...) { fprintf(stderr, args); if(D3D12_ASSERT_ON_ERROR) {assert(0);} }
-#define VERIFY_SUCCEEDED(x) { HRESULT hr = x; if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12ResourceCopyHelper - Failed with HR %x\n", hr); } }
+#define VERIFY_SUCCEEDED(x) { HRESULT hr = x; if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_SUCCEEDED failed with HR %x\n", hr); } }
+#define VERIFY_ARE_EQUAL(a, b) { if(a != b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_ARE_EQUAL failed\n"); assert((a) == (b)); } }
+#define VERIFY_IS_LESS_THAN_OR_EQUAL(a, b) { if(a > b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_LESS_THAN_OR_EQUAL failed\n"); assert((a) <= (b)); } }
 
 #include "pipe/p_context.h"
 #include "pipe/p_video_codec.h"

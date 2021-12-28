@@ -68,7 +68,7 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
 	pD3D12Dec->base.end_frame = d3d12_video_end_frame;
 	pD3D12Dec->base.flush = d3d12_video_flush;   
    
-   pD3D12Dec->m_decodeFormat = d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);   
+   pD3D12Dec->m_decodeFormat = D3D12VideoFormatHelper::d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);   
    pD3D12Dec->m_d3d12DecProfileType = d3d12_convert_pipe_video_profile_to_profile_type(codec->profile);
    pD3D12Dec->m_d3d12DecProfile = d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(codec->profile);
 
@@ -1243,27 +1243,6 @@ bool d3d12_video_dec_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT de
 
     return (decodeSupport.DecodeTier >= D3D12_VIDEO_DECODE_TIER_2)
         && supportedProfile;
-}
-
-DXGI_FORMAT d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile)
-{
-    switch (profile)
-    {
-        case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
-        case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
-        case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
-        case PIPE_VIDEO_PROFILE_MPEG4_AVC_EXTENDED:
-        case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
-        case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422:
-        case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
-            return DXGI_FORMAT_NV12;
-         case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10:
-            assert(0); // Unusupported for now.
-            return DXGI_FORMAT_P010;
-        default:
-            assert(0);
-            return DXGI_FORMAT_UNKNOWN;
-    }
 }
 
 D3D12_VIDEO_DECODE_PROFILE_TYPE d3d12_convert_pipe_video_profile_to_profile_type(enum pipe_video_profile profile)

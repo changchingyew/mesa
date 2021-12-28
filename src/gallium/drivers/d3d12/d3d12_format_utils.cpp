@@ -35,5 +35,25 @@ namespace D3D12VideoFormatHelper
         return s_FormatDetail[GetDetailTableIndex( Format )].bYUV;
     }
 
+    DXGI_FORMAT d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile)
+    {
+        switch (profile)
+        {
+            case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
+            case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
+            case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
+            case PIPE_VIDEO_PROFILE_MPEG4_AVC_EXTENDED:
+            case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
+            case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422:
+            case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
+                return DXGI_FORMAT_NV12;
+            case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10:
+                assert(0); // Unusupported for now.
+                return DXGI_FORMAT_P010;
+            default:
+                assert(0);
+                return DXGI_FORMAT_UNKNOWN;
+        }
+    }
 }
 // End of file

@@ -892,14 +892,23 @@ typedef struct D3D12VideoResolutionToLevelEntry
 } D3D12VideoResolutionToLevelEntry;
 
 
-inline D3D12VideoResolutionToLevelEntry GetMaxLevelResolutionVideoSupport(
+inline D3D12VideoResolutionToLevelEntry GetMaxLevelResolutionVideoDecodeSupport(
    enum pipe_video_profile profile, 
-   ComPtr<ID3D12VideoDevice> & spD3D12VideoDevice,
+   struct pipe_screen *pscreen,
    bool& outSupportAny,
    D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT & outSupportedConfig)
 {
    D3D12VideoResolutionToLevelEntry supportedResult = { };
    outSupportAny = false;
+   outSupportedConfig = { };
+
+   ComPtr<ID3D12VideoDevice> spD3D12VideoDevice;
+   struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pscreen;
+   if(FAILED(pD3D12Screen->dev->QueryInterface(IID_PPV_ARGS(spD3D12VideoDevice.GetAddressOf()))))
+   {
+      // No video support in underlying d3d12 device (decode needs ID3D12VideoDevice)
+      return supportedResult;
+   }
 
    D3D12VideoResolutionToLevelEntry resolutionsLevelList[10] = 
    {
@@ -959,41 +968,130 @@ inline D3D12VideoResolutionToLevelEntry GetMaxLevelResolutionVideoSupport(
    return supportedResult;
 } 
 
+inline bool d3d12_has_video_decode_support(struct pipe_screen *pscreen, enum pipe_video_profile profile)
+{
+   ComPtr<ID3D12VideoDevice> spD3D12VideoDevice;
+   struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pscreen;
+   if(FAILED(pD3D12Screen->dev->QueryInterface(IID_PPV_ARGS(spD3D12VideoDevice.GetAddressOf()))))
+   {
+      // No video support in underlying d3d12 device (needs ID3D12VideoDevice)
+      return 0;
+   }
+   
+   D3D12_FEATURE_DATA_VIDEO_FEATURE_AREA_SUPPORT VideoFeatureAreaSupport = {};
+   if(FAILED(spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_FEATURE_AREA_SUPPORT, &VideoFeatureAreaSupport, sizeof(VideoFeatureAreaSupport))))
+   {
+      return false;
+   }
+
+   // TODO: E_NOIMPL - Call D3D12_FEATURE_DATA_VIDEO_DECODE_ caps for actual codec/profile from HW
+   return (VideoFeatureAreaSupport.VideoDecodeSupport)
+         &&
+         (
+            // H264
+            (u_reduce_video_profile(profile) == PIPE_VIDEO_FORMAT_MPEG4_AVC)
+         );
+}
+
+inline bool d3d12_video_encode_max_supported_level_for_profile_h264(
+   const D3D12_VIDEO_ENCODER_PROFILE_DESC& argTargetProfile,
+   D3D12_VIDEO_ENCODER_LEVELS_H264& maxLvlSettingH264,
+   ID3D12VideoDevice3 *pD3D12VideoDevice)
+{
+   D3D12_FEATURE_DATA_VIDEO_ENCODER_PROFILE_LEVEL capLevelData = { };
+   capLevelData.NodeIndex = 0;
+   capLevelData.Codec = D3D12_VIDEO_ENCODER_CODEC_H264;
+   capLevelData.Profile = argTargetProfile;
+
+   bool isProfileSupported = false;
+   bool isLevelSupported = false;
+
+   D3D12_VIDEO_ENCODER_LEVELS_H264 minLvlSettingH264 = static_cast<D3D12_VIDEO_ENCODER_LEVELS_H264>(0);
+   maxLvlSettingH264 = static_cast<D3D12_VIDEO_ENCODER_LEVELS_H264>(0);
+
+   capLevelData.MinSupportedLevel.pH264LevelSetting = &minLvlSettingH264;
+   capLevelData.MinSupportedLevel.DataSize = sizeof(minLvlSettingH264);
+   capLevelData.MaxSupportedLevel.pH264LevelSetting = &maxLvlSettingH264;
+   capLevelData.MaxSupportedLevel.DataSize = sizeof(maxLvlSettingH264);
+
+   if(FAILED(pD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_PROFILE_LEVEL, &capLevelData, sizeof(capLevelData))))
+   {
+      return false;
+   }
+   
+   return capLevelData.IsSupported;
+}
+
+inline bool d3d12_has_video_encode_support(struct pipe_screen *pscreen, enum pipe_video_profile profile)
+{
+   ComPtr<ID3D12VideoDevice3> spD3D12VideoDevice;
+   struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pscreen;
+   if(FAILED(pD3D12Screen->dev->QueryInterface(IID_PPV_ARGS(spD3D12VideoDevice.GetAddressOf()))))
+   {
+      // No video encode support in underlying d3d12 device (needs ID3D12VideoDevice3)
+      return 0;
+   }
+
+   D3D12_FEATURE_DATA_VIDEO_FEATURE_AREA_SUPPORT VideoFeatureAreaSupport = {};
+   if(FAILED(spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_FEATURE_AREA_SUPPORT, &VideoFeatureAreaSupport, sizeof(VideoFeatureAreaSupport))))
+   {
+      return false;
+   }   
+
+   // Supported profiles below
+   // TODO: E_NOIMPL - Call encode cap for actual profile from HW, not only reduced profile family
+   return
+         (VideoFeatureAreaSupport.VideoEncodeSupport)
+         &&
+         (
+            // H264            
+            (u_reduce_video_profile(profile) == PIPE_VIDEO_FORMAT_MPEG4_AVC)
+         );
+}
+
 int
 d3d12_screen_get_video_param(struct pipe_screen *pscreen,
                                enum pipe_video_profile profile,
                                enum pipe_video_entrypoint entrypoint,
                                enum pipe_video_cap param)
 {
-   ComPtr<ID3D12VideoDevice> spD3D12VideoDevice;
-   struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pscreen;
-   if(FAILED(pD3D12Screen->dev->QueryInterface(IID_PPV_ARGS(spD3D12VideoDevice.GetAddressOf()))))
-   {
-      // No video support in underlying d3d12 device
-      return 0; // No matter what cap they're asking for, there's no support for video.
-   }
-
    switch (param) {
       case PIPE_VIDEO_CAP_SUPPORTED:
-         return entrypoint == PIPE_VIDEO_ENTRYPOINT_BITSTREAM // Only decode for now
-            &&
-            u_reduce_video_profile(profile) == PIPE_VIDEO_FORMAT_MPEG4_AVC; // Only H264 for now
+         return 
+            (
+               ((entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE) && d3d12_has_video_encode_support(pscreen, profile))
+            ||
+               ((entrypoint == PIPE_VIDEO_ENTRYPOINT_BITSTREAM) && d3d12_has_video_decode_support(pscreen, profile))
+            );
       case PIPE_VIDEO_CAP_NPOT_TEXTURES:
          return 1;
       case PIPE_VIDEO_CAP_MAX_WIDTH:
       case PIPE_VIDEO_CAP_MAX_HEIGHT:
       {
-         bool supportAny = false;
-         D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT outSupportedConfig = { };
-         D3D12VideoResolutionToLevelEntry bestSupportedConfig = GetMaxLevelResolutionVideoSupport(profile, spD3D12VideoDevice, supportAny, outSupportedConfig);
-
-         if(supportAny)
+         if(entrypoint == PIPE_VIDEO_ENTRYPOINT_BITSTREAM)
          {
-            return (param == PIPE_VIDEO_CAP_MAX_WIDTH) ? bestSupportedConfig.resolution.Width : bestSupportedConfig.resolution.Height;
+            bool supportAny = false;
+            D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT outSupportedConfig = { };
+            D3D12VideoResolutionToLevelEntry bestSupportedConfig = GetMaxLevelResolutionVideoDecodeSupport(profile, pscreen, supportAny, outSupportedConfig);
+
+            if(supportAny)
+            {
+               return (param == PIPE_VIDEO_CAP_MAX_WIDTH) ? bestSupportedConfig.resolution.Width : bestSupportedConfig.resolution.Height;
+            }
+            else
+            {
+               // None of the resolutions were supported
+               return 0;
+            }
+         }
+         else if(entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE)
+         {
+            assert(false); // TODO: E_NOIMPL - Call resolution cap
+            return 0;            
          }
          else
          {
-            // None of the resolutions were supported
+            debug_printf("[d3d12_screen_get_video_param] unknown video entrypoint: %d\n", entrypoint);
             return 0;
          }
       }
@@ -1008,31 +1106,70 @@ d3d12_screen_get_video_param(struct pipe_screen *pscreen,
          return true;
       case PIPE_VIDEO_CAP_MAX_LEVEL:
       {
-         switch (profile) {
-            case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
-            case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
-            case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
-            {
-               bool supportAny = false;
-               D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT outSupportedConfig = { };
-               D3D12VideoResolutionToLevelEntry bestSupportedConfig = GetMaxLevelResolutionVideoSupport(profile, spD3D12VideoDevice, supportAny, outSupportedConfig);
+         if(entrypoint == PIPE_VIDEO_ENTRYPOINT_BITSTREAM)
+         {
+            switch (profile) {
+               case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
+               case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
+               case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
+               {
+                  bool supportAny = false;
+                  D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT outSupportedConfig = { };
+                  D3D12VideoResolutionToLevelEntry bestSupportedConfig = GetMaxLevelResolutionVideoDecodeSupport(profile, pscreen, supportAny, outSupportedConfig);
 
-               if(supportAny)
-               {
-                  return bestSupportedConfig.level;
+                  if(supportAny)
+                  {
+                     return bestSupportedConfig.level;
+                  }
+                  else
+                  {
+                     // None of the resolutions were supported
+                     return 0;
+                  }               
                }
-               else
-               {
-                  // None of the resolutions were supported
-                  return 0;
-               }               
+               break;
+               default:
+                  return 0; // No support
             }
-            break;
-            default:
-               return 0; // No support
+         }
+         else if(entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE)
+         {
+            ComPtr<ID3D12VideoDevice3> spD3D12VideoDevice;
+            struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pscreen;
+            if(FAILED(pD3D12Screen->dev->QueryInterface(IID_PPV_ARGS(spD3D12VideoDevice.GetAddressOf()))))
+            {
+               // No video encode support in underlying d3d12 device (needs ID3D12VideoDevice3)
+               return 0;
+            }
+
+            if(u_reduce_video_profile(profile) == PIPE_VIDEO_FORMAT_MPEG4_AVC)
+            {
+               // D3D12_VIDEO_ENCODER_PROFILE_DESC profDesc = { };
+               // D3D12_VIDEO_ENCODER_PROFILE_H264 profH264 = d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(profile);
+               // profDesc.DataSize = sizeof(profH264);
+               // profDesc.pH264Profile = &profH264;
+               // D3D12_VIDEO_ENCODER_LEVELS_H264 maxLvl = { };
+               // if(!d3d12_video_encode_max_supported_level_for_profile_h264(profDesc, maxLvl, spD3D12VideoDevice.Get()))
+               // {
+               //    return 0; // Unsupported profile
+               // }
+               
+               // UINT specLevel = 0;
+               // UINT constraint_set3_flag = 0;
+               // d3d12_video_encoder_convert_from_d3d12_level_h264(maxLvl, specLevel, constraint_set3_flag);
+               // return specLevel;
+               return 61; // TODO: Use cap as above, fix circular inclusion of screen and video headers
+            }
+            
+            return 0;
+         }
+         else
+         {
+            debug_printf("[d3d12_screen_get_video_param] unknown video entrypoint: %d\n", entrypoint);
+            return 0;
          }
       }
-      break;      
+      break;
       default:
          debug_printf("[d3d12_screen_get_video_param] unknown video param: %d\n", param);
          return 0;

@@ -100,7 +100,7 @@ private:
     {
         std::vector<ID3D12Resource*> pResources;
         std::vector<UINT> pSubresources;
-        std::vector<ID3D12VideoDecoderHeap*> pHeaps;
+        std::vector<TVideoHeap*> pHeaps;
     } D3D12_DPB;
 
     D3D12_DPB m_D3D12DPB;

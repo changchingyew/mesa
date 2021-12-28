@@ -632,5 +632,7 @@ namespace D3D12VideoFormatHelper
     UINT GetDetailTableIndex(DXGI_FORMAT  Format );
     UINT GetBitsPerUnit(DXGI_FORMAT Format);
     BOOL YUV(DXGI_FORMAT Format);
+
+    DXGI_FORMAT d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile);
 }
 // End of file
