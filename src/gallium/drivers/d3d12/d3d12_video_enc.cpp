@@ -144,7 +144,8 @@ void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* p
    {
       case PIPE_VIDEO_FORMAT_MPEG4_AVC:
       {
-         pD3D12Enc->m_upDPBManager->BeginFrame(d3d12_video_encoder_convert_current_frame_gop_info_h264(pD3D12Enc, srcTexture, picture));
+         D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
+         pD3D12Enc->m_upDPBManager->BeginFrame(d3d12_video_encoder_convert_current_frame_gop_info_h264(pD3D12Enc, srcTexture, picture), currentPicParams);
       } break;
       
       default:

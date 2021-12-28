@@ -101,56 +101,18 @@ void D3D12VideoEncoderH264FIFOReferenceManager::GetCurrentFramePictureControlDat
 
     assert(codecAllocation.DataSize == sizeof(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264));
     
-    // TODO: In BeginFrame we should also set the params we want as default here
-    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 curFrameState =
-    {
-        //D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264_FLAGS
-        D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264_FLAG_NONE,
-        //D3D12_VIDEO_ENCODER_FRAME_TYPE_H264
-        m_currentGOPStateDescriptor.CurrentFrameType,    
-        // pic_parameter_set_id;
-        0,
-        // idr_pic_id;
-        static_cast<UCHAR>(m_currentGOPStateDescriptor.idr_pic_id),
-        // UINT PictureOrderCountNumber;
-        m_currentGOPStateDescriptor.m_curPictureOrderCountNumber,
-        // UINT FrameDecodingOrderNumber;
-        m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber,
-        // UINT TemporalLayerIndex;
-        0,
-        // UINT List0ReferenceFramesCount;
-        needsL0List ? static_cast<UINT>(m_CurrentFrameReferencesData.pList0ReferenceFrames.size()) : 0,
-        // [annotation("_Field_size_full_(List0ReferenceFramesCount)")] UINT* pList0ReferenceFrames;
-        needsL0List ? m_CurrentFrameReferencesData.pList0ReferenceFrames.data() : nullptr,
-        // UINT List1ReferenceFramesCount;
-        needsL1List ? static_cast<UINT>(m_CurrentFrameReferencesData.pList1ReferenceFrames.size()) : 0,
-        // [annotation("_Field_size_full_(List1ReferenceFramesCount)")] UINT* pList1ReferenceFrames;
-        needsL1List ? m_CurrentFrameReferencesData.pList1ReferenceFrames.data() : nullptr,
-        // UINT ReferenceFramesReconPictureDescriptorsCount;
-        needsL0List ? static_cast<UINT>(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size()) : 0,
-        // [annotation("_Field_size_full_(ReferenceFramesReconPictureDescriptorsCount)")] D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264* pReferenceFramesReconPictureDescriptors;
-        needsL0List ? m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.data() : nullptr,
-        // UCHAR adaptive_ref_pic_marking_mode_flag;
-        0,
-        // UINT RefPicMarkingOperationsCommandsCount;
-        0,
-        // [annotation("_Field_size_full_(RefPicMarkingOperationsCommandsCount)")] D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264_REFERENCE_PICTURE_MARKING_OPERATION* pRefPicMarkingOperationsCommands;
-        nullptr,
-        // List0RefPicModificationsCount
-        0,
-        // pList0RefPicModifications
-        nullptr,
-        // List1RefPicModificationsCount
-        0,
-        // pList1RefPicModifications
-        nullptr,
-        // UINT QPMapValuesCount;
-        0,
-        // [annotation("_Field_size_full_(QPMapValuesCount)")] INT8 *pRateControlQPMap;
-        nullptr,
-    };
+    m_curFrameState.FrameType = m_currentGOPStateDescriptor.CurrentFrameType;
+    m_curFrameState.idr_pic_id = static_cast<UCHAR>(m_currentGOPStateDescriptor.idr_pic_id);
+    m_curFrameState.PictureOrderCountNumber = m_currentGOPStateDescriptor.m_curPictureOrderCountNumber;
+    m_curFrameState.FrameDecodingOrderNumber = m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber;
+    m_curFrameState.List0ReferenceFramesCount = needsL0List ? static_cast<UINT>(m_CurrentFrameReferencesData.pList0ReferenceFrames.size()) : 0;
+    m_curFrameState.pList0ReferenceFrames = needsL0List ? m_CurrentFrameReferencesData.pList0ReferenceFrames.data() : nullptr,
+    m_curFrameState.List1ReferenceFramesCount = needsL1List ? static_cast<UINT>(m_CurrentFrameReferencesData.pList1ReferenceFrames.size()) : 0,
+    m_curFrameState.pList1ReferenceFrames = needsL1List ? m_CurrentFrameReferencesData.pList1ReferenceFrames.data() : nullptr,
+    m_curFrameState.ReferenceFramesReconPictureDescriptorsCount = needsL0List ? static_cast<UINT>(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size()) : 0,
+    m_curFrameState.pReferenceFramesReconPictureDescriptors = needsL0List ? m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.data() : nullptr,
 
-    *codecAllocation.pH264PicData = curFrameState;
+    *codecAllocation.pH264PicData = m_curFrameState;
 }
 
 // Returns the resource allocation for a reconstructed picture output for the current frame
@@ -500,9 +462,10 @@ bool D3D12VideoEncoderH264FIFOReferenceManager::IsCurrentFrameUsedAsReference()
     );
 }
 
-void D3D12VideoEncoderH264FIFOReferenceManager::BeginFrame(D3D12VideoEncoderH264FrameDesc curFrameData)
+void D3D12VideoEncoderH264FIFOReferenceManager::BeginFrame(D3D12VideoEncoderH264FrameDesc curFrameData, D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA defaultPicParamValues)
 {
     m_currentGOPStateDescriptor = curFrameData;
+    m_curFrameState = *defaultPicParamValues.pH264PicData;
 
     // Advance the GOP tracking state
     bool isDPBFlushNeeded = (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME);

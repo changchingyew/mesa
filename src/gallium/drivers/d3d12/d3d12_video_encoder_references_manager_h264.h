@@ -33,7 +33,7 @@ class D3D12VideoEncoderH264FIFOReferenceManager : public ID3D12AutomaticVideoEnc
 public:
     
     void EndFrame();
-    void BeginFrame(D3D12VideoEncoderH264FrameDesc curFrameData);
+    void BeginFrame(D3D12VideoEncoderH264FrameDesc curFrameData, D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA defaultPicParamValues);
     D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE GetCurrentFrameReconPicOutputAllocation();
     void GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& codecAllocation);
     bool IsCurrentFrameUsedAsReference();
@@ -82,6 +82,8 @@ private:
     bool m_gopHasInterFrames = false;
 
     D3D12VideoEncoderH264FrameDesc m_currentGOPStateDescriptor;
+
+    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 m_curFrameState = { };
 };
 
 #endif

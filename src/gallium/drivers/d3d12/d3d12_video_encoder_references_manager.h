@@ -39,7 +39,7 @@ class ID3D12AutomaticVideoEncodeReferencePicManager
 {
 public:
 
-    virtual void BeginFrame(D3D12VideoEncoderH264FrameDesc) = 0; // TODO: Templatize method BeginFrame<TCodecPictureData> and then use with D3D12VideoEncoderH264FrameDesc and other codecs
+    virtual void BeginFrame(D3D12VideoEncoderH264FrameDesc, D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA) = 0; // TODO: Templatize method BeginFrame<TCodecPictureData> and then use with D3D12VideoEncoderH264FrameDesc and other codecs
     virtual void EndFrame() = 0;
     virtual D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE GetCurrentFrameReconPicOutputAllocation() = 0;
     virtual void GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& codecAllocation) = 0;
