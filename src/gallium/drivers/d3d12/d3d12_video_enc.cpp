@@ -369,7 +369,8 @@ D3D12_VIDEO_ENCODER_LEVEL_SETTING d3d12_video_encoder_get_current_level_desc(str
 
 UINT d3d12_video_encoder_build_codec_headers(struct d3d12_video_encoder* pD3D12Enc)
 {
-   // TODO: Implement me
+   // TODO: Implement me as codec specific delegating to codec methods
+   // ie. pipe_h264_enc_pic_control.enc_frame_cropping_flag for h264 sps
    return 0u;
 }
 
@@ -782,7 +783,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAGS picCtrlFlags = D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_NONE;
 
    // Transition DPB reference pictures to read mode
-   // TODO: D3D12DecomposeSubresource
+   // TODO: D3D12DecomposeSubresource in all transitions, take TextureArray case into account too
    UINT maxReferences = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
    std::vector<D3D12_RESOURCE_BARRIER> rgReferenceTransitions(maxReferences);
    if((referenceFramesDescriptor.NumTexture2Ds > 0) || (pD3D12Enc->m_upDPBManager->IsCurrentFrameUsedAsReference()))

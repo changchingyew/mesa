@@ -40,14 +40,12 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.TargetAvgBitRate = picture->rate_ctrl[0].target_bitrate;
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.PeakBitRate = picture->rate_ctrl[0].peak_bitrate;
 
-         if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_VBV_SIZE_CONFIG_AVAILABLE) != 0)
          {
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags | D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.VBVCapacity = picture->rate_ctrl[0].vbv_buffer_size;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.InitialVBVFullness = picture->rate_ctrl[0].vbv_buf_lv;
          }
 
-         if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_MAX_FRAME_SIZE_AVAILABLE) != 0)
          {
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags | D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.MaxFrameBitSize = picture->rate_ctrl[0].peak_bits_picture_integer;
@@ -64,14 +62,12 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Mode = D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_CBR;
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.TargetBitRate = picture->rate_ctrl[0].target_bitrate;
 
-         if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_VBV_SIZE_CONFIG_AVAILABLE) != 0)
          {
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags | D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.VBVCapacity = picture->rate_ctrl[0].vbv_buffer_size;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.InitialVBVFullness = picture->rate_ctrl[0].vbv_buf_lv;
          }
 
-         if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_MAX_FRAME_SIZE_AVAILABLE) != 0)
          {
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags | D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.MaxFrameBitSize = picture->rate_ctrl[0].peak_bits_picture_integer;
@@ -506,13 +502,18 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
 
 D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 d3d12_video_encoder_convert_h264_codec_configuration(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
 {
-   // TODO: Set flags and rest based on picture contents (ie. cabac/cavlc, etc), using defaults for now
    D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 config = 
    {
       D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264_FLAG_NONE,
       D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264_DIRECT_MODES_DISABLED,
       D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264_SLICES_DEBLOCKING_MODE_0_ALL_LUMA_CHROMA_SLICE_BLOCK_EDGES_ALWAYS_FILTERED,
    };
+
+   if(picture->pic_ctrl.enc_cabac_enable)
+   {
+      config.ConfigurationFlags | D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264_FLAG_ENABLE_CABAC_ENCODING;
+   }
+
    return config;
 }
 
@@ -543,6 +544,9 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
 
    // Set codec config
    pD3D12Enc->m_currentEncodeConfig.m_encoderCodecSpecificConfigDesc.m_H264Config = d3d12_video_encoder_convert_h264_codec_configuration(pD3D12Enc, h264Pic);
+
+   // Set rate control
+   d3d12_video_encoder_update_current_rate_control_h264(pD3D12Enc, h264Pic);
 
    // Set slices config
    d3d12_video_encoder_update_current_h264_slices_configuration(pD3D12Enc, h264Pic);
@@ -645,9 +649,6 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    {
       D3D12_LOG_ERROR("[D3D12 Video Driver Error] Desired number of subregions is not supported (higher than max reported slice number in query caps)\n.");
    }
-
-   // Set rate control (uses pD3D12Enc->m_currentEncodeCapabilities set above!)
-   d3d12_video_encoder_update_current_rate_control_h264(pD3D12Enc, h264Pic);
 }
 
 D3D12_VIDEO_ENCODER_PROFILE_H264 d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(enum pipe_video_profile profile)
