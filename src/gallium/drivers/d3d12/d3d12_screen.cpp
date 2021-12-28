@@ -1160,7 +1160,7 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *pscreen,
                   {
                      return bestSupportedConfig.resolution.Width;
                   }
-                  else if (param == PIPE_VIDEO_CAP_MAX_WIDTH)
+                  else if (param == PIPE_VIDEO_CAP_MAX_HEIGHT)
                   {
                      return bestSupportedConfig.resolution.Height;
                   }
@@ -1215,7 +1215,7 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
             {
                return maxResEncode.Width;
             }
-            else if (param == PIPE_VIDEO_CAP_MAX_WIDTH)
+            else if (param == PIPE_VIDEO_CAP_MAX_HEIGHT)
             {
                return maxResEncode.Height;
             }
