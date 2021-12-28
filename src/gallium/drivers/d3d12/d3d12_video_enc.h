@@ -124,7 +124,6 @@ struct d3d12_video_encoder
 
     ComPtr<ID3D12Resource> m_spResolvedMetadataBuffer;
     ComPtr<ID3D12Resource> m_spMetadataOutputBuffer;
-    ComPtr<ID3D12Resource> m_spCompressedBitstreamBuffer;
 
     struct 
     {
@@ -140,9 +139,6 @@ struct d3d12_video_encoder
         D3D12_VIDEO_ENCODER_VALIDATION_FLAGS m_ValidationFlags;
         D3D12_FEATURE_DATA_VIDEO_ENCODER_RESOLUTION_SUPPORT_LIMITS m_currentResolutionSupportCaps;
         
-        // compressed bitstream size is estimated by user
-        const size_t m_compressedBitstreamOutputBufferSize = (1024 /*1K*/ * 1024/*1MB*/) * 8/*8 MB*/; // 8MB 
-
         // Required size for the layout-resolved metadata buffer of current frame to be encoded
         size_t m_resolvedLayoutMetadataBufferRequiredSize;
         

@@ -630,18 +630,6 @@ void d3d12_video_encoder_prepare_output_buffers(struct d3d12_video_encoder* pD3D
          nullptr,
          IID_PPV_ARGS(pD3D12Enc->m_spMetadataOutputBuffer.GetAddressOf())));
    }
-
-   if((pD3D12Enc->m_spCompressedBitstreamBuffer == nullptr) || (pD3D12Enc->m_spCompressedBitstreamBuffer->GetDesc().Width < pD3D12Enc->m_currentEncodeCapabilities.m_compressedBitstreamOutputBufferSize))
-   {      
-      CD3DX12_RESOURCE_DESC compressedBitstreamBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(pD3D12Enc->m_currentEncodeCapabilities.m_compressedBitstreamOutputBufferSize);
-      VERIFY_SUCCEEDED(pD3D12Enc->m_pD3D12Screen->dev->CreateCommittedResource(
-         &Properties,
-         D3D12_HEAP_FLAG_NONE,
-         &compressedBitstreamBufferDesc,
-         D3D12_RESOURCE_STATE_COMMON,
-         nullptr,
-         IID_PPV_ARGS(pD3D12Enc->m_spCompressedBitstreamBuffer.GetAddressOf())));
-   }
 }
 
 bool d3d12_video_encoder_reconfigure_session(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
@@ -765,6 +753,10 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
    ID3D12Resource* pInputVideoD3D12Res = d3d12_resource_resource(pInputVideoBuffer->m_pD3D12Resource);
    UINT inputVideoD3D12Subresource = 0u;
 
+   struct d3d12_resource* pOutputBitstreamBuffer = (struct d3d12_resource*) destination;
+   assert(pOutputBitstreamBuffer);
+   ID3D12Resource* pOutputBufferD3D12Res = d3d12_resource_resource(pOutputBitstreamBuffer);
+
    if(pD3D12Enc->m_numConsecutiveEncodeFrame > 0)
    {
       D3D12_LOG_ERROR("[D3D12 Video Driver] Nested d3d12_video_encoder_encode_bitstream calls are not supported. Call d3d12_video_encoder_end_frame to finalize current frame before calling d3d12_video_encoder_encode_bitstream again.\n");
@@ -779,7 +771,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
    std::vector<D3D12_RESOURCE_BARRIER> rgCurrentFrameStateTransitions = 
    {
       CD3DX12_RESOURCE_BARRIER::Transition(pInputVideoD3D12Res, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ),
-      CD3DX12_RESOURCE_BARRIER::Transition(pD3D12Enc->m_spCompressedBitstreamBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE),
+      CD3DX12_RESOURCE_BARRIER::Transition(pOutputBufferD3D12Res, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE),
       CD3DX12_RESOURCE_BARRIER::Transition(pD3D12Enc->m_spMetadataOutputBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE)
    };
    
@@ -877,7 +869,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
    {
       // D3D12_VIDEO_ENCODER_COMPRESSED_BITSTREAM
       {
-            pD3D12Enc->m_spCompressedBitstreamBuffer.Get(),
+            pOutputBufferD3D12Res,
             0, // FrameStartOffset hint to driver to start writing after this count of bytes
       },
       // D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE
