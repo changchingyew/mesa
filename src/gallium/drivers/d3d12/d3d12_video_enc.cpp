@@ -174,6 +174,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
          || (heapRes[0].Height != pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Height);
       // TODO: Add other reconfig triggers like slices, rate control, codec config struct, etc
       // TODO: set reconfig (ie. slices, rate control, resolution) flags in encodeframe structs without re-creating dpb/heap/encoder sometimes
+      // need to check in pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags if on-the-fly reconfig is available
    }
 
    if (needsObjCreation || needsReconfiguration)
@@ -448,7 +449,7 @@ void d3d12_video_encoder_update_current_encoder_config_state(struct d3d12_video_
       
       default:
          assert(0);
-   }
+   }   
 }
 
 bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D12Enc)
@@ -563,10 +564,58 @@ failed:
    return nullptr;
 }
 
-void d3d12_video_encoder_get_feedback(struct pipe_video_codec *codec, void *feedback, unsigned *size)
+void d3d12_video_encoder_prepare_output_buffers(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
 {
-   // TODO: Implement feedback mechanism.
-   *size = 4096;
+   pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps.NodeIndex = pD3D12Enc->m_NodeIndex;
+   pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps.Codec = pD3D12Enc->m_currentEncodeConfig.m_encoderCodecDesc;
+   pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps.Profile = d3d12_video_encoder_get_current_profile_desc(pD3D12Enc);
+   pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps.InputFormat = pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format;
+   pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps.PictureTargetResolution = pD3D12Enc->m_currentEncodeConfig.m_currentResolution;
+
+   VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_RESOURCE_REQUIREMENTS, &pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps, sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps)));
+   if(!pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps.IsSupported)
+   {
+      D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12_FEATURE_VIDEO_ENCODER_RESOURCE_REQUIREMENTS arguments are not supported.\n");
+   }
+
+   d3d12_video_encoder_calculate_metadata_resolved_buffer_size(pD3D12Enc->m_currentEncodeCapabilities.m_MaxSlicesInOutput, pD3D12Enc->m_currentEncodeCapabilities.m_resolvedLayoutMetadataBufferRequiredSize);   
+
+   D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+   if((pD3D12Enc->m_spResolvedMetadataBuffer == nullptr) || (pD3D12Enc->m_spResolvedMetadataBuffer->GetDesc().Width < pD3D12Enc->m_currentEncodeCapabilities.m_resolvedLayoutMetadataBufferRequiredSize))
+   {
+      CD3DX12_RESOURCE_DESC resolvedMetadataBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(pD3D12Enc->m_currentEncodeCapabilities.m_resolvedLayoutMetadataBufferRequiredSize);
+      VERIFY_SUCCEEDED(pD3D12Enc->m_pD3D12Screen->dev->CreateCommittedResource(
+         &Properties,
+         D3D12_HEAP_FLAG_NONE,
+         &resolvedMetadataBufferDesc,
+         D3D12_RESOURCE_STATE_COMMON,
+         nullptr,
+         IID_PPV_ARGS(pD3D12Enc->m_spResolvedMetadataBuffer.GetAddressOf())));
+   }
+   
+   if((pD3D12Enc->m_spMetadataOutputBuffer == nullptr) || (pD3D12Enc->m_spMetadataOutputBuffer->GetDesc().Width < pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps.MaxEncoderOutputMetadataBufferSize))
+   {
+      CD3DX12_RESOURCE_DESC metadataBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps.MaxEncoderOutputMetadataBufferSize);
+      VERIFY_SUCCEEDED(pD3D12Enc->m_pD3D12Screen->dev->CreateCommittedResource(
+         &Properties,
+         D3D12_HEAP_FLAG_NONE,
+         &metadataBufferDesc,
+         D3D12_RESOURCE_STATE_COMMON,
+         nullptr,
+         IID_PPV_ARGS(pD3D12Enc->m_spMetadataOutputBuffer.GetAddressOf())));
+   }
+
+   if((pD3D12Enc->m_spCompressedBitstreamBuffer == nullptr) || (pD3D12Enc->m_spCompressedBitstreamBuffer->GetDesc().Width < pD3D12Enc->m_currentEncodeCapabilities.m_compressedBitstreamOutputBufferSize))
+   {      
+      CD3DX12_RESOURCE_DESC compressedBitstreamBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(pD3D12Enc->m_currentEncodeCapabilities.m_compressedBitstreamOutputBufferSize);
+      VERIFY_SUCCEEDED(pD3D12Enc->m_pD3D12Screen->dev->CreateCommittedResource(
+         &Properties,
+         D3D12_HEAP_FLAG_NONE,
+         &compressedBitstreamBufferDesc,
+         D3D12_RESOURCE_STATE_COMMON,
+         nullptr,
+         IID_PPV_ARGS(pD3D12Enc->m_spCompressedBitstreamBuffer.GetAddressOf())));
+   }
 }
 
 bool d3d12_video_encoder_reconfigure_session(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
@@ -576,6 +625,7 @@ bool d3d12_video_encoder_reconfigure_session(struct d3d12_video_encoder* pD3D12E
    d3d12_video_encoder_update_current_encoder_config_state(pD3D12Enc, srcTexture, picture);
    d3d12_video_encoder_reconfigure_encoder_objects(pD3D12Enc, srcTexture, picture);
    d3d12_video_encoder_update_picparams_tracking(pD3D12Enc, srcTexture, picture);
+   d3d12_video_encoder_prepare_output_buffers(pD3D12Enc, srcTexture, picture);
 
    return true;
 }
@@ -592,11 +642,6 @@ void d3d12_video_encoder_begin_frame(struct pipe_video_codec *codec,
    assert(pD3D12Enc);
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_begin_frame started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 
-   if(!d3d12_video_encoder_reconfigure_session(pD3D12Enc, target, picture))
-   {
-      D3D12_LOG_ERROR("[D3D12 Video Driver] d3d12_video_encoder_begin_frame - Failure on d3d12_video_encoder_reconfigure_session\n");
-   }
-
    if(pD3D12Enc->m_numNestedBeginFrame > 0)
    {
       D3D12_LOG_ERROR("[D3D12 Video Driver] Nested d3d12_video_encoder_begin_frame calls are not supported. Call d3d12_video_encoder_end_frame to finalize current frame before calling d3d12_video_encoder_begin_frame again.\n");
@@ -604,7 +649,74 @@ void d3d12_video_encoder_begin_frame(struct pipe_video_codec *codec,
 
    pD3D12Enc->m_numNestedBeginFrame++;
 
+   ///
+   /// Caps check
+   ///
+
+   int capsResult = d3d12_screen_get_video_param(&pD3D12Enc->m_pD3D12Screen->base,
+                               codec->profile,
+                               PIPE_VIDEO_ENTRYPOINT_ENCODE,
+                               PIPE_VIDEO_CAP_SUPPORTED);
+   if(capsResult == 0)
+   {
+      D3D12_LOG_ERROR("[D3D12 Video Driver] d3d12_video_encoder_begin_frame - d3d12_screen_get_video_param returned no support.\n");
+   }
+
+   if(!d3d12_video_encoder_reconfigure_session(pD3D12Enc, target, picture))
+   {
+      D3D12_LOG_ERROR("[D3D12 Video Driver] d3d12_video_encoder_begin_frame - Failure on d3d12_video_encoder_reconfigure_session\n");
+   }
+
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_begin_frame finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+}
+
+void d3d12_video_encoder_calculate_metadata_resolved_buffer_size(UINT maxSliceNumber, size_t& bufferSize)
+{
+    bufferSize = sizeof(D3D12_VIDEO_ENCODER_OUTPUT_METADATA) + (maxSliceNumber * sizeof(D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA));
+}
+
+// Returns the number of slices that the output will contain for fixed slicing modes
+// and the maximum number of slices the output might contain for dynamic slicing modes (eg. max bytes per slice)
+UINT d3d12_video_encoder_calculate_max_slices_count_in_output(
+    D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE slicesMode,
+    const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA_SLICES* slicesConfig, 
+    UINT MaxSubregionsNumberFromCaps,
+    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC sequenceTargetResolution,
+    UINT SubregionBlockPixelsSize)
+{
+    UINT pic_width_in_subregion_units = static_cast<UINT>(std::ceil(sequenceTargetResolution.Width / static_cast<double>(SubregionBlockPixelsSize)));
+    UINT pic_height_in_subregion_units = static_cast<UINT>(std::ceil(sequenceTargetResolution.Height / static_cast<double>(SubregionBlockPixelsSize)));
+    UINT total_picture_subregion_units =  pic_width_in_subregion_units * pic_height_in_subregion_units;
+    UINT maxSlices = 0u;
+    switch(slicesMode)
+    {
+        case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_FULL_FRAME:
+        {
+            maxSlices = 1u;
+        } break;
+        case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_BYTES_PER_SUBREGION:
+        {
+            maxSlices = MaxSubregionsNumberFromCaps;
+        } break;
+        case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_SQUARE_UNITS_PER_SUBREGION_ROW_UNALIGNED:
+        {
+            maxSlices = static_cast<UINT>(std::ceil(total_picture_subregion_units / static_cast<double>(slicesConfig->NumberOfCodingUnitsPerSlice)));
+        } break;
+        case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_ROWS_PER_SUBREGION:
+        {
+            maxSlices = static_cast<UINT>(std::ceil(pic_height_in_subregion_units / static_cast<double>(slicesConfig->NumberOfRowsPerSlice)));
+        } break;
+        case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME:
+        {
+            maxSlices = slicesConfig->NumberOfSlicesPerFrame;
+        } break;
+        default:
+        {
+            D3D12_LOG_ERROR("[D3D12 Video Driver] - CalculateMaxSlicesInOutputCount the slice pattern mode %d is unknown\n", slicesMode);
+        } break;
+    }
+
+    return maxSlices;
 }
 
 /**
@@ -630,18 +742,23 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
    pD3D12Enc->m_numConsecutiveEncodeFrame++;
 
    ///
-   /// Caps check
+   /// Record Encode operation
    ///
 
-   // Let's quickly make sure we can encode what's being asked for.
+   D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE reconPicOutputTextureDesc = pD3D12Enc->m_upDPBManager->GetCurrentFrameReconPicOutputAllocation();        
+   D3D12_VIDEO_ENCODE_REFERENCE_FRAMES referenceFramesDescriptor = pD3D12Enc->m_upDPBManager->GetCurrentFrameReferenceFrames();
 
-   int capsResult = d3d12_screen_get_video_param(&pD3D12Enc->m_pD3D12Screen->base,
-                               codec->profile,
-                               PIPE_VIDEO_ENTRYPOINT_ENCODE,
-                               PIPE_VIDEO_CAP_SUPPORTED);
-   assert(capsResult != 0);
+   // Update current frame pic params state after reconfiguring above.
+   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
+   pD3D12Enc->m_upDPBManager->GetCurrentFramePictureControlData(currentPicParams);
 
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_encode_bitstream finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+}
+
+void d3d12_video_encoder_get_feedback(struct pipe_video_codec *codec, void *feedback, unsigned *size)
+{
+   // TODO: Implement feedback mechanism.
+   *size = 4096;
 }
 
 /**
@@ -653,31 +770,16 @@ void d3d12_video_encoder_end_frame(struct pipe_video_codec *codec,
 {
    struct d3d12_video_encoder* pD3D12Enc = (struct d3d12_video_encoder*) codec;
    assert(pD3D12Enc);
-   struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pD3D12Enc->m_pD3D12Screen;
-   assert(pD3D12Screen);
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_end_frame started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
-   assert(pD3D12Enc->m_spD3D12VideoDevice);
-   assert(pD3D12Enc->m_spEncodeCommandQueue);
-   struct d3d12_video_buffer* pD3D12VideoBuffer = (struct d3d12_video_buffer*) target;
-   assert(pD3D12VideoBuffer);
+
+   // Signal finish of current frame encoding to the picture management tracker
+   pD3D12Enc->m_upDPBManager->EndFrame();
 
    // Reset encode_frame counter at end_frame call
    pD3D12Enc->m_numConsecutiveEncodeFrame = 0;
 
    // Decrement begin_frame counter at end_frame call
    pD3D12Enc->m_numNestedBeginFrame--;
-
-
-
-   D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE reconPicOutputTextureDesc = pD3D12Enc->m_upDPBManager->GetCurrentFrameReconPicOutputAllocation();        
-   D3D12_VIDEO_ENCODE_REFERENCE_FRAMES referenceFramesDescriptor = pD3D12Enc->m_upDPBManager->GetCurrentFrameReferenceFrames();
-
-   // Update current frame pic params state after reconfiguring above.
-   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
-   pD3D12Enc->m_upDPBManager->GetCurrentFramePictureControlData(currentPicParams);
-
-
-
 
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_end_frame finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 
@@ -686,9 +788,6 @@ void d3d12_video_encoder_end_frame(struct pipe_video_codec *codec,
    ///
    pD3D12Enc->m_needsGPUFlush = true;
    d3d12_video_encoder_flush(codec);
-
-   // Signal finish of current frame encoding
-   pD3D12Enc->m_upDPBManager->EndFrame();
 }
 
 #pragma GCC diagnostic pop

@@ -63,6 +63,7 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
    }
 
    // TODO: Add support for rest of advanced control flags and settings from pipe_h264_enc_rate_control and set the D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAGS m_Flags accordingly.
+   // need to check in pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags for these rate control features (the encoder support cap call has to be called and cached the support flags before checking that).
 }
 
 D3D12VideoEncoderH264FrameDesc d3d12_video_encoder_convert_current_frame_gop_info_h264(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
@@ -544,9 +545,7 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    capEncoderSupportData.SuggestedLevel.DataSize = sizeof(suggestedLevelH264);
 
    // prepare inout storage for the resolution dependent result.
-   std::vector<D3D12_FEATURE_DATA_VIDEO_ENCODER_RESOLUTION_SUPPORT_LIMITS> additionalSupportByResolution;
-   additionalSupportByResolution.resize(capEncoderSupportData.ResolutionsListCount);
-   capEncoderSupportData.pResolutionDependentSupport = additionalSupportByResolution.data();
+   capEncoderSupportData.pResolutionDependentSupport = &pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps;
 
    VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_SUPPORT, &capEncoderSupportData, sizeof(capEncoderSupportData)));
    
@@ -599,7 +598,18 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
       D3D12_LOG_ERROR("[D3D12 Video Driver] D3D12_FEATURE_VIDEO_ENCODER_SUPPORT arguments are not supported - ValidationFlags: 0x%x - SupportFlags: 0x%x\n",
             capEncoderSupportData.ValidationFlags,
             capEncoderSupportData.SupportFlags);
-   }   
+   }
+
+   pD3D12Enc->m_currentEncodeCapabilities.m_MaxSlicesInOutput = d3d12_video_encoder_calculate_max_slices_count_in_output(      
+   pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode,
+   &pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigDesc.m_SlicesPartition_H264,
+   pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps.MaxSubregionsNumber,
+   pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
+   pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps.SubregionBlockPixelsSize);
+   if(pD3D12Enc->m_currentEncodeCapabilities.m_MaxSlicesInOutput > pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps.MaxSubregionsNumber)
+   {
+      D3D12_LOG_ERROR("[D3D12 Video Driver Error] Desired number of subregions is not supported (higher than max reported slice number in query caps)\n.");
+   }
 }
 
 D3D12_VIDEO_ENCODER_PROFILE_H264 d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(enum pipe_video_profile profile)
