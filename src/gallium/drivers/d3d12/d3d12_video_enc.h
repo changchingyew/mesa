@@ -214,6 +214,7 @@ D3D12_VIDEO_ENCODER_RATE_CONTROL d3d12_video_encoder_get_current_rate_control_se
 D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE d3d12_video_encoder_get_current_gop_desc(struct d3d12_video_encoder* pD3D12Enc);
 UINT d3d12_video_encoder_get_current_max_dpb_capacity(struct d3d12_video_encoder* pD3D12Enc);
 void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_encoder* pD3D12Enc);
+void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);
 
 ///
 /// d3d12_video_encoder functions ends

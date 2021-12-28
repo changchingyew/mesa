@@ -129,6 +129,24 @@ void d3d12_video_encoder_destroy(struct pipe_video_codec *codec)
    delete pD3D12Enc;
 }
 
+void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
+{
+   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   switch (codec)
+   {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         // Update pD3D12Enc->m_upDPBManager GOP tracker state object using picture and remove all the tracking code, all the GOP tracking is done in the layer above
+         // TODO: we just need to convert the pipe arguments into curFrameData and call BeginFrame.
+         D3D12VideoEncoderH264FrameDesc curFrameData = d3d12_video_encoder_convert_current_frame_gop_info_h264(pD3D12Enc, srcTexture, picture);
+         pD3D12Enc->m_upDPBManager->BeginFrame(curFrameData);
+      } break;
+      
+      default:
+         assert(0);
+   }   
+}
+
 void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
 {
    bool needsObjCreation = 
@@ -213,10 +231,6 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       // Create encoder heap
       VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CreateVideoEncoderHeap(&heapDesc, IID_PPV_ARGS(pD3D12Enc->m_spVideoEncoderHeap.GetAddressOf())));
    }
-
-   // Update current frame pic params state after reconfiguring above.
-   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
-   pD3D12Enc->m_upDPBManager->GetCurrentFramePictureControlData(currentPicParams);
 }
 
 void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_encoder* pD3D12Enc)
@@ -226,19 +240,19 @@ void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_enc
    {
       case PIPE_VIDEO_FORMAT_MPEG4_AVC:
       {
+         bool gopHasPFrames = (pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.PPicturePeriod > 0)
+            && ((pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.GOPLength == 0) 
+            || (pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.PPicturePeriod < pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.GOPLength));
+         bool gopHasBFrames = (pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.PPicturePeriod > 1);
+
          pD3D12Enc->m_upDPBManager = std::make_unique<D3D12VideoEncoderH264FIFOReferenceManager>      
          (
-            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.GOPLength,
-            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.PPicturePeriod,
+            (gopHasPFrames || gopHasBFrames),
             *pD3D12Enc->m_upDPBStorageManager,
             pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL0ReferencesForP,
             pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL0ReferencesForB,
             pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL1ReferencesForB,
-            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxDPBCapacity, // Max number of frames to be used as a reference, without counting the current picture recon picture
-            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.pic_order_cnt_type,
-            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.log2_max_frame_num_minus4,
-            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.log2_max_pic_order_cnt_lsb_minus4,
-            true
+            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxDPBCapacity // Max number of frames to be used as a reference, without counting the current picture recon picture
          );
       } break;
       
@@ -549,6 +563,7 @@ bool d3d12_video_encoder_reconfigure_session(struct d3d12_video_encoder* pD3D12E
    
    d3d12_video_encoder_update_current_encoder_config_state(pD3D12Enc, srcTexture, picture);
    d3d12_video_encoder_reconfigure_encoder_objects(pD3D12Enc, srcTexture, picture);
+   d3d12_video_encoder_update_picparams_tracking(pD3D12Enc, srcTexture, picture);
 
    return true;
 }
@@ -640,12 +655,27 @@ void d3d12_video_encoder_end_frame(struct pipe_video_codec *codec,
    // Decrement begin_frame counter at end_frame call
    pD3D12Enc->m_numNestedBeginFrame--;
 
+
+
+   D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE reconPicOutputTextureDesc = pD3D12Enc->m_upDPBManager->GetCurrentFrameReconPicOutputAllocation();        
+   D3D12_VIDEO_ENCODE_REFERENCE_FRAMES referenceFramesDescriptor = pD3D12Enc->m_upDPBManager->GetCurrentFrameReferenceFrames();
+
+   // Update current frame pic params state after reconfiguring above.
+   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
+   pD3D12Enc->m_upDPBManager->GetCurrentFramePictureControlData(currentPicParams);
+
+
+
+
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_end_frame finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 
    ///
    /// Flush work to the GPU and blocking wait until encode finishes 
    ///
    d3d12_video_encoder_flush(codec);
+
+   // Signal finish of current frame encoding
+   pD3D12Enc->m_upDPBManager->EndFrame();
 }
 
 #pragma GCC diagnostic pop

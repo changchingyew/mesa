@@ -65,6 +65,51 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
    // TODO: Add support for rest of advanced control flags and settings from pipe_h264_enc_rate_control and set the D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAGS m_Flags accordingly.
 }
 
+D3D12VideoEncoderH264FrameDesc d3d12_video_encoder_convert_current_frame_gop_info_h264(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
+{
+   struct pipe_h264_enc_picture_desc *h264Pic = (struct pipe_h264_enc_picture_desc *)picture;
+
+   D3D12VideoEncoderH264FrameDesc ret = {
+      h264Pic->idr_pic_id,
+      d3d12_video_encoder_convert_frame_type(h264Pic->picture_type),
+      h264Pic->pic_order_cnt,
+      h264Pic->frame_num_cnt,
+   };
+
+   return ret;
+}
+
+D3D12_VIDEO_ENCODER_FRAME_TYPE_H264 d3d12_video_encoder_convert_frame_type(enum pipe_h2645_enc_picture_type picType)
+{
+   switch (picType) 
+   {
+      case PIPE_H2645_ENC_PICTURE_TYPE_P:
+      {
+         return D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME;
+      } break;
+      case PIPE_H2645_ENC_PICTURE_TYPE_B:
+      {
+         return D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME;
+      } break;
+      case PIPE_H2645_ENC_PICTURE_TYPE_I:
+      {
+         return D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_I_FRAME;
+      } break;
+      case PIPE_H2645_ENC_PICTURE_TYPE_IDR:
+      {
+         return D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME;
+      } break;
+      case PIPE_H2645_ENC_PICTURE_TYPE_SKIP:
+      {
+         D3D12_LOG_ERROR("[D3D12 Video Driver] PIPE_H2645_ENC_PICTURE_TYPE_SKIP not supported.\n");
+      } break;
+      default:
+      {
+         D3D12_LOG_ERROR("[D3D12 Video Driver] d3d12_video_encoder_convert_frame_type - Invalid pipe_h2645_enc_picture_type %d.\n", picType);
+      } break;
+   }
+}
+
 void d3d12_video_encoder_update_current_h264_slices_configuration(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
 {
    // There's no config filled for this from above layers, so default for now.
@@ -260,6 +305,39 @@ void d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVEL
     }
 }
 
+bool d3d12_video_encoder_is_gop_supported(UINT GOPLength, UINT PPicturePeriod, UINT MaxDPBCapacity, UINT MaxL0ReferencesForP, UINT MaxL0ReferencesForB, UINT MaxL1ReferencesForB)
+{
+    bool bSupportedGOP = true;
+    bool gopHasPFrames = (PPicturePeriod > 0) && ((GOPLength == 0) || (PPicturePeriod < GOPLength));
+    bool gopHasBFrames = (PPicturePeriod > 1);    
+
+    if(gopHasPFrames && (MaxL0ReferencesForP == 0))
+    {
+        D3D12_LOG_DBG("GOP not supported based on HW capabilities - Reason: no P frames support - GOP Length: %d GOP PPicPeriod: %d\n", GOPLength, PPicturePeriod);
+        bSupportedGOP = false;
+    }
+
+    if(gopHasBFrames && ((MaxL0ReferencesForB + MaxL1ReferencesForB) == 0))
+    {
+        D3D12_LOG_DBG("GOP not supported based on HW capabilities - Reason: no B frames support - GOP Length: %d GOP PPicPeriod: %d\n", GOPLength, PPicturePeriod);
+        bSupportedGOP = false;
+    }
+
+    if(gopHasPFrames && !gopHasBFrames && (MaxL0ReferencesForP < MaxDPBCapacity))
+    {
+        D3D12_LOG_DBG("MaxL0ReferencesForP must be equal or higher than the reported MaxDPBCapacity -- P frames should be able to address all the DPB unique indices at least once\n");
+        bSupportedGOP = false;
+    }
+
+    if(gopHasPFrames && gopHasBFrames && ((MaxL0ReferencesForB + MaxL1ReferencesForB) < MaxDPBCapacity))
+    {
+        D3D12_LOG_DBG("Insufficient L0 and L1 lists size to address all the unique ref pic indices reported by MaxDPBCapacity\n");
+        bSupportedGOP = false;
+    }
+    
+    return bSupportedGOP;
+}
+
 void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
 {
    // Note that, for infinite GOPS, max_pic_order_cnt_lsb must be greater than the full video count - 1. Otherwise it might try to address previous reference pictures in between [0..255] intervals (if using max_pic_order_cnt_lsb = 256). 
@@ -379,6 +457,11 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
       // {
       //     // Will store the full h264PicCtrlData.MaxDPBCapacity capacity and then L0/L1 lists will be created based on MaxL0ReferencesForP/MaxL0ReferencesForB/MaxL1ReferencesForB
       // }
+   }
+
+   if(!d3d12_video_encoder_is_gop_supported(GOPLength, PPicturePeriod, h264PicCtrlData.MaxDPBCapacity, h264PicCtrlData.MaxL0ReferencesForP, h264PicCtrlData.MaxL0ReferencesForB, h264PicCtrlData.MaxL1ReferencesForB))
+   {
+      D3D12_LOG_ERROR("Invalid or unsupported GOP \n");
    }
 }
 
