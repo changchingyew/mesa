@@ -387,7 +387,7 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
    inOutPicCtrlCodecData.DataSize = sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl);
    D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT capPictureControlData = 
    {
-      pD3D12Enc->m_NodeMask,
+      pD3D12Enc->m_NodeIndex,
       D3D12_VIDEO_ENCODER_CODEC_H264,
       d3d12_video_encoder_get_current_profile_desc(pD3D12Enc),
       false,
