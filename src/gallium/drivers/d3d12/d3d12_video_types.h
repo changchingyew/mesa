@@ -28,7 +28,22 @@
 #pragma GCC diagnostic ignored "-Wswitch"
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 
-#include<stdarg.h>
+#include <stdarg.h>
+#include <memory>
+#include <vector>
+#include <functional>
+
+#include "pipe/p_context.h"
+#include "pipe/p_video_codec.h"
+#include "d3d12_fence.h"
+ 
+#include "DXGIColorSpaceHelper.h"
+
+#include <dxguids/dxguids.h>
+
+#include <wrl/client.h>
+using Microsoft::WRL::ComPtr;
+
 #define D3D12_LOG_DBG_ON true
 #define D3D12_LOG_DBG(args...) if(D3D12_LOG_DBG_ON) fprintf(stderr, args);
 #define D3D12_ASSERT_ON_ERROR true
@@ -36,28 +51,6 @@
 #define VERIFY_SUCCEEDED(x) { HRESULT hr = x; if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_SUCCEEDED failed with HR %x\n", hr); } }
 #define VERIFY_ARE_EQUAL(a, b) { if(a != b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_ARE_EQUAL failed\n"); assert((a) == (b)); } }
 #define VERIFY_IS_LESS_THAN_OR_EQUAL(a, b) { if(a > b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_LESS_THAN_OR_EQUAL failed\n"); assert((a) <= (b)); } }
-
-#include "pipe/p_context.h"
-#include "pipe/p_video_codec.h"
-#include "d3d12_screen.h"
-#include "d3d12_fence.h"
- 
-#define  _Field_size_full_opt_(x) 
-#include <d3d12video.h>
-#include <d3dx12.h>
-#include "d3d12_video_dec_h264.h"
-
-#include "d3d12_format_utils.h"
-#include "DXGIColorSpaceHelper.h"
-
-#include <memory>
-#include <vector>
-
-#include <dxguids/dxguids.h>
-
-#include <functional>
-#include <wrl/client.h>
-using Microsoft::WRL::ComPtr;
 
 typedef enum {
     D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_NONE = 0,
@@ -108,6 +101,11 @@ typedef struct D3D12DecVideoDecodeOutputConversionArguments
     D3D12_VIDEO_SAMPLE ReferenceInfo;
     UINT ReferenceFrameCount;
 } D3D12DecVideoDecodeOutputConversionArguments;
+
+void d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVELS_H264 level12, UINT &specLevel, UINT &constraint_set3_flag);
+D3D12_VIDEO_ENCODER_PROFILE_H264 d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(enum pipe_video_profile profile);
+D3D12_VIDEO_ENCODER_CODEC d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(enum pipe_video_profile profile);
+GUID d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(enum pipe_video_profile profile);
 
 #pragma GCC diagnostic pop
 

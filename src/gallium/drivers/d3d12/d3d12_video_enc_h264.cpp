@@ -23,6 +23,8 @@
 
 #include "d3d12_video_enc.h"
 #include "d3d12_video_enc_h264.h"
+#include "util/u_video.h"
+#include "d3d12_screen.h"
 
 void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
 {
@@ -675,7 +677,35 @@ D3D12_VIDEO_ENCODER_PROFILE_H264 d3d12_video_encoder_convert_profile_to_d3d12_en
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
       default:
+      {
          D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_update_current_encoder_config_state_h264 - Unsupported profile\n");
          return static_cast<D3D12_VIDEO_ENCODER_PROFILE_H264>(0);
+      } break;         
+   }
+}
+
+D3D12_VIDEO_ENCODER_CODEC d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(enum pipe_video_profile profile)
+{
+   switch (u_reduce_video_profile(profile))
+   {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         return D3D12_VIDEO_ENCODER_CODEC_H264;
+      } break;
+      case PIPE_VIDEO_FORMAT_HEVC:
+      {
+         return D3D12_VIDEO_ENCODER_CODEC_HEVC;
+      } break;
+      case PIPE_VIDEO_FORMAT_MPEG12:
+      case PIPE_VIDEO_FORMAT_MPEG4:
+      case PIPE_VIDEO_FORMAT_VC1:
+      case PIPE_VIDEO_FORMAT_JPEG:
+      case PIPE_VIDEO_FORMAT_VP9:
+      case PIPE_VIDEO_FORMAT_UNKNOWN:
+      default:
+      {
+         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_convert_codec_to_d3d12_enc_codec - Unsupported codec\n");
+         return static_cast<D3D12_VIDEO_ENCODER_CODEC>(0);
+      } break;
    }
 }

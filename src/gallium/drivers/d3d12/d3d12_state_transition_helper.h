@@ -24,6 +24,8 @@
 #ifndef D3D12_STATE_TRANSITION_HELPER_H
 #define D3D12_STATE_TRANSITION_HELPER_H
 
+#include "d3d12_format_utils.h"
+
 template <class TCommandList>
 class TemporaryResourceTransition
 {

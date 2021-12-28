@@ -172,8 +172,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
          (pD3D12Enc->m_spVideoEncoder->GetInputFormat() != pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format)
          || (heapRes[0].Width != pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Width)
          || (heapRes[0].Height != pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Height);
-      // TODO: Add other reconfig triggers like slices, rate control, codec config struct, etc
-      // TODO: set reconfig (ie. slices, rate control, resolution) flags in encodeframe structs without re-creating dpb/heap/encoder sometimes
+      // TODO: set reconfig (ie. slices, rate control, resolution, codec config struct, etc) flags in encodeframe structs without re-creating dpb/heap/encoder sometimes
       // need to check in pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags if on-the-fly reconfig is available
    }
 
@@ -896,7 +895,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
 
    const D3D12_VIDEO_ENCODER_RESOLVE_METADATA_INPUT_ARGUMENTS inputMetadataCmd = 
    {
-         D3D12_VIDEO_ENCODER_CODEC_H264,
+         pD3D12Enc->m_currentEncodeConfig.m_encoderCodecDesc,
          d3d12_video_encoder_get_current_profile_desc(pD3D12Enc),
          pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
          // D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC
@@ -989,7 +988,6 @@ void d3d12_video_encoder_extract_encode_metadata(
 
    // Calculate sizes
    size_t encoderMetadataSize = sizeof(D3D12_VIDEO_ENCODER_OUTPUT_METADATA);
-   size_t subregionMetadataSize = sizeof(D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA);
 
    // Copy buffer to the appropriate D3D12_VIDEO_ENCODER_OUTPUT_METADATA memory layout   
    parsedMetadata = *reinterpret_cast<D3D12_VIDEO_ENCODER_OUTPUT_METADATA*>(pMetadataBufferSrc);

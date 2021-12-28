@@ -25,6 +25,7 @@
 #include "d3d12_video_dec_h264.h"
 #include "d3d12_video_texture_array_dpb_manager.h"
 #include "d3d12_video_array_of_textures_dpb_manager.h"
+#include "d3d12_screen.h"
 
 //----------------------------------------------------------------------------------------------------------------------------------
 static UINT16 GetInvalidReferenceIndex(D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType)

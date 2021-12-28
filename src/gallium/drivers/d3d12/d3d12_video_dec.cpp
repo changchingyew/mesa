@@ -31,6 +31,7 @@
 #include "d3d12_screen.h"
 #include "d3d12_surface.h"
 #include "d3d12_video_dec.h"
+#include "d3d12_video_dec_h264.h"
 #include "d3d12_state_transition_helper.h"
 #include "d3d12_video_buffer.h"
 
@@ -1286,8 +1287,7 @@ GUID d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(enum pipe_vi
         case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10:
             return D3D12_VIDEO_DECODE_PROFILE_H264;
         default:
-            assert(0);
-            return {};
+            return { };
    }
 }
 
