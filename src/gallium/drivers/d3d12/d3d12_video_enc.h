@@ -60,6 +60,11 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
                            void **feedback);
 
 /**
+* get encoder feedback
+*/
+void d3d12_video_encoder_get_feedback(struct pipe_video_codec *codec, void *feedback, unsigned *size);
+
+/**
  * end encoding of the current frame
  */
 void d3d12_video_encoder_end_frame(struct pipe_video_codec *codec,
@@ -114,6 +119,8 @@ struct d3d12_video_encoder
 
     std::unique_ptr<ID3D12AutomaticVideoEncodeReferencePicManager> m_upDPBManager;
     std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap> > m_upDPBStorageManager;
+
+    bool m_needsGPUFlush = false;
 
     struct 
     {

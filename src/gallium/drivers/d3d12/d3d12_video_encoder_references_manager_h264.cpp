@@ -45,13 +45,11 @@ D3D12VideoEncoderH264FIFOReferenceManager::D3D12VideoEncoderH264FIFOReferenceMan
 {
     assert((m_MaxDPBCapacity + 1/*extra for cur frame output recon pic*/) == m_rDPBStorageManager.GetNumberOfTrackedAllocations());
 
-    ResetGOPTrackingAndDPB();
-
-    D3D12_LOG_DBG("Completed construction of D3D12VideoEncoderH264FIFOReferenceManager instance, settings are\n");
-    D3D12_LOG_DBG("m_MaxL0ReferencesForP: %d\n", m_MaxL0ReferencesForP);
-    D3D12_LOG_DBG("m_MaxL0ReferencesForB: %d\n", m_MaxL0ReferencesForB);
-    D3D12_LOG_DBG("m_MaxL1ReferencesForB: %d\n", m_MaxL1ReferencesForB);    
-    D3D12_LOG_DBG("m_MaxDPBCapacity: %d\n", m_MaxDPBCapacity);  
+    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] Completed construction of D3D12VideoEncoderH264FIFOReferenceManager instance, settings are\n");
+    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] m_MaxL0ReferencesForP: %d\n", m_MaxL0ReferencesForP);
+    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] m_MaxL0ReferencesForB: %d\n", m_MaxL0ReferencesForB);
+    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] m_MaxL1ReferencesForB: %d\n", m_MaxL1ReferencesForB);    
+    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] m_MaxDPBCapacity: %d\n", m_MaxDPBCapacity);  
 }
 
 void D3D12VideoEncoderH264FIFOReferenceManager::ResetGOPTrackingAndDPB()
@@ -82,29 +80,13 @@ void D3D12VideoEncoderH264FIFOReferenceManager::ResetGOPTrackingAndDPB()
 // Calculates the picture control structure for the current frame
 void D3D12VideoEncoderH264FIFOReferenceManager::GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& codecAllocation)
 {
-    // Advance the GOP tracking state
-    bool isDPBFlushNeeded = (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME);
-    if(isDPBFlushNeeded)
-    {
-        ResetGOPTrackingAndDPB();
-    }
-    else
-    {
-        // Get new allocation from DPB storage for reconstructed picture
-        // This is only necessary for the frames that come after an IDR
-        // since in the initial state already has this initialized
-        // and re-initialized by ResetGOPTrackingAndDPB above
-        
-        PrepareCurrentFrameReconPicAllocation();
-    }
-
     PrepareCurrentFrameL0L1Lists();
 
     PrintDPB();
 
     // Update reference picture control structures (L0/L1 and DPB descriptors lists based on current frame and next frame in GOP) for next frame
 
-    D3D12_LOG_DBG("%d resources IN USE out of a total of %d ALLOCATED resources at frame with POC: %d\n",
+    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] %d resources IN USE out of a total of %d ALLOCATED resources at frame with POC: %d\n",
         m_rDPBStorageManager.GetNumberOfInUseAllocations(),
         m_rDPBStorageManager.GetNumberOfTrackedAllocations(),
         m_currentGOPStateDescriptor.m_curPictureOrderCountNumber);
@@ -228,7 +210,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::UpdateFIFODPB_PushFrontCurReconP
     // If GOP are all intra frames, do nothing also.
     if(IsCurrentFrameUsedAsReference() && m_gopHasInterFrames)
     {
-        D3D12_LOG_DBG("MaxDPBCapacity is %d - Number of pics in DPB is %d when trying to put frame with POC %d at front of the DPB\n", 
+        D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] MaxDPBCapacity is %d - Number of pics in DPB is %d when trying to put frame with POC %d at front of the DPB\n", 
             m_MaxDPBCapacity,
             m_rDPBStorageManager.GetNumberOfPicsInDPB(),
             m_currentGOPStateDescriptor.m_curPictureOrderCountNumber
@@ -371,8 +353,8 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrepareCurrentFrameL0L1Lists()
                 L0SecondPartSplitStartIdx++;
             }
 
-            D3D12_LOG_DBG("[Generating L0] DPB partition position for pics in DPB with POC < cur picture POC(%d) is DPB table index: %d\n", curFramePOC, L0SecondPartSplitStartIdx);
-            D3D12_LOG_DBG("L0 is built as an concat of the dpb subregions [0..%d) and [%d..%ld) plus the required ordering inside each subinterval\n", L0SecondPartSplitStartIdx, L0SecondPartSplitStartIdx, dpbDescs.size());
+            D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] [Generating L0] DPB partition position for pics in DPB with POC < cur picture POC(%d) is DPB table index: %d\n", curFramePOC, L0SecondPartSplitStartIdx);
+            D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] L0 is built as an concat of the dpb subregions [0..%d) and [%d..%ld) plus the required ordering inside each subinterval\n", L0SecondPartSplitStartIdx, L0SecondPartSplitStartIdx, dpbDescs.size());
 
     // List 1 for B Frames - reuse DPBDescs Copy
 
@@ -430,7 +412,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrintL0L1()
             list0ContentsString += "}\n";
         }
 
-        D3D12_LOG_DBG("L0 list for frame with POC %d - frame_num (%d) is: \n %s \n", 
+        D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] L0 list for frame with POC %d - frame_num (%d) is: \n %s \n", 
             m_currentGOPStateDescriptor.m_curPictureOrderCountNumber,
             m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber,
             list0ContentsString.c_str()
@@ -449,7 +431,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrintL0L1()
             list1ContentsString += "}\n";
         }
 
-        D3D12_LOG_DBG("L1 list for frame with POC %d - frame_num (%d) is: \n %s \n", 
+        D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] L1 list for frame with POC %d - frame_num (%d) is: \n %s \n", 
             m_currentGOPStateDescriptor.m_curPictureOrderCountNumber,
             m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber,
             list1ContentsString.c_str()
@@ -475,14 +457,17 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrintDPB()
             dpbContents += std::to_string(dpbDesc.FrameDecodingOrderNumber);
             dpbContents += " - DPBStorageIdx: ";
             dpbContents += std::to_string(dpbDesc.ReconstructedPictureResourceIndex);
-            dpbContents += " - DPBStorageResourcePtr: ";      
-            dpbContents += reinterpret_cast<uintptr_t>(dpbEntry.pReconstructedPicture);
+            dpbContents += " - DPBStorageResourcePtr: ";   
+            char strBuf[256];
+            memset(&strBuf, '\0', 256);  
+            sprintf(strBuf, "%p", dpbEntry.pReconstructedPicture);
+            dpbContents += std::string(strBuf);
             dpbContents += " - DPBStorageSubresource: ";
             dpbContents += std::to_string(dpbEntry.ReconstructedPictureSubresource);
             dpbContents += "}\n";
         }
 
-        D3D12_LOG_DBG("DPB has %d frames - DPB references for frame with POC %d (frame_num: %d) are: \n %s \n", 
+        D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] DPB has %d frames - DPB references for frame with POC %d (frame_num: %d) are: \n %s \n", 
                 m_rDPBStorageManager.GetNumberOfPicsInDPB(),
                 m_currentGOPStateDescriptor.m_curPictureOrderCountNumber,
                 m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber,
@@ -494,7 +479,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrintDPB()
 // Advances state to next frame in GOP; subsequent calls to GetCurrentFrame* point to the advanced frame status    
 void D3D12VideoEncoderH264FIFOReferenceManager::EndFrame()
 {
-    D3D12_LOG_DBG("%d resources IN USE out of a total of %d ALLOCATED resources before advancing frame with POC: %d\n",
+    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] %d resources IN USE out of a total of %d ALLOCATED resources at EndFrame for frame with POC: %d\n",
         m_rDPBStorageManager.GetNumberOfInUseAllocations(),
         m_rDPBStorageManager.GetNumberOfTrackedAllocations(),
         m_currentGOPStateDescriptor.m_curPictureOrderCountNumber);
@@ -517,4 +502,20 @@ bool D3D12VideoEncoderH264FIFOReferenceManager::IsCurrentFrameUsedAsReference()
 void D3D12VideoEncoderH264FIFOReferenceManager::BeginFrame(D3D12VideoEncoderH264FrameDesc curFrameData)
 {
     m_currentGOPStateDescriptor = curFrameData;
+
+    // Advance the GOP tracking state
+    bool isDPBFlushNeeded = (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME);
+    if(isDPBFlushNeeded)
+    {
+        ResetGOPTrackingAndDPB();
+    }
+    else
+    {
+        // Get new allocation from DPB storage for reconstructed picture
+        // This is only necessary for the frames that come after an IDR
+        // since in the initial state already has this initialized
+        // and re-initialized by ResetGOPTrackingAndDPB above
+        
+        PrepareCurrentFrameReconPicAllocation();
+    }
 }
