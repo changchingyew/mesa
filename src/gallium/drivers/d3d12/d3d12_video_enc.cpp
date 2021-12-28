@@ -136,10 +136,7 @@ void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* p
    {
       case PIPE_VIDEO_FORMAT_MPEG4_AVC:
       {
-         // Update pD3D12Enc->m_upDPBManager GOP tracker state object using picture and remove all the tracking code, all the GOP tracking is done in the layer above
-         // TODO: we just need to convert the pipe arguments into curFrameData and call BeginFrame.
-         D3D12VideoEncoderH264FrameDesc curFrameData = d3d12_video_encoder_convert_current_frame_gop_info_h264(pD3D12Enc, srcTexture, picture);
-         pD3D12Enc->m_upDPBManager->BeginFrame(curFrameData);
+         pD3D12Enc->m_upDPBManager->BeginFrame(d3d12_video_encoder_convert_current_frame_gop_info_h264(pD3D12Enc, srcTexture, picture));
       } break;
       
       default:
