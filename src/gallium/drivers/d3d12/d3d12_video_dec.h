@@ -150,6 +150,9 @@ struct d3d12_video_decoder
     // Number of consecutive begin_frame calls without end_frame call
     UINT m_numNestedBeginFrame = 0;
 
+    // Indicates if GPU commands have not been flushed and are pending.
+    bool m_needsGPUFlush = false;
+
     ///
     /// Config variables
     ///

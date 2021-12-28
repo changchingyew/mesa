@@ -563,6 +563,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    ///
    /// Flush work to the GPU and blocking wait until decode finishes 
    ///
+   pD3D12Dec->m_needsGPUFlush = true;
    d3d12_video_flush(codec);
 
    ///
@@ -661,56 +662,64 @@ void d3d12_video_flush(struct pipe_video_codec *codec)
    assert(pD3D12Dec->m_spDecodeCommandQueue);   
    D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush started. Will flush video queue work and CPU wait on fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
-   HRESULT hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
-   if(hr != S_OK)
+   if(!pD3D12Dec->m_needsGPUFlush)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - D3D12Device was removed BEFORE commandlist execution.\n");
+      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush started. Nothing to flush, all up to date.\n");
    }
-
-   // Close and execute command list and wait for idle on CPU blocking 
-   // this method before resetting list and allocator for next submission.
-
-   d3d12_record_state_transitions
-   (
-      pD3D12Dec->m_spDecodeCommandList,
-      pD3D12Dec->m_transitionsBeforeCloseCmdList
-   );
-   pD3D12Dec->m_transitionsBeforeCloseCmdList.clear();
-
-   hr = pD3D12Dec->m_spDecodeCommandList->Close();
-   if (FAILED(hr))
+   else
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - Can't close command list with HR %x\n", hr);
-   }
+      HRESULT hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
+      if(hr != S_OK)
+      {
+         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - D3D12Device was removed BEFORE commandlist execution.\n");
+      }
 
-   ID3D12CommandList *ppCommandLists[1] = { pD3D12Dec->m_spDecodeCommandList.Get() };
-   pD3D12Dec->m_spDecodeCommandQueue->ExecuteCommandLists(1, ppCommandLists);
-   pD3D12Dec->m_spDecodeCommandQueue->Signal(pD3D12Dec->m_spFence.Get(), pD3D12Dec->m_fenceValue);
-   pD3D12Dec->m_spFence->SetEventOnCompletion(pD3D12Dec->m_fenceValue, nullptr);
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+      // Close and execute command list and wait for idle on CPU blocking 
+      // this method before resetting list and allocator for next submission.
 
-   hr = pD3D12Dec->m_spCommandAllocator->Reset();
-   if (FAILED(hr))
-   {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - resetting ID3D12CommandAllocator failed with HR %x\n", hr);
-   }
+      d3d12_record_state_transitions
+      (
+         pD3D12Dec->m_spDecodeCommandList,
+         pD3D12Dec->m_transitionsBeforeCloseCmdList
+      );
+      pD3D12Dec->m_transitionsBeforeCloseCmdList.clear();
 
-   hr = pD3D12Dec->m_spDecodeCommandList->Reset(pD3D12Dec->m_spCommandAllocator.Get());
-   if (FAILED(hr))
-   {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - resetting ID3D12GraphicsCommandList failed with HR %x\n", hr);
-   }
+      hr = pD3D12Dec->m_spDecodeCommandList->Close();
+      if (FAILED(hr))
+      {
+         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - Can't close command list with HR %x\n", hr);
+      }
 
-   // Validate device was not removed
-   hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
-   if(hr != S_OK)
-   {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - D3D12Device was removed AFTER commandlist execution, but wasn't before.\n");
+      ID3D12CommandList *ppCommandLists[1] = { pD3D12Dec->m_spDecodeCommandList.Get() };
+      pD3D12Dec->m_spDecodeCommandQueue->ExecuteCommandLists(1, ppCommandLists);
+      pD3D12Dec->m_spDecodeCommandQueue->Signal(pD3D12Dec->m_spFence.Get(), pD3D12Dec->m_fenceValue);
+      pD3D12Dec->m_spFence->SetEventOnCompletion(pD3D12Dec->m_fenceValue, nullptr);
+      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+
+      hr = pD3D12Dec->m_spCommandAllocator->Reset();
+      if (FAILED(hr))
+      {
+         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - resetting ID3D12CommandAllocator failed with HR %x\n", hr);
+      }
+
+      hr = pD3D12Dec->m_spDecodeCommandList->Reset(pD3D12Dec->m_spCommandAllocator.Get());
+      if (FAILED(hr))
+      {
+         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - resetting ID3D12GraphicsCommandList failed with HR %x\n", hr);
+      }
+
+      // Validate device was not removed
+      hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
+      if(hr != S_OK)
+      {
+         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_flush - D3D12Device was removed AFTER commandlist execution, but wasn't before.\n");
+      }
+      
+      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+      
+      pD3D12Dec->m_fenceValue++;
+      pD3D12Dec->m_needsGPUFlush = false;
    }
-   
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
-   
-   pD3D12Dec->m_fenceValue++;
 }
 
 bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
