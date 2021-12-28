@@ -242,6 +242,7 @@ void d3d12_video_encoder_calculate_metadata_resolved_buffer_size(UINT maxSliceNu
 UINT d3d12_video_encoder_calculate_max_slices_count_in_output(D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE slicesMode, const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA_SLICES* slicesConfig, UINT MaxSubregionsNumberFromCaps, D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC sequenceTargetResolution, UINT SubregionBlockPixelsSize);
 void d3d12_video_encoder_prepare_output_buffers(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);
 UINT d3d12_video_encoder_build_codec_headers (struct d3d12_video_encoder* pD3D12Enc);
+void d3d12_video_encoder_extract_encode_metadata(struct d3d12_video_encoder* pD3D12Dec, ID3D12Resource* pResolvedMetadataBuffer, size_t resourceMetadataSize, D3D12_VIDEO_ENCODER_OUTPUT_METADATA &encoderMetadata, std::vector<D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA> &pSubregionsMetadata);
 
 ///
 /// d3d12_video_encoder functions ends

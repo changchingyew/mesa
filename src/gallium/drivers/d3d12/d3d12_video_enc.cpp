@@ -942,8 +942,71 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
 
 void d3d12_video_encoder_get_feedback(struct pipe_video_codec *codec, void *feedback, unsigned *size)
 {
-   // TODO: Implement feedback mechanism.
-   *size = 4096;
+   struct d3d12_video_encoder* pD3D12Enc = (struct d3d12_video_encoder*) codec;
+   assert(pD3D12Enc);
+
+   D3D12_VIDEO_ENCODER_OUTPUT_METADATA encoderMetadata;
+   std::vector<D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA> pSubregionsMetadata;
+   d3d12_video_encoder_extract_encode_metadata(
+      pD3D12Enc,
+      pD3D12Enc->m_spResolvedMetadataBuffer.Get(),
+      pD3D12Enc->m_currentEncodeCapabilities.m_resolvedLayoutMetadataBufferRequiredSize,
+      encoderMetadata, 
+      pSubregionsMetadata);
+
+   // Read metadata from encoderMetadata
+   if(encoderMetadata.EncodeErrorFlags != D3D12_VIDEO_ENCODER_ENCODE_ERROR_FLAG_NO_ERROR)
+   {
+      D3D12_LOG_ERROR("[D3D12 Video Driver] - Encode GPU command failed - EncodeErrorFlags: %ld\n", encoderMetadata.EncodeErrorFlags);
+   }
+
+    assert(encoderMetadata.EncodedBitstreamWrittenBytesCount > 0u);
+   *size = encoderMetadata.EncodedBitstreamWrittenBytesCount;
+}
+
+void d3d12_video_encoder_extract_encode_metadata(
+   struct d3d12_video_encoder* pD3D12Dec,
+   ID3D12Resource* pResolvedMetadataBuffer, // input
+   size_t resourceMetadataSize, // input
+   D3D12_VIDEO_ENCODER_OUTPUT_METADATA &parsedMetadata, // output
+   std::vector<D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA> &pSubregionsMetadata // output
+)
+{
+   std::vector<uint8_t> pTmp(resourceMetadataSize);
+   uint8_t* pMetadataBufferSrc = pTmp.data();
+   pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
+      pMetadataBufferSrc,
+      resourceMetadataSize,
+      resourceMetadataSize,
+      pResolvedMetadataBuffer,
+      0,
+      D3D12_RESOURCE_STATE_COMMON
+   );     
+
+   // Clear output
+   memset(&parsedMetadata, 0, sizeof(D3D12_VIDEO_ENCODER_OUTPUT_METADATA));
+
+   // Calculate sizes
+   size_t encoderMetadataSize = sizeof(D3D12_VIDEO_ENCODER_OUTPUT_METADATA);
+   size_t subregionMetadataSize = sizeof(D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA);
+
+   // Copy buffer to the appropriate D3D12_VIDEO_ENCODER_OUTPUT_METADATA memory layout   
+   parsedMetadata = *reinterpret_cast<D3D12_VIDEO_ENCODER_OUTPUT_METADATA*>(pMetadataBufferSrc);
+
+   // As specified in D3D12 Encode spec, the array base for metadata for the slices (D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA[]) 
+   // is placed in memory immediately after the D3D12_VIDEO_ENCODER_OUTPUT_METADATA structure
+   D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA* pFrameSubregionMetadata = reinterpret_cast<D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA*>(
+         reinterpret_cast<BYTE*>(pMetadataBufferSrc) + encoderMetadataSize );
+
+   // Copy fields into D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA   
+   assert(parsedMetadata.WrittenSubregionsCount < SIZE_MAX);
+   pSubregionsMetadata.resize(static_cast<size_t>(parsedMetadata.WrittenSubregionsCount));
+   for(UINT sliceIdx = 0 ; sliceIdx < parsedMetadata.WrittenSubregionsCount; sliceIdx++)
+   {
+      pSubregionsMetadata[sliceIdx].bHeaderSize = pFrameSubregionMetadata[sliceIdx].bHeaderSize;
+      pSubregionsMetadata[sliceIdx].bSize = pFrameSubregionMetadata[sliceIdx].bSize;
+      pSubregionsMetadata[sliceIdx].bStartOffset = pFrameSubregionMetadata[sliceIdx].bStartOffset;
+   }
 }
 
 /**
