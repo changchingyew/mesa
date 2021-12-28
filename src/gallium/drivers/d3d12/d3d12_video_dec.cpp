@@ -676,13 +676,12 @@ void d3d12_video_flush(struct pipe_video_codec *codec)
 
       // Close and execute command list and wait for idle on CPU blocking 
       // this method before resetting list and allocator for next submission.
-
-      d3d12_record_state_transitions
-      (
-         pD3D12Dec->m_spDecodeCommandList,
-         pD3D12Dec->m_transitionsBeforeCloseCmdList
-      );
-      pD3D12Dec->m_transitionsBeforeCloseCmdList.clear();
+      
+      if(pD3D12Dec->m_transitionsBeforeCloseCmdList.size() > 0)
+      {
+         pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(pD3D12Dec->m_transitionsBeforeCloseCmdList.size(), pD3D12Dec->m_transitionsBeforeCloseCmdList.data());
+         pD3D12Dec->m_transitionsBeforeCloseCmdList.clear();
+      }
 
       hr = pD3D12Dec->m_spDecodeCommandList->Close();
       if (FAILED(hr))

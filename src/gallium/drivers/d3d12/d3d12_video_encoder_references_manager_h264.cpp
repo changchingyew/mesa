@@ -101,6 +101,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::GetCurrentFramePictureControlDat
 
     assert(codecAllocation.DataSize == sizeof(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264));
     
+    // TODO: In BeginFrame we should also set the params we want as default here
     D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 curFrameState =
     {
         //D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264_FLAGS

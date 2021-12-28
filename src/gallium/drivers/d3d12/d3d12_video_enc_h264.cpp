@@ -529,7 +529,7 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    capEncoderSupportData.Codec = D3D12_VIDEO_ENCODER_CODEC_H264;
    capEncoderSupportData.InputFormat = pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format;
    capEncoderSupportData.RateControl = d3d12_video_encoder_get_current_rate_control_settings(pD3D12Enc);
-   capEncoderSupportData.IntraRefresh = pD3D12Enc->m_currentEncodeConfig.m_IntraRefreshMode;
+   capEncoderSupportData.IntraRefresh = pD3D12Enc->m_currentEncodeConfig.m_IntraRefresh.Mode;
    capEncoderSupportData.SubregionFrameEncoding = pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode;
    capEncoderSupportData.ResolutionsListCount = 1;
    capEncoderSupportData.pResolutionList = &pD3D12Enc->m_currentEncodeConfig.m_currentResolution;

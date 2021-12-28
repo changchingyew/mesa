@@ -163,6 +163,8 @@ struct d3d12_video_encoder
 
         D3D12_VIDEO_ENCODER_CODEC m_encoderCodecDesc = { };
 
+        D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAGS m_seqFlags = D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_NONE;
+
         /// As the following D3D12 Encode types have pointers in their structures, we need to keep a deep copy of them
 
         union 
@@ -219,7 +221,8 @@ struct d3d12_video_encoder
 
         D3D12_VIDEO_ENCODER_MOTION_ESTIMATION_PRECISION_MODE m_encoderMotionPrecisionLimit = D3D12_VIDEO_ENCODER_MOTION_ESTIMATION_PRECISION_MODE_MAXIMUM;
 
-        D3D12_VIDEO_ENCODER_INTRA_REFRESH_MODE m_IntraRefreshMode = D3D12_VIDEO_ENCODER_INTRA_REFRESH_MODE_NONE;
+        D3D12_VIDEO_ENCODER_INTRA_REFRESH m_IntraRefresh = { D3D12_VIDEO_ENCODER_INTRA_REFRESH_MODE_NONE, 0 };
+        UINT m_IntraRefreshCurrentFrameIndex = 0;
 
     } m_currentEncodeConfig;
 };
@@ -234,6 +237,7 @@ D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION d3d12_video_encoder_get_current_codec_co
 D3D12_VIDEO_ENCODER_PROFILE_DESC d3d12_video_encoder_get_current_profile_desc(struct d3d12_video_encoder* pD3D12Enc);
 D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT d3d12_video_encoder_get_current_picture_control_capabilities_desc(struct d3d12_video_encoder* pD3D12Enc);
 D3D12_VIDEO_ENCODER_RATE_CONTROL d3d12_video_encoder_get_current_rate_control_settings(struct d3d12_video_encoder* pD3D12Enc);
+D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA d3d12_video_encoder_get_current_slice_param_settings(struct d3d12_video_encoder* pD3D12Enc);
 D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE d3d12_video_encoder_get_current_gop_desc(struct d3d12_video_encoder* pD3D12Enc);
 UINT d3d12_video_encoder_get_current_max_dpb_capacity(struct d3d12_video_encoder* pD3D12Enc);
 void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_encoder* pD3D12Enc);
@@ -241,6 +245,7 @@ void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* p
 void d3d12_video_encoder_calculate_metadata_resolved_buffer_size(UINT maxSliceNumber, size_t& bufferSize);
 UINT d3d12_video_encoder_calculate_max_slices_count_in_output(D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE slicesMode, const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA_SLICES* slicesConfig, UINT MaxSubregionsNumberFromCaps, D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC sequenceTargetResolution, UINT SubregionBlockPixelsSize);
 void d3d12_video_encoder_prepare_output_buffers(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);
+UINT d3d12_video_encoder_build_codec_headers (struct d3d12_video_encoder* pD3D12Enc);
 
 ///
 /// d3d12_video_encoder functions ends

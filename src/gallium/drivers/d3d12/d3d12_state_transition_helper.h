@@ -105,12 +105,4 @@ void d3d12_record_state_transition(
    spCommandList->ResourceBarrier(1u, rgBarrierDescs);
 }
 
-template <class TCommandList>
-void d3d12_record_state_transitions(
-    ComPtr<TCommandList> & spCommandList,
-    std::vector<D3D12_RESOURCE_BARRIER> & transitionsList )
-{
-   spCommandList->ResourceBarrier(transitionsList.size(), transitionsList.data());
-}
-
 #endif
