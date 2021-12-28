@@ -375,128 +375,132 @@ bool d3d12_video_encoder_is_gop_supported(UINT GOPLength, UINT PPicturePeriod, U
 
 void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
 {
-   // Note that, for infinite GOPS, max_pic_order_cnt_lsb must be greater than the full video count - 1. Otherwise it might try to address previous reference pictures in between [0..255] intervals (if using max_pic_order_cnt_lsb = 256). 
-   const UINT GOPLength = picture->gop_size; // TODO: This is multiplied by gop_coeff in above layer, it's not necessarily idr_period.
-   UINT PPicturePeriod = 2; // TODO: Figure out how to deduce this from gop_size and i/p_remaining.
-
-   bool gopHasPFrames = (PPicturePeriod > 0) && ((GOPLength == 0) || (PPicturePeriod < GOPLength));
-   bool gopHasBFrames = (PPicturePeriod > 1);
-   if(!gopHasPFrames && !gopHasBFrames)
+   // Only update GOP when it begins
+   if (picture->gop_cnt == 0)
    {
-      assert(picture->pic_order_cnt_type == 2u);
-      // I Frame only
-   } else if (gopHasPFrames && !gopHasBFrames)
-   {
-      // I and P only
-      assert(picture->pic_order_cnt_type == 2u);
-   } else
-   {
-      // I, P and B frames
-      assert(picture->pic_order_cnt_type == 0);
-   }
-   assert(picture->pic_order_cnt_type != 1); // Not supported by D3D12 Encode.
+      UINT GOPLength = picture->gop_size;
+      UINT PPicturePeriod = std::ceil(GOPLength / (double) picture->p_remain) - 1;
 
-   const UINT max_pic_order_cnt_lsb = (GOPLength > 0) ? 256u : 32768u;
-   const UINT max_max_frame_num = (GOPLength > 0) ? 256u : 32768u;
-   double log2_max_frame_num_minus4 = std::max(0.0, std::ceil(std::log2(max_max_frame_num)) - 4);
-   double log2_max_pic_order_cnt_lsb_minus4 = std::max(0.0, std::ceil(std::log2(max_pic_order_cnt_lsb)) - 4);
-   assert(log2_max_frame_num_minus4 < UCHAR_MAX);
-   assert(log2_max_pic_order_cnt_lsb_minus4 < UCHAR_MAX);   
-   assert(picture->pic_order_cnt_type < UCHAR_MAX);   
-
-   pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures =
-   {
-      GOPLength,
-      PPicturePeriod,
-      static_cast<UCHAR>(picture->pic_order_cnt_type),
-      static_cast<UCHAR>(log2_max_frame_num_minus4),
-      static_cast<UCHAR>(log2_max_pic_order_cnt_lsb_minus4)
-   };;
-
-   ///
-   /// Cache caps in pD3D12Enc
-   ///
-
-   D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT inOutPicCtrlCodecData = { };
-   inOutPicCtrlCodecData.pH264Support = &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
-   inOutPicCtrlCodecData.DataSize = sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl);
-   D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT capPictureControlData = 
-   {
-      pD3D12Enc->m_NodeIndex,
-      D3D12_VIDEO_ENCODER_CODEC_H264,
-      d3d12_video_encoder_get_current_profile_desc(pD3D12Enc),
-      false,
-      inOutPicCtrlCodecData
-   };
-
-   VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT, &capPictureControlData, sizeof(capPictureControlData)));
-   assert(capPictureControlData.IsSupported);
-
-   // Calculate the DPB size for this session based on
-   // 1. Driver reported caps
-   // 2. the GOP type and L0/L1 usage based on this
-   // h264PicCtrlData will contain the adjusted values to be used later
-   // for allocations such as the DPB resource pool
-   auto& h264PicCtrlData = pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
-   if(!gopHasPFrames && !gopHasBFrames)
-   {            
-      // I Frame only
-      // Will store 0 previous frames
-      h264PicCtrlData.MaxDPBCapacity = 0u;
-   } 
-   else if (gopHasPFrames && !gopHasBFrames)
-   {
-      // I and P only
-
-      // Check if underlying HW supports the GOP
-      if(h264PicCtrlData.MaxL0ReferencesForP == 0)
+      bool gopHasPFrames = (PPicturePeriod > 0) && ((GOPLength == 0) || (PPicturePeriod < GOPLength));
+      bool gopHasBFrames = (PPicturePeriod > 1);
+      if(!gopHasPFrames && !gopHasBFrames)
       {
-            D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P frames.\n");
-            return;
+         assert(picture->pic_order_cnt_type == 2u);
+         // I Frame only
+      } else if (gopHasPFrames && !gopHasBFrames)
+      {
+         // I and P only
+         assert(picture->pic_order_cnt_type == 2u);
+      } else
+      {
+         // I, P and B frames
+         assert(picture->pic_order_cnt_type == 0);
       }
 
-      if(GOPLength > 0) // GOP is closed with periodic I/IDR frames (eg. no infinite gop)
+      assert(picture->pic_order_cnt_type != 1); // Not supported by D3D12 Encode.
+
+      const UINT max_pic_order_cnt_lsb = (GOPLength > 0) ? 256u : 16384u;
+      const UINT max_max_frame_num = (GOPLength > 0) ? 256u : 16384u;
+      double log2_max_frame_num_minus4 = std::max(0.0, std::ceil(std::log2(max_max_frame_num)) - 4);
+      double log2_max_pic_order_cnt_lsb_minus4 = std::max(0.0, std::ceil(std::log2(max_pic_order_cnt_lsb)) - 4);
+      assert(log2_max_frame_num_minus4 < UCHAR_MAX);
+      assert(log2_max_pic_order_cnt_lsb_minus4 < UCHAR_MAX);   
+      assert(picture->pic_order_cnt_type < UCHAR_MAX);   
+
+      pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures =
       {
-            // Will store only GOPLength - 1 inter frames in between IDRs as maximum, as we won't need all the MaxL0ReferencesForB slots even when the driver reports it.
-            h264PicCtrlData.MaxDPBCapacity = std::min(h264PicCtrlData.MaxL0ReferencesForP, (GOPLength - 1));
-      }
+         GOPLength,
+         PPicturePeriod,
+         static_cast<UCHAR>(picture->pic_order_cnt_type),
+         static_cast<UCHAR>(log2_max_frame_num_minus4),
+         static_cast<UCHAR>(log2_max_pic_order_cnt_lsb_minus4)
+      };;
+
+      ///
+      /// Cache caps in pD3D12Enc
+      ///
+
+      D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT inOutPicCtrlCodecData = { };
+      inOutPicCtrlCodecData.pH264Support = &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
+      inOutPicCtrlCodecData.DataSize = sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl);
+      D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT capPictureControlData = 
+      {
+         pD3D12Enc->m_NodeIndex,
+         D3D12_VIDEO_ENCODER_CODEC_H264,
+         d3d12_video_encoder_get_current_profile_desc(pD3D12Enc),
+         false,
+         inOutPicCtrlCodecData
+      };
+
+      VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT, &capPictureControlData, sizeof(capPictureControlData)));
+      assert(capPictureControlData.IsSupported);
+
+      // Calculate the DPB size for this session based on
+      // 1. Driver reported caps
+      // 2. the GOP type and L0/L1 usage based on this
+      // h264PicCtrlData will contain the adjusted values to be used later
+      // for allocations such as the DPB resource pool
+      auto& h264PicCtrlData = pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
+      if(!gopHasPFrames && !gopHasBFrames)
+      {            
+         // I Frame only
+         // Will store 0 previous frames
+         h264PicCtrlData.MaxDPBCapacity = 0u;
+      } 
+      else if (gopHasPFrames && !gopHasBFrames)
+      {
+         // I and P only
+
+         // Check if underlying HW supports the GOP
+         if(h264PicCtrlData.MaxL0ReferencesForP == 0)
+         {
+               D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P frames.\n");
+               return;
+         }
+
+         if(GOPLength > 0) // GOP is closed with periodic I/IDR frames (eg. no infinite gop)
+         {
+               // Will store only GOPLength - 1 inter frames in between IDRs as maximum, as we won't need all the MaxL0ReferencesForB slots even when the driver reports it.
+               h264PicCtrlData.MaxDPBCapacity = std::min(h264PicCtrlData.MaxL0ReferencesForP, (GOPLength - 1));
+         }
+         else
+         {
+               // Will store only MaxL0ReferencesForP frames as there're no B frames.
+               h264PicCtrlData.MaxDPBCapacity = h264PicCtrlData.MaxL0ReferencesForP;
+         }
+      } 
       else
       {
-            // Will store only MaxL0ReferencesForP frames as there're no B frames.
-            h264PicCtrlData.MaxDPBCapacity = h264PicCtrlData.MaxL0ReferencesForP;
-      }
-   } 
-   else
-   {
-      // I, P and B frames
+         // I, P and B frames
 
-      // Check if underlying HW supports the GOP for
-      if(gopHasPFrames && (h264PicCtrlData.MaxL0ReferencesForP == 0))
+         // Check if underlying HW supports the GOP for
+         if(gopHasPFrames && (h264PicCtrlData.MaxL0ReferencesForP == 0))
+         {
+               D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P and B frames.\n");
+               return;
+         }
+
+         if(gopHasBFrames && ((h264PicCtrlData.MaxL0ReferencesForB + h264PicCtrlData.MaxL1ReferencesForB) == 0))
+         {
+               D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support B frames and the GOP has P and B frames.\n");
+               return;
+         }
+
+         if(GOPLength > 0) // GOP is closed with periodic I/IDR frames (eg. no infinite gop)
+         {
+               // Will store only GOPLength - 1 inter frames in between IDRs as maximum, as we won't need the h264PicCtrlData.MaxDPBCapacity slots even when the driver reports it.
+               h264PicCtrlData.MaxDPBCapacity = std::min(h264PicCtrlData.MaxDPBCapacity, (GOPLength - 1));
+         }
+         // else
+         // {
+         //     // Will store the full h264PicCtrlData.MaxDPBCapacity capacity and then L0/L1 lists will be created based on MaxL0ReferencesForP/MaxL0ReferencesForB/MaxL1ReferencesForB
+         // }
+      }
+
+      if(!d3d12_video_encoder_is_gop_supported(GOPLength, PPicturePeriod, h264PicCtrlData.MaxDPBCapacity, h264PicCtrlData.MaxL0ReferencesForP, h264PicCtrlData.MaxL0ReferencesForB, h264PicCtrlData.MaxL1ReferencesForB))
       {
-            D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P and B frames.\n");
-            return;
+         D3D12_LOG_ERROR("Invalid or unsupported GOP \n");
       }
-
-      if(gopHasBFrames && ((h264PicCtrlData.MaxL0ReferencesForB + h264PicCtrlData.MaxL1ReferencesForB) == 0))
-      {
-            D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support B frames and the GOP has P and B frames.\n");
-            return;
-      }
-
-      if(GOPLength > 0) // GOP is closed with periodic I/IDR frames (eg. no infinite gop)
-      {
-            // Will store only GOPLength - 1 inter frames in between IDRs as maximum, as we won't need the h264PicCtrlData.MaxDPBCapacity slots even when the driver reports it.
-            h264PicCtrlData.MaxDPBCapacity = std::min(h264PicCtrlData.MaxDPBCapacity, (GOPLength - 1));
-      }
-      // else
-      // {
-      //     // Will store the full h264PicCtrlData.MaxDPBCapacity capacity and then L0/L1 lists will be created based on MaxL0ReferencesForP/MaxL0ReferencesForB/MaxL1ReferencesForB
-      // }
-   }
-
-   if(!d3d12_video_encoder_is_gop_supported(GOPLength, PPicturePeriod, h264PicCtrlData.MaxDPBCapacity, h264PicCtrlData.MaxL0ReferencesForP, h264PicCtrlData.MaxL0ReferencesForB, h264PicCtrlData.MaxL1ReferencesForB))
-   {
-      D3D12_LOG_ERROR("Invalid or unsupported GOP \n");
    }
 }
 
