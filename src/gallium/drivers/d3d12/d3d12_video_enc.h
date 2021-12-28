@@ -115,6 +115,21 @@ struct d3d12_video_encoder
     std::unique_ptr<ID3D12AutomaticVideoEncodeReferencePicManager> m_upDPBManager;
     std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap> > m_upDPBStorageManager;
 
+    struct 
+    {
+        union 
+        {
+            D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_H264 m_H264PictureControl;
+            D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_HEVC m_HEVCPictureControl;
+        } m_PictureControlCapabilities;
+        
+        bool m_fArrayOfTexturesDpb;
+
+        D3D12_VIDEO_ENCODER_SUPPORT_FLAGS m_SupportFlags;
+        D3D12_VIDEO_ENCODER_VALIDATION_FLAGS m_ValidationFlags;
+        
+    } m_currentEncodeCapabilities;
+
     struct
     {
         pipe_h264_enc_picture_desc m_currentRequestedConfig;
@@ -181,6 +196,8 @@ struct d3d12_video_encoder
 
         D3D12_VIDEO_ENCODER_MOTION_ESTIMATION_PRECISION_MODE m_encoderMotionPrecisionLimit = D3D12_VIDEO_ENCODER_MOTION_ESTIMATION_PRECISION_MODE_MAXIMUM;
 
+        D3D12_VIDEO_ENCODER_INTRA_REFRESH_MODE m_IntraRefreshMode = D3D12_VIDEO_ENCODER_INTRA_REFRESH_MODE_NONE;
+
     } m_currentEncodeConfig;
 };
 
@@ -188,9 +205,16 @@ bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D1
 bool d3d12_video_encoder_reconfigure_session(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);
 void d3d12_video_encoder_update_current_encoder_config_state(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);
 void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);
+D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA d3d12_video_encoder_get_current_picture_param_settings(struct d3d12_video_encoder* pD3D12Enc);
 D3D12_VIDEO_ENCODER_LEVEL_SETTING d3d12_video_encoder_get_current_level_desc(struct d3d12_video_encoder* pD3D12Enc);
 D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION d3d12_video_encoder_get_current_codec_config_desc(struct d3d12_video_encoder* pD3D12Enc);
 D3D12_VIDEO_ENCODER_PROFILE_DESC d3d12_video_encoder_get_current_profile_desc(struct d3d12_video_encoder* pD3D12Enc);
+D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT d3d12_video_encoder_get_current_picture_control_capabilities_desc(struct d3d12_video_encoder* pD3D12Enc);
+D3D12_VIDEO_ENCODER_RATE_CONTROL d3d12_video_encoder_get_current_rate_control_settings(struct d3d12_video_encoder* pD3D12Enc);
+D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE d3d12_video_encoder_get_current_gop_desc(struct d3d12_video_encoder* pD3D12Enc);
+UINT d3d12_video_encoder_get_current_max_dpb_capacity(struct d3d12_video_encoder* pD3D12Enc);
+void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_encoder* pD3D12Enc);
+
 ///
 /// d3d12_video_encoder functions ends
 ///

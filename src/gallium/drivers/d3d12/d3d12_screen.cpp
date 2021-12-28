@@ -1086,8 +1086,8 @@ d3d12_screen_get_video_param(struct pipe_screen *pscreen,
          }
          else if(entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE)
          {
-            assert(false); // TODO: E_NOIMPL - Call resolution cap
-            return 0;            
+            // TODO: E_NOIMPL - Call resolution cap
+            return (param == PIPE_VIDEO_CAP_MAX_WIDTH) ? 1920 : 720;
          }
          else
          {

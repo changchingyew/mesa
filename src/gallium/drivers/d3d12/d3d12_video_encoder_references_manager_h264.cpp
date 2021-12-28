@@ -505,7 +505,6 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrintDPB()
 // Advances state to next frame in GOP; subsequent calls to GetCurrentFrame* point to the advanced frame status    
 void D3D12VideoEncoderH264FIFOReferenceManager::AdvanceFrame()
 {
-
     // TODO: Update m_GopDescriptor from caller with arguments on this method instead of keeping track internally
 
     D3D12_LOG_DBG("%d resources IN USE out of a total of %d ALLOCATED resources before advancing frame with POC: %d\n",

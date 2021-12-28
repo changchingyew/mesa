@@ -131,12 +131,6 @@ void d3d12_video_encoder_destroy(struct pipe_video_codec *codec)
 
 void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
 {
-   // TODO: Calculate uints below based on caps
-   UINT16 MaxDPBCapacity = 8u; 
-   UINT MaxL0ReferencesForP = 8;
-   UINT MaxL0ReferencesForB = 8;
-   UINT MaxL1ReferencesForB = 8;
-
    bool needsObjCreation = 
       (!pD3D12Enc->m_upDPBManager)
       || (!pD3D12Enc->m_spVideoEncoder)
@@ -160,12 +154,13 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
 
    if (needsObjCreation || needsReconfiguration)
    {
-      bool fArrayOfTexture = true; // TODO: Check D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RECONSTRUCTED_FRAMES_REQUIRE_TEXTURE_ARRAYS
       D3D12_RESOURCE_FLAGS resourceAllocFlags = D3D12_RESOURCE_FLAG_VIDEO_ENCODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-      if(fArrayOfTexture)
+      bool fArrayOfTextures = ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RECONSTRUCTED_FRAMES_REQUIRE_TEXTURE_ARRAYS) == 0);
+      UINT16 texturePoolSize = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc) + 1u; // adding an extra slot as we also need to count the current frame output recon allocation along max reference frame allocations
+      if(fArrayOfTextures)
       {
          pD3D12Enc->m_upDPBStorageManager = std::make_unique< ArrayOfTexturesDPBManager<ID3D12VideoEncoderHeap> >(
-            MaxDPBCapacity,
+            texturePoolSize,
             pD3D12Enc->m_pD3D12Screen->dev,
             pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
             pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
@@ -176,43 +171,16 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       else
       {
          pD3D12Enc->m_upDPBStorageManager = std::make_unique< TexturesArrayDPBManager<ID3D12VideoEncoderHeap> > (
-            MaxDPBCapacity, 
+            texturePoolSize,
             pD3D12Enc->m_pD3D12Screen->dev,
             pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format, 
             pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
             resourceAllocFlags,
             pD3D12Enc->m_NodeMask);
       }
-
-      // TODO: Initialization of m_upDPBManager is codec specific, delegate in _H264 function
-      pD3D12Enc->m_upDPBManager = std::make_unique<D3D12VideoEncoderH264FIFOReferenceManager>      
-      (
-         //   UINT GOPLength,
-         pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.GOPLength,
-         //   UINT PPicturePeriod,
-         pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.PPicturePeriod,
-         // Component to handle the DPB ID3D12Resource allocations
-          *pD3D12Enc->m_upDPBStorageManager,
-         // Cap based limitations from Encode12 API
-         //   UINT MaxL0ReferencesForP,
-         MaxL0ReferencesForP,
-         //   UINT MaxL0ReferencesForB,
-         MaxL0ReferencesForB,
-         //   UINT MaxL1ReferencesForB,
-         MaxL1ReferencesForB,
-         //   UINT MaxDPBCapacity,
-         MaxDPBCapacity,
-         // Codec config
-         //   UCHAR pic_order_cnt_type,
-         pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.pic_order_cnt_type,
-         //   UCHAR log2_max_frame_num_minus4,
-         pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.log2_max_frame_num_minus4,
-         //   UCHAR log2_max_pic_order_cnt_lsb_minus4,
-         pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.log2_max_pic_order_cnt_lsb_minus4,
-         //   bool forceGOPIDRs = true
-         true
-      );
-
+      
+      d3d12_video_encoder_create_reference_picture_manager(pD3D12Enc);
+      
       // Create encoder and encoder heap descriptors based off m_currentEncodeConfig
 
       D3D12_VIDEO_ENCODER_DESC encoderDesc = 
@@ -247,11 +215,97 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
    }
 
    // Update current frame pic params state after reconfiguring above.
-   // TODO: codec specific, delegate in _H264 function
-   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA codecPicData = { };
-   codecPicData.DataSize = sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderPicParamsDesc.m_H264PicData);
-   codecPicData.pH264PicData = &pD3D12Enc->m_currentEncodeConfig.m_encoderPicParamsDesc.m_H264PicData;
-   pD3D12Enc->m_upDPBManager->GetCurrentFramePictureControlData(codecPicData);
+   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
+   pD3D12Enc->m_upDPBManager->GetCurrentFramePictureControlData(currentPicParams);
+}
+
+void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_encoder* pD3D12Enc)
+{
+   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   switch (codec)
+   {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         pD3D12Enc->m_upDPBManager = std::make_unique<D3D12VideoEncoderH264FIFOReferenceManager>      
+         (
+            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.GOPLength,
+            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.PPicturePeriod,
+            *pD3D12Enc->m_upDPBStorageManager,
+            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL0ReferencesForP,
+            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL0ReferencesForB,
+            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL1ReferencesForB,
+            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxDPBCapacity, // Max number of frames to be used as a reference, without counting the current picture recon picture
+            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.pic_order_cnt_type,
+            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.log2_max_frame_num_minus4,
+            pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.log2_max_pic_order_cnt_lsb_minus4,
+            true
+         );
+      } break;
+      
+      default:
+         assert(0);
+   }
+}
+
+D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA d3d12_video_encoder_get_current_picture_param_settings(struct d3d12_video_encoder* pD3D12Enc)
+{
+   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   switch (codec)
+   {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curPicParamsData = { };
+         curPicParamsData.pH264PicData = &pD3D12Enc->m_currentEncodeConfig.m_encoderPicParamsDesc.m_H264PicData;
+         curPicParamsData.DataSize = sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderPicParamsDesc.m_H264PicData);
+         return curPicParamsData;
+      } break;
+      
+      default:
+         assert(0);
+   }
+}
+
+D3D12_VIDEO_ENCODER_RATE_CONTROL d3d12_video_encoder_get_current_rate_control_settings(struct d3d12_video_encoder* pD3D12Enc)
+{
+   D3D12_VIDEO_ENCODER_RATE_CONTROL curRateControlDesc = { };
+   curRateControlDesc.Mode = pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Mode;
+   curRateControlDesc.Flags = pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags;
+   curRateControlDesc.TargetFrameRate = pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_FrameRate;
+
+   switch (pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Mode)
+   {
+      case D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_ABSOLUTE_QP_MAP:
+      {
+         curRateControlDesc.ConfigParams.pConfiguration_CQP = nullptr;
+         curRateControlDesc.ConfigParams.DataSize = 0;
+      } break;
+      case D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_CQP:
+      {
+         curRateControlDesc.ConfigParams.pConfiguration_CQP = &pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CQP;
+         curRateControlDesc.ConfigParams.DataSize = sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CQP);
+      } break;
+      case D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_CBR:
+      {
+         curRateControlDesc.ConfigParams.pConfiguration_CBR = &pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR;
+         curRateControlDesc.ConfigParams.DataSize = sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR);
+      } break;
+      case D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_VBR:
+      {
+         curRateControlDesc.ConfigParams.pConfiguration_VBR = &pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR;
+         curRateControlDesc.ConfigParams.DataSize = sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR);
+      } break;
+      case D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_QVBR:
+      {
+         curRateControlDesc.ConfigParams.pConfiguration_QVBR = &pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_QVBR;
+         curRateControlDesc.ConfigParams.DataSize = sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_QVBR);
+      } break;
+      default:
+      {
+         assert(0);
+      } break;
+   }
+
+   return curRateControlDesc;
 }
 
 D3D12_VIDEO_ENCODER_LEVEL_SETTING d3d12_video_encoder_get_current_level_desc(struct d3d12_video_encoder* pD3D12Enc)
@@ -265,6 +319,24 @@ D3D12_VIDEO_ENCODER_LEVEL_SETTING d3d12_video_encoder_get_current_level_desc(str
          curLevelDesc.pH264LevelSetting = &pD3D12Enc->m_currentEncodeConfig.m_encoderLevelDesc.m_H264LevelSetting;
          curLevelDesc.DataSize = sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderLevelDesc.m_H264LevelSetting);
          return curLevelDesc;
+      } break;
+      
+      default:
+         assert(0);
+   }
+}
+
+D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE d3d12_video_encoder_get_current_gop_desc(struct d3d12_video_encoder* pD3D12Enc)
+{
+   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   switch (codec)
+   {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE curGOPDesc = { };
+         curGOPDesc.pH264GroupOfPictures = &pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures;
+         curGOPDesc.DataSize = sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures);
+         return curGOPDesc;
       } break;
       
       default:
@@ -301,6 +373,42 @@ D3D12_VIDEO_ENCODER_PROFILE_DESC d3d12_video_encoder_get_current_profile_desc(st
          curProfDesc.pH264Profile = &pD3D12Enc->m_currentEncodeConfig.m_encoderProfileDesc.m_H264Profile;
          curProfDesc.DataSize = sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderProfileDesc.m_H264Profile);
          return curProfDesc;
+      } break;
+      
+      default:
+         assert(0);
+   }
+}
+
+D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT d3d12_video_encoder_get_current_picture_control_capabilities_desc(struct d3d12_video_encoder* pD3D12Enc)
+{
+   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   switch (codec)
+   {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT curPicCtrlCaps = { };
+         curPicCtrlCaps.pH264Support = &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
+         curPicCtrlCaps.DataSize = sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl);
+         return curPicCtrlCaps;
+      } break;
+      
+      default:
+         assert(0);
+   }
+}
+
+UINT d3d12_video_encoder_get_current_max_dpb_capacity(struct d3d12_video_encoder* pD3D12Enc)
+{
+   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   switch (codec)
+   {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT curPicCtrlCaps = { };
+         curPicCtrlCaps.pH264Support = &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
+         curPicCtrlCaps.DataSize = sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl);
+         return curPicCtrlCaps.pH264Support->MaxDPBCapacity;
       } break;
       
       default:

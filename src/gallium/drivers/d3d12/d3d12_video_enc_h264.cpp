@@ -62,7 +62,7 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
       } break;
    }
 
-   // TODO: Add support for rest of advanced control flags and settings from pipe_h264_enc_rate_control and set the D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAGS m_Flags accordingly
+   // TODO: Add support for rest of advanced control flags and settings from pipe_h264_enc_rate_control and set the D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAGS m_Flags accordingly.
 }
 
 void d3d12_video_encoder_update_current_h264_slices_configuration(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
@@ -260,13 +260,28 @@ void d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVEL
     }
 }
 
-D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 d3d12_video_encoder_convert_h264_gop_configuration(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
+void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
 {
-   assert(picture->pic_order_cnt_type != 1); // Not supported by D3D12 Encode.
-   
    // Note that, for infinite GOPS, max_pic_order_cnt_lsb must be greater than the full video count - 1. Otherwise it might try to address previous reference pictures in between [0..255] intervals (if using max_pic_order_cnt_lsb = 256). 
    const UINT GOPLength = picture->gop_size; // TODO: This is multiplied by gop_coeff in above layer, it's not necessarily idr_period.
-   uint PPicturePeriod = 2; // TODO: Figure out how to deduce this from gop_size and i/p_remaining.
+   UINT PPicturePeriod = 2; // TODO: Figure out how to deduce this from gop_size and i/p_remaining.
+
+   bool gopHasPFrames = (PPicturePeriod > 0) && ((GOPLength == 0) || (PPicturePeriod < GOPLength));
+   bool gopHasBFrames = (PPicturePeriod > 1);
+   if(!gopHasPFrames && !gopHasBFrames)
+   {
+      assert(picture->pic_order_cnt_type == 2u);
+      // I Frame only
+   } else if (gopHasPFrames && !gopHasBFrames)
+   {
+      // I and P only
+      assert(picture->pic_order_cnt_type == 2u);
+   } else
+   {
+      // I, P and B frames
+      assert(picture->pic_order_cnt_type == 0);
+   }
+   assert(picture->pic_order_cnt_type != 1); // Not supported by D3D12 Encode.
 
    const UINT max_pic_order_cnt_lsb = (GOPLength > 0) ? 256u : 32768u;
    const UINT max_max_frame_num = (GOPLength > 0) ? 256u : 32768u;
@@ -275,22 +290,101 @@ D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 d3d12_video_encoder_convert_h264
    assert(log2_max_frame_num_minus4 < UCHAR_MAX);
    assert(log2_max_pic_order_cnt_lsb_minus4 < UCHAR_MAX);   
    assert(picture->pic_order_cnt_type < UCHAR_MAX);   
-   
-   D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 config = 
+
+   pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures =
    {
       GOPLength,
       PPicturePeriod,
       static_cast<UCHAR>(picture->pic_order_cnt_type),
       static_cast<UCHAR>(log2_max_frame_num_minus4),
       static_cast<UCHAR>(log2_max_pic_order_cnt_lsb_minus4)
+   };;
+
+   ///
+   /// Cache caps in pD3D12Enc
+   ///
+
+   D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT inOutPicCtrlCodecData = { };
+   inOutPicCtrlCodecData.pH264Support = &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
+   inOutPicCtrlCodecData.DataSize = sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl);
+   D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT capPictureControlData = 
+   {
+      pD3D12Enc->m_NodeMask,
+      D3D12_VIDEO_ENCODER_CODEC_H264,
+      d3d12_video_encoder_get_current_profile_desc(pD3D12Enc),
+      false,
+      inOutPicCtrlCodecData
    };
-   return config;
+
+   VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT, &capPictureControlData, sizeof(capPictureControlData)));
+   assert(capPictureControlData.IsSupported);
+
+   // Calculate the DPB size for this session based on
+   // 1. Driver reported caps
+   // 2. the GOP type and L0/L1 usage based on this
+   // h264PicCtrlData will contain the adjusted values to be used later
+   // for allocations such as the DPB resource pool
+   auto& h264PicCtrlData = pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
+   if(!gopHasPFrames && !gopHasBFrames)
+   {            
+      // I Frame only
+      // Will store 0 previous frames
+      h264PicCtrlData.MaxDPBCapacity = 0u;
+   } 
+   else if (gopHasPFrames && !gopHasBFrames)
+   {
+      // I and P only
+
+      // Check if underlying HW supports the GOP
+      if(h264PicCtrlData.MaxL0ReferencesForP == 0)
+      {
+            D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P frames.\n");
+            return;
+      }
+
+      if(GOPLength > 0) // GOP is closed with periodic I/IDR frames (eg. no infinite gop)
+      {
+            // Will store only GOPLength - 1 inter frames in between IDRs as maximum, as we won't need all the MaxL0ReferencesForB slots even when the driver reports it.
+            h264PicCtrlData.MaxDPBCapacity = std::min(h264PicCtrlData.MaxL0ReferencesForP, (GOPLength - 1));
+      }
+      else
+      {
+            // Will store only MaxL0ReferencesForP frames as there're no B frames.
+            h264PicCtrlData.MaxDPBCapacity = h264PicCtrlData.MaxL0ReferencesForP;
+      }
+   } 
+   else
+   {
+      // I, P and B frames
+
+      // Check if underlying HW supports the GOP for
+      if(gopHasPFrames && (h264PicCtrlData.MaxL0ReferencesForP == 0))
+      {
+            D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P and B frames.\n");
+            return;
+      }
+
+      if(gopHasBFrames && ((h264PicCtrlData.MaxL0ReferencesForB + h264PicCtrlData.MaxL1ReferencesForB) == 0))
+      {
+            D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support B frames and the GOP has P and B frames.\n");
+            return;
+      }
+
+      if(GOPLength > 0) // GOP is closed with periodic I/IDR frames (eg. no infinite gop)
+      {
+            // Will store only GOPLength - 1 inter frames in between IDRs as maximum, as we won't need the h264PicCtrlData.MaxDPBCapacity slots even when the driver reports it.
+            h264PicCtrlData.MaxDPBCapacity = std::min(h264PicCtrlData.MaxDPBCapacity, (GOPLength - 1));
+      }
+      // else
+      // {
+      //     // Will store the full h264PicCtrlData.MaxDPBCapacity capacity and then L0/L1 lists will be created based on MaxL0ReferencesForP/MaxL0ReferencesForB/MaxL1ReferencesForB
+      // }
+   }
 }
 
 D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 d3d12_video_encoder_convert_h264_codec_configuration(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
 {
    // TODO: Set flags and rest based on picture contents (ie. cabac/cavlc, etc), using defaults for now
-
    D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 config = 
    {
       D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264_FLAG_NONE,
@@ -302,9 +396,6 @@ D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 d3d12_video_encoder_convert_h264_co
 
 void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
 {
-   // TODO: Check for caps and have debug messages if requested config not supported, otherwise it might fail execution without useful info with unsupported configs.
-   // TODO: Check resolution caps including ratios and multiple requirements
-
    struct pipe_h264_enc_picture_desc *h264Pic = (struct pipe_h264_enc_picture_desc *)picture;
 
    // Set requested config
@@ -335,7 +426,7 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    d3d12_video_encoder_update_current_h264_slices_configuration(pD3D12Enc, h264Pic);
 
    // Set GOP config
-   pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures = d3d12_video_encoder_convert_h264_gop_configuration(pD3D12Enc, h264Pic);
+   d3d12_video_encoder_update_h264_gop_configuration(pD3D12Enc, h264Pic);
 
    // Set rate control
    d3d12_video_encoder_update_current_rate_control_h264(pD3D12Enc, h264Pic);
@@ -343,7 +434,89 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    // m_currentEncodeConfig.m_encoderPicParamsDesc pic params are set in d3d12_video_encoder_reconfigure_encoder_objects after re-allocating objects if needed
 
    // Set motion estimation config
-   pD3D12Enc->m_currentEncodeConfig.m_encoderMotionPrecisionLimit = d3d12_video_encoder_convert_h264_motion_configuration(pD3D12Enc, h264Pic);
+   pD3D12Enc->m_currentEncodeConfig.m_encoderMotionPrecisionLimit = d3d12_video_encoder_convert_h264_motion_configuration(pD3D12Enc, h264Pic);   
+
+   ///
+   /// Check for video encode support detailed capabilities
+   ///
+
+   D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT capEncoderSupportData = { };
+   capEncoderSupportData.NodeIndex = pD3D12Enc->m_NodeIndex;
+   capEncoderSupportData.Codec = D3D12_VIDEO_ENCODER_CODEC_H264;
+   capEncoderSupportData.InputFormat = pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format;
+   capEncoderSupportData.RateControl = d3d12_video_encoder_get_current_rate_control_settings(pD3D12Enc);
+   capEncoderSupportData.IntraRefresh = pD3D12Enc->m_currentEncodeConfig.m_IntraRefreshMode;
+   capEncoderSupportData.SubregionFrameEncoding = pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode;
+   capEncoderSupportData.ResolutionsListCount = 1;
+   capEncoderSupportData.pResolutionList = &pD3D12Enc->m_currentEncodeConfig.m_currentResolution;
+   capEncoderSupportData.CodecGopSequence = d3d12_video_encoder_get_current_gop_desc(pD3D12Enc);
+   capEncoderSupportData.MaxReferenceFramesInDPB = pD3D12Enc->base.max_references; // Max number of frames to be used as a reference, without counting the current picture recon picture
+   capEncoderSupportData.CodecConfiguration = d3d12_video_encoder_get_current_codec_config_desc(pD3D12Enc);
+
+   D3D12_VIDEO_ENCODER_PROFILE_H264 suggestedProfileH264 = { };
+   D3D12_VIDEO_ENCODER_LEVELS_H264 suggestedLevelH264 = { };
+   capEncoderSupportData.SuggestedProfile.pH264Profile = &suggestedProfileH264;
+   capEncoderSupportData.SuggestedProfile.DataSize = sizeof(suggestedProfileH264);
+   capEncoderSupportData.SuggestedLevel.pH264LevelSetting = &suggestedLevelH264;
+   capEncoderSupportData.SuggestedLevel.DataSize = sizeof(suggestedLevelH264);
+
+   // prepare inout storage for the resolution dependent result.
+   std::vector<D3D12_FEATURE_DATA_VIDEO_ENCODER_RESOLUTION_SUPPORT_LIMITS> additionalSupportByResolution;
+   additionalSupportByResolution.resize(capEncoderSupportData.ResolutionsListCount);
+   capEncoderSupportData.pResolutionDependentSupport = additionalSupportByResolution.data();
+
+   VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_SUPPORT, &capEncoderSupportData, sizeof(capEncoderSupportData)));
+   
+   pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags = capEncoderSupportData.SupportFlags;
+   pD3D12Enc->m_currentEncodeCapabilities.m_ValidationFlags = capEncoderSupportData.ValidationFlags;
+
+   // Check for general support and cache caps results
+   if((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_GENERAL_SUPPORT_OK) == 0)
+   {
+      if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_NOT_SUPPORTED) != 0)
+      {
+         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested codec is not supported\n");
+      }
+         
+      if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RESOLUTION_NOT_SUPPORTED_IN_LIST) != 0)
+      {
+         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested resolution is not supported\n");
+      }
+         
+      if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_CONFIGURATION_NOT_SUPPORTED) != 0)
+      {
+         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested bitrate or rc config is not supported\n");
+      }
+         
+      if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_CONFIGURATION_NOT_SUPPORTED) != 0)
+      {
+         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested codec config is not supported\n");
+      }
+         
+      if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_MODE_NOT_SUPPORTED) != 0)
+      {
+         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested rate control mode is not supported\n");
+      }
+         
+      if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INTRA_REFRESH_MODE_NOT_SUPPORTED) != 0)
+      {
+         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested intra refresh config is not supported\n");
+      }
+         
+      if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_SUBREGION_LAYOUT_MODE_NOT_SUPPORTED) != 0)
+      {
+         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested subregion layout mode is not supported\n");
+      }
+         
+      if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INPUT_FORMAT_NOT_SUPPORTED) != 0)
+      {
+         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested input dxgi format is not supported\n");
+      }
+
+      D3D12_LOG_ERROR("[D3D12 Video Driver] D3D12_FEATURE_VIDEO_ENCODER_SUPPORT arguments are not supported - ValidationFlags: 0x%x - SupportFlags: 0x%x\n",
+            capEncoderSupportData.ValidationFlags,
+            capEncoderSupportData.SupportFlags);
+   }   
 }
 
 D3D12_VIDEO_ENCODER_PROFILE_H264 d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(enum pipe_video_profile profile)
