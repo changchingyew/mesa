@@ -374,10 +374,11 @@ bool d3d12_video_encoder_is_gop_supported(UINT GOPLength, UINT PPicturePeriod, U
 void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder* pD3D12Enc, pipe_h264_enc_picture_desc *picture)
 {
    // Only update GOP when it begins
-   if (picture->gop_cnt == 0)
+   if (picture->gop_cnt == 1)
    {
-      UINT GOPLength = picture->gop_size;
-      UINT PPicturePeriod = std::ceil(GOPLength / (double) picture->p_remain) - 1;
+      UINT GOPCoeff = picture->i_remain;
+      UINT GOPLength = picture->gop_size/GOPCoeff;
+      UINT PPicturePeriod = std::ceil(GOPLength / (double) (picture->p_remain/GOPCoeff)) - 1;
 
       bool gopHasPFrames = (PPicturePeriod > 0) && ((GOPLength == 0) || (PPicturePeriod < GOPLength));
       bool gopHasBFrames = (PPicturePeriod > 1);
@@ -388,7 +389,9 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
       } else if (gopHasPFrames && !gopHasBFrames)
       {
          // I and P only
-         assert(picture->pic_order_cnt_type == 2u);
+         // assert(picture->pic_order_cnt_type == 2u);
+         // TODO: Some drivers expect pic_order_cnt_type = 2 here but upper layer is sending 0
+         picture->pic_order_cnt_type = 2u;
       } else
       {
          // I, P and B frames
