@@ -753,6 +753,11 @@ UINT d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder* pD
          pD3D12Enc->m_BitstreamHeadersBuffer.begin() + writtenSPSBytesCount,
          writtenPPSBytesCount);
 
-   assert(pD3D12Enc->m_BitstreamHeadersBuffer.size() == (writtenPPSBytesCount + writtenSPSBytesCount));
+   // Shrink buffer to fit the headers
+   if(pD3D12Enc->m_BitstreamHeadersBuffer.size() > (writtenPPSBytesCount + writtenSPSBytesCount))
+   {
+      pD3D12Enc->m_BitstreamHeadersBuffer.resize(writtenPPSBytesCount + writtenSPSBytesCount);
+   }
+   
    return pD3D12Enc->m_BitstreamHeadersBuffer.size();
 }
