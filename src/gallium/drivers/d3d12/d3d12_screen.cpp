@@ -1140,7 +1140,7 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *pscreen,
       {
          if(d3d12_has_video_decode_support(pscreen, profile))
          {
-            GUID decodeGUID = d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(profile);
+            GUID decodeGUID = d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(profile);
             GUID emptyGUID = { };
             if(decodeGUID != emptyGUID)
             {

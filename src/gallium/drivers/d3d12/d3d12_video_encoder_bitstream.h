@@ -28,11 +28,11 @@
 
 #define DELETE_ARRAY(ptr)       {if (ptr) {delete [] (ptr); (ptr) = NULL;}}
 
-class CBitStream
+class D3D12VideoBitstream
 {
 public:
-    CBitStream ();
-    ~CBitStream ();
+    D3D12VideoBitstream ();
+    ~D3D12VideoBitstream ();
 
 public:
     void  GetCurrentBufferPostionAndSize(uint8_t  **ppCurrBufPos, int32_t *pdwLeftBufSize );
@@ -52,7 +52,7 @@ public:
         m_uintEncBuffer = 0;
     };
 
-    void AppendByteStream (CBitStream *pStream);
+    void AppendByteStream (D3D12VideoBitstream *pStream);
 
     void SetStartCodePrevention (bool bSCP)
     {

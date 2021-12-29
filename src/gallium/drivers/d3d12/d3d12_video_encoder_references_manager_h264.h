@@ -28,7 +28,7 @@
 #include "d3d12_video_encoder_references_manager.h"
 #include "d3d12_video_dpb_storage_manager.h"
 
-class D3D12VideoEncoderH264FIFOReferenceManager : public ID3D12AutomaticVideoEncodeReferencePicManager
+class D3D12VideoEncoderReferencesManagerH264 : public ID3D12VideoEncodeReferencePicManager
 {
 public:
     
@@ -39,7 +39,7 @@ public:
     bool IsCurrentFrameUsedAsReference();
     D3D12_VIDEO_ENCODE_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();    
 
-    D3D12VideoEncoderH264FIFOReferenceManager(
+    D3D12VideoEncoderReferencesManagerH264(
         bool gopHasInterCodedFrames,
         ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap>& rDpbStorageManager,
         UINT MaxL0ReferencesForP,
@@ -48,7 +48,7 @@ public:
         UINT MaxDPBCapacity
         );   
 
-    ~D3D12VideoEncoderH264FIFOReferenceManager() { }
+    ~D3D12VideoEncoderReferencesManagerH264() { }
 
 private:
 

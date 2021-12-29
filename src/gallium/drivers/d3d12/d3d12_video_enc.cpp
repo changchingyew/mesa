@@ -184,7 +184,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       UINT16 texturePoolSize = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc) + 1u; // adding an extra slot as we also need to count the current frame output recon allocation along max reference frame allocations
       if(fArrayOfTextures)
       {
-         pD3D12Enc->m_upDPBStorageManager = std::make_unique< ArrayOfTexturesDPBManager<ID3D12VideoEncoderHeap> >(
+         pD3D12Enc->m_upDPBStorageManager = std::make_unique< D3D12ArrayOfTexturesDPBManager<ID3D12VideoEncoderHeap> >(
             texturePoolSize,
             pD3D12Enc->m_pD3D12Screen->dev,
             pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
@@ -195,7 +195,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       }      
       else
       {
-         pD3D12Enc->m_upDPBStorageManager = std::make_unique< TexturesArrayDPBManager<ID3D12VideoEncoderHeap> > (
+         pD3D12Enc->m_upDPBStorageManager = std::make_unique< D3D12TexturesArrayDPBManager<ID3D12VideoEncoderHeap> > (
             texturePoolSize,
             pD3D12Enc->m_pD3D12Screen->dev,
             pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format, 
@@ -251,7 +251,7 @@ void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_enc
             && ((pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.GOPLength == 0) 
             || (pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.PPicturePeriod < pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.GOPLength));         
 
-         pD3D12Enc->m_upDPBManager = std::make_unique<D3D12VideoEncoderH264FIFOReferenceManager>      
+         pD3D12Enc->m_upDPBManager = std::make_unique<D3D12VideoEncoderReferencesManagerH264>      
          (
             gopHasPFrames,
             *pD3D12Enc->m_upDPBStorageManager,
@@ -261,7 +261,7 @@ void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_enc
             pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxDPBCapacity // Max number of frames to be used as a reference, without counting the current picture recon picture
          );
 
-         pD3D12Enc->m_upH264BitstreamBuilder = std::make_unique<H264BitstreamBuilder>();
+         pD3D12Enc->m_upH264BitstreamBuilder = std::make_unique<D3D12VideoBitstreamBuilderH264>();
       } break;
       
       default:
@@ -491,7 +491,7 @@ void d3d12_video_encoder_update_current_encoder_config_state(struct d3d12_video_
    }   
 }
 
-bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D12Enc)
+bool d3d12_video_encoder_create_command_objects(struct d3d12_video_encoder* pD3D12Enc)
 {
    assert(pD3D12Enc->m_spD3D12VideoDevice);
 
@@ -501,14 +501,14 @@ bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D1
       IID_PPV_ARGS(pD3D12Enc->m_spEncodeCommandQueue.GetAddressOf()));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
       return false;
    }
 
    hr = pD3D12Enc->m_pD3D12Screen->dev->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pD3D12Enc->m_spFence));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateFence failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_command_objects - Call to CreateFence failed with HR %x\n", hr);
       return false;
    }
    
@@ -517,7 +517,7 @@ bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D1
       IID_PPV_ARGS(pD3D12Enc->m_spCommandAllocator.GetAddressOf()));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateCommandAllocator failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_command_objects - Call to CreateCommandAllocator failed with HR %x\n", hr);
       return false;
    }
 
@@ -530,7 +530,7 @@ bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D1
 
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateCommandList failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_command_objects - Call to CreateCommandList failed with HR %x\n", hr);
       return false;
    }
 
@@ -541,7 +541,7 @@ bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D1
 
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
       return false;
    }
 
@@ -586,9 +586,9 @@ struct pipe_video_codec *d3d12_video_encoder_create_encoder(struct pipe_context 
       goto failed;
    }   
 
-   if(!d3d12_create_video_encode_command_objects(pD3D12Enc))
+   if(!d3d12_video_encoder_create_command_objects(pD3D12Enc))
    {
-      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_encoder - Failure on d3d12_create_video_encode_command_objects\n");
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_encoder - Failure on d3d12_video_encoder_create_command_objects\n");
       goto failed;
    }
 

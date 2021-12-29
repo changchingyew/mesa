@@ -142,11 +142,11 @@ typedef struct _DXVA_Slice_H264_Short {
   USHORT wBadSliceChopping;  /* for off-host parse */
 } DXVA_Slice_H264_Short, *LPDXVA_Slice_H264_Short;
 
-DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264(UINT frameNum, pipe_video_profile profile, UINT frameWidth, UINT frameHeight, pipe_h264_picture_desc* pipeDesc);
-void d3d12_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB);
-void d3d12_decoder_prepare_current_frame_references_h264(struct d3d12_video_decoder *pD3D12Dec, ID3D12Resource* pTexture2D, UINT subresourceIndex);
-void d3d12_dec_dxva_qmatrix_from_pipe_picparams_h264 (pipe_h264_picture_desc* pPipeDesc, DXVA_Qmatrix_H264 & outMatrixBuffer, bool & outSeq_scaling_matrix_present_flag);
-void d3d12_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec);
-bool get_slice_size_and_offset_h264(size_t sliceIdx, size_t numSlices, std::vector<BYTE> &buf, unsigned int bufferOffset, UINT& outSliceSize, UINT& outSliceOffset);
-void d3d12_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *pD3D12Dec, size_t numSlices, std::vector<DXVA_Slice_H264_Short>& pOutSliceControlBuffers);
+DXVA_PicParams_H264 d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(UINT frameNum, pipe_video_profile profile, UINT frameWidth, UINT frameHeight, pipe_h264_picture_desc* pipeDesc);
+void d3d12_video_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB);
+void d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_decoder *pD3D12Dec, ID3D12Resource* pTexture2D, UINT subresourceIndex);
+void d3d12_video_decoder_dxva_qmatrix_from_pipe_picparams_h264 (pipe_h264_picture_desc* pPipeDesc, DXVA_Qmatrix_H264 & outMatrixBuffer, bool & outSeq_scaling_matrix_present_flag);
+void d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec);
+bool d3d12_video_decoder_get_slice_size_and_offset_h264(size_t sliceIdx, size_t numSlices, std::vector<BYTE> &buf, unsigned int bufferOffset, UINT& outSliceSize, UINT& outSliceOffset);
+void d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *pD3D12Dec, size_t numSlices, std::vector<DXVA_Slice_H264_Short>& pOutSliceControlBuffers);
 #endif

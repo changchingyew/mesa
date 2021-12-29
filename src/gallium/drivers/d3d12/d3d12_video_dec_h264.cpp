@@ -24,15 +24,15 @@
 #include "d3d12_video_dec.h"
 #include "d3d12_video_dec_h264.h"
 
-void d3d12_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec)
+void d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec)
 {
 	pD3D12Dec->m_spDPBManager->MarkAllReferencesAsUnused();
-	pD3D12Dec->m_spDPBManager->MarkReferencesInUse(d3d12_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList);
+	pD3D12Dec->m_spDPBManager->MarkReferencesInUse(d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList);
 }
 
-void d3d12_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB)
+void d3d12_video_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB)
 {
-	auto pPicParams = d3d12_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
+	auto pPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
 	// wFrameWidthInMbsMinus1 Width of the frame containing this picture, in units of macroblocks, minus 1. (The width in macroblocks is wFrameWidthInMbsMinus1 plus 1.)
 	// wFrameHeightInMbsMinus1 Height of the frame containing this picture, in units of macroblocks, minus 1. 
 	// (The height in macroblocks is wFrameHeightInMbsMinus1 plus 1.) When the picture is a field, the height of the frame is 
@@ -47,13 +47,13 @@ void d3d12_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UI
 ///
 /// Pushes the current frame as next reference, updates the DXVA H264 structure with the indices of the DPB and transitions the references
 ///
-void d3d12_decoder_prepare_current_frame_references_h264(
+void d3d12_video_decoder_prepare_current_frame_references_h264(
 	struct d3d12_video_decoder *pD3D12Dec,
 	ID3D12Resource* pTexture2D,
 	UINT subresourceIndex
 )
 {
-	DXVA_PicParams_H264* pPicParams = d3d12_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
+	DXVA_PicParams_H264* pPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
 	pPicParams->CurrPic.Index7Bits = pD3D12Dec->m_spDPBManager->StoreFutureReference(
 		pPicParams->CurrPic.Index7Bits, 
 		pD3D12Dec->m_spVideoDecoderHeap, 
@@ -68,7 +68,7 @@ void d3d12_decoder_prepare_current_frame_references_h264(
 	//     In all cases, when Index7Bits does not contain a valid index, the value is 127.
 	
 	std::vector<D3D12_RESOURCE_BARRIER> neededStateTransitions; // Returned by UpdateEntries to perform by the method caller
-	pD3D12Dec->m_spDPBManager->UpdateEntries(d3d12_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList, neededStateTransitions);
+	pD3D12Dec->m_spDPBManager->UpdateEntries(d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList, neededStateTransitions);
 
 	pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(neededStateTransitions.size(), neededStateTransitions.data());
 
@@ -80,7 +80,7 @@ void d3d12_decoder_prepare_current_frame_references_h264(
 	}
 }
 
-void d3d12_prepare_dxva_slices_control_h264 (
+void d3d12_video_decoder_prepare_dxva_slices_control_h264 (
     struct d3d12_video_decoder *pD3D12Dec,
     size_t numSlices,
     std::vector<DXVA_Slice_H264_Short>& pOutSliceControlBuffers
@@ -92,7 +92,7 @@ void d3d12_prepare_dxva_slices_control_h264 (
    {
       // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
       pOutSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
-      bool sliceFound = get_slice_size_and_offset_h264(sliceIdx, numSlices, pD3D12Dec->m_stagingDecodeBitstream, processedBitstreamBytes, pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
+      bool sliceFound = d3d12_video_decoder_get_slice_size_and_offset_h264(sliceIdx, numSlices, pD3D12Dec->m_stagingDecodeBitstream, processedBitstreamBytes, pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
       assert(sliceFound);
       D3D12_LOG_DBG("[d3d12_video_decoder_h264] Detected slice index %ld with size %d and offset %d for frame with fenceValue: %d\n", sliceIdx, pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation, pD3D12Dec->m_fenceValue);
       
@@ -100,7 +100,7 @@ void d3d12_prepare_dxva_slices_control_h264 (
    }
 }
 
-bool get_slice_size_and_offset_h264(size_t sliceIdx, size_t numSlices, std::vector<BYTE> &buf, unsigned int bufferOffset, UINT& outSliceSize, UINT& outSliceOffset)
+bool d3d12_video_decoder_get_slice_size_and_offset_h264(size_t sliceIdx, size_t numSlices, std::vector<BYTE> &buf, unsigned int bufferOffset, UINT& outSliceSize, UINT& outSliceOffset)
 {
    if(sliceIdx >= numSlices)
    {
@@ -108,7 +108,7 @@ bool get_slice_size_and_offset_h264(size_t sliceIdx, size_t numSlices, std::vect
    }
 
    uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset; // Search the rest of the full frame buffer after the offset
-   int currentSlicePosition = GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
+   int currentSlicePosition = d3d12_video_decoder_get_next_startcode_offset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
    assert(currentSlicePosition >= 0);
 
    // Save the offset until the next slice in the output param
@@ -130,7 +130,7 @@ bool get_slice_size_and_offset_h264(size_t sliceIdx, size_t numSlices, std::vect
       // Skip current start code, to get the slice after this, to calculate its size
       bufferOffset += DXVA_H264_START_CODE_LEN_BITS;
 
-      int nextSlicePosition = DXVA_H264_START_CODE_LEN_BITS + GetNextStartCodeOffset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
+      int nextSlicePosition = DXVA_H264_START_CODE_LEN_BITS + d3d12_video_decoder_get_next_startcode_offset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
       assert(nextSlicePosition >= 0); // if currentSlicePosition was the last slice, this might fail
 
       outSliceSize = nextSlicePosition - currentSlicePosition;
@@ -138,7 +138,7 @@ bool get_slice_size_and_offset_h264(size_t sliceIdx, size_t numSlices, std::vect
    return true;
 }
 
-DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
+DXVA_PicParams_H264 d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264 (
 	UINT frameNum,
 	pipe_video_profile profile,
 	UINT decodeWidth, // pipe_h264_picture_desc doesn't have the size of the frame for H264, but it does for other codecs.
@@ -375,7 +375,7 @@ DXVA_PicParams_H264 d3d12_dec_dxva_picparams_from_pipe_picparams_h264 (
   	return dxvaStructure;
 }
 
-void d3d12_dec_dxva_qmatrix_from_pipe_picparams_h264 (pipe_h264_picture_desc* pPipeDesc, DXVA_Qmatrix_H264 & outMatrixBuffer, bool & outSeq_scaling_matrix_present_flag)
+void d3d12_video_decoder_dxva_qmatrix_from_pipe_picparams_h264 (pipe_h264_picture_desc* pPipeDesc, DXVA_Qmatrix_H264 & outMatrixBuffer, bool & outSeq_scaling_matrix_present_flag)
 {
 	outSeq_scaling_matrix_present_flag = pPipeDesc->pps->sps->seq_scaling_matrix_present_flag;
 	if(outSeq_scaling_matrix_present_flag)

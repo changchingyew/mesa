@@ -24,14 +24,14 @@
 #include "d3d12_video_array_of_textures_dpb_manager.h"
 #include <algorithm>
 ///
-/// ArrayOfTexturesDPBManager
+/// D3D12ArrayOfTexturesDPBManager
 ///
-// Differences with TexturesArrayDPBManager
+// Differences with D3D12TexturesArrayDPBManager
 // Uses an std::vector with individual D3D resources as backing storage instead of an D3D12 Texture Array
 // Supports dynamic pool capacity extension (by pushing back a new D3D12Resource) of the pool
 
 template <typename TVideoHeap>
-void ArrayOfTexturesDPBManager<TVideoHeap>::CreateReconstructedPicAllocation(ID3D12Resource** ppResource)
+void D3D12ArrayOfTexturesDPBManager<TVideoHeap>::CreateReconstructedPicAllocation(ID3D12Resource** ppResource)
 {
     D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_nodeMask, m_nodeMask);
 
@@ -56,7 +56,7 @@ void ArrayOfTexturesDPBManager<TVideoHeap>::CreateReconstructedPicAllocation(ID3
 }
 
 template <typename TVideoHeap>
-ArrayOfTexturesDPBManager<TVideoHeap>::ArrayOfTexturesDPBManager(
+D3D12ArrayOfTexturesDPBManager<TVideoHeap>::D3D12ArrayOfTexturesDPBManager(
     UINT dpbInitialSize,
     ID3D12Device* pDevice,
     DXGI_FORMAT encodeSessionFormat,
@@ -88,7 +88,7 @@ ArrayOfTexturesDPBManager<TVideoHeap>::ArrayOfTexturesDPBManager(
 }
 
 template <typename TVideoHeap>
-UINT ArrayOfTexturesDPBManager<TVideoHeap>::ClearDecodePictureBuffer()
+UINT D3D12ArrayOfTexturesDPBManager<TVideoHeap>::ClearDecodePictureBuffer()
 {
     UINT untrackCount = 0;
     // Mark resources used in DPB as re-usable in the resources pool
@@ -111,14 +111,14 @@ UINT ArrayOfTexturesDPBManager<TVideoHeap>::ClearDecodePictureBuffer()
 
 // Assigns a reference frame at a given position
 template <typename TVideoHeap>
-void ArrayOfTexturesDPBManager<TVideoHeap>::AssignReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> pReconPicture, UINT dpbPosition)
+void D3D12ArrayOfTexturesDPBManager<TVideoHeap>::AssignReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> pReconPicture, UINT dpbPosition)
 {
     assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
     assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
 
     if(dpbPosition > m_D3D12DPB.pResources.size())
     {
-        D3D12_LOG_ERROR("[ArrayOfTexturesDPBManager] AssignReferenceFrame - dpbPosition out of bounds.\n");
+        D3D12_LOG_ERROR("[D3D12ArrayOfTexturesDPBManager] AssignReferenceFrame - dpbPosition out of bounds.\n");
     }
 
     m_D3D12DPB.pResources[dpbPosition] = pReconPicture.pReconstructedPicture;
@@ -128,7 +128,7 @@ void ArrayOfTexturesDPBManager<TVideoHeap>::AssignReferenceFrame(D3D12_VIDEO_REC
 
 // Adds a new reference frame at a given position
 template <typename TVideoHeap>
-void ArrayOfTexturesDPBManager<TVideoHeap>::InsertReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> pReconPicture, UINT dpbPosition)
+void D3D12ArrayOfTexturesDPBManager<TVideoHeap>::InsertReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> pReconPicture, UINT dpbPosition)
 {
     assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
     assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -148,11 +148,11 @@ void ArrayOfTexturesDPBManager<TVideoHeap>::InsertReferenceFrame(D3D12_VIDEO_REC
 
 // Gets a reference frame at a given position
 template <typename TVideoHeap>
-D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> ArrayOfTexturesDPBManager<TVideoHeap>::GetReferenceFrame(UINT dpbPosition)
+D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> D3D12ArrayOfTexturesDPBManager<TVideoHeap>::GetReferenceFrame(UINT dpbPosition)
 {
     if(dpbPosition >= m_D3D12DPB.pResources.size())
     {
-        D3D12_LOG_ERROR("[ArrayOfTexturesDPBManager] GetReferenceFrame - dpbPosition out of bounds.\n");
+        D3D12_LOG_ERROR("[D3D12ArrayOfTexturesDPBManager] GetReferenceFrame - dpbPosition out of bounds.\n");
     }
 
     D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> retVal = 
@@ -167,14 +167,14 @@ D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> ArrayOfTexturesDPBManager<TVideoHe
 
 // Removes a new reference frame at a given position and returns operation success
 template <typename TVideoHeap>
-bool ArrayOfTexturesDPBManager<TVideoHeap>::RemoveReferenceFrame(UINT dpbPosition, bool* pResourceUntracked)
+bool D3D12ArrayOfTexturesDPBManager<TVideoHeap>::RemoveReferenceFrame(UINT dpbPosition, bool* pResourceUntracked)
 {
     assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
     assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
 
     if(dpbPosition >= m_D3D12DPB.pResources.size())
     {
-        D3D12_LOG_ERROR("[ArrayOfTexturesDPBManager] RemoveReferenceFrame - dpbPosition out of bounds.\n");
+        D3D12_LOG_ERROR("[D3D12ArrayOfTexturesDPBManager] RemoveReferenceFrame - dpbPosition out of bounds.\n");
     }
 
     // If removed resource came from resource pool, mark it as free
@@ -197,7 +197,7 @@ bool ArrayOfTexturesDPBManager<TVideoHeap>::RemoveReferenceFrame(UINT dpbPositio
 
 // Returns true if the trackedItem was allocated (and is being tracked) by this class
 template <typename TVideoHeap>
-bool ArrayOfTexturesDPBManager<TVideoHeap>::IsTrackedAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> trackedItem)
+bool D3D12ArrayOfTexturesDPBManager<TVideoHeap>::IsTrackedAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> trackedItem)
 {
     for(auto& reusableRes : m_ResourcesPool)
     {
@@ -211,7 +211,7 @@ bool ArrayOfTexturesDPBManager<TVideoHeap>::IsTrackedAllocation(D3D12_VIDEO_RECO
 
 // Returns whether it found the tracked resource on this instance pool tracking and was able to free it
 template <typename TVideoHeap>
-bool ArrayOfTexturesDPBManager<TVideoHeap>::UntrackReconstructedPictureAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> trackedItem)
+bool D3D12ArrayOfTexturesDPBManager<TVideoHeap>::UntrackReconstructedPictureAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> trackedItem)
 {
     for(auto& reusableRes : m_ResourcesPool)
     {
@@ -227,7 +227,7 @@ bool ArrayOfTexturesDPBManager<TVideoHeap>::UntrackReconstructedPictureAllocatio
 // Returns a fresh resource for a new reconstructed picture to be written to
 // this class implements the dpb allocations as an array of textures
 template <typename TVideoHeap>
-D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> ArrayOfTexturesDPBManager<TVideoHeap>::GetNewTrackedPictureAllocation()
+D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> D3D12ArrayOfTexturesDPBManager<TVideoHeap>::GetNewTrackedPictureAllocation()
 {
     D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> freshAllocation = 
     {
@@ -253,7 +253,7 @@ D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> ArrayOfTexturesDPBManager<TVideoHe
     if(!bAvailableResourceInPool)
     {
         // Expand resources pool by one
-        D3D12_LOG_DBG("[ArrayOfTexturesDPBManager] ID3D12Resource Pool capacity (%ld) exceeded - extending capacity and appending new allocation at the end", m_ResourcesPool.size());
+        D3D12_LOG_DBG("[D3D12ArrayOfTexturesDPBManager] ID3D12Resource Pool capacity (%ld) exceeded - extending capacity and appending new allocation at the end", m_ResourcesPool.size());
         ReusableResource newPoolEntry = { };
         newPoolEntry.isFree = false;
         CreateReconstructedPicAllocation(newPoolEntry.pResource.GetAddressOf());
@@ -267,7 +267,7 @@ D3D12_VIDEO_RECONSTRUCTED_PICTURE<TVideoHeap> ArrayOfTexturesDPBManager<TVideoHe
 }
 
 template <typename TVideoHeap>
-UINT ArrayOfTexturesDPBManager<TVideoHeap>::GetNumberOfPicsInDPB()
+UINT D3D12ArrayOfTexturesDPBManager<TVideoHeap>::GetNumberOfPicsInDPB()
 {
     assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
     assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -277,7 +277,7 @@ UINT ArrayOfTexturesDPBManager<TVideoHeap>::GetNumberOfPicsInDPB()
 }
 
 template <typename TVideoHeap>
-D3D12_VIDEO_REFERENCE_FRAMES<TVideoHeap> ArrayOfTexturesDPBManager<TVideoHeap>::GetCurrentFrameReferenceFrames()
+D3D12_VIDEO_REFERENCE_FRAMES<TVideoHeap> D3D12ArrayOfTexturesDPBManager<TVideoHeap>::GetCurrentFrameReferenceFrames()
 {
     // If all subresources are 0, the DPB is loaded with an array of individual textures, the D3D Encode API expects pSubresources to be null in this case
     // The D3D Decode API expects it to be non-null even with all zeroes.
@@ -300,7 +300,7 @@ D3D12_VIDEO_REFERENCE_FRAMES<TVideoHeap> ArrayOfTexturesDPBManager<TVideoHeap>::
 
 // number of resources in the pool that are marked as in use
 template <typename TVideoHeap>
-UINT ArrayOfTexturesDPBManager<TVideoHeap>::GetNumberOfInUseAllocations()
+UINT D3D12ArrayOfTexturesDPBManager<TVideoHeap>::GetNumberOfInUseAllocations()
 {
     UINT countOfInUseResourcesInPool = 0;
     for(auto& reusableRes : m_ResourcesPool)
@@ -315,7 +315,7 @@ UINT ArrayOfTexturesDPBManager<TVideoHeap>::GetNumberOfInUseAllocations()
 
 // Returns the number of pictures currently stored in the DPB
 template <typename TVideoHeap>
-UINT ArrayOfTexturesDPBManager<TVideoHeap>::GetNumberOfTrackedAllocations()
+UINT D3D12ArrayOfTexturesDPBManager<TVideoHeap>::GetNumberOfTrackedAllocations()
 {
     assert(m_ResourcesPool.size() < UINT_MAX);
     return static_cast<UINT>(m_ResourcesPool.size());

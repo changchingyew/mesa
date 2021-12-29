@@ -94,18 +94,18 @@ typedef struct D3D12DPBDescriptor
     std::function<void(ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex)> m_pfnGetCurrentFrameDecodeOutputTexture;
 } D3D12DPBDescriptor;
 
-typedef struct D3D12DecVideoDecodeOutputConversionArguments
+typedef struct D3D12VideoDecodeOutputConversionArguments
 {
     BOOL Enable;
     DXGI_COLOR_SPACE_TYPE OutputColorSpace;
     D3D12_VIDEO_SAMPLE ReferenceInfo;
     UINT ReferenceFrameCount;
-} D3D12DecVideoDecodeOutputConversionArguments;
+} D3D12VideoDecodeOutputConversionArguments;
 
 void d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVELS_H264 level12, UINT &specLevel, UINT &constraint_set3_flag);
 D3D12_VIDEO_ENCODER_PROFILE_H264 d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(enum pipe_video_profile profile);
 D3D12_VIDEO_ENCODER_CODEC d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(enum pipe_video_profile profile);
-GUID d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(enum pipe_video_profile profile);
+GUID d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(enum pipe_video_profile profile);
 
 #pragma GCC diagnostic pop
 

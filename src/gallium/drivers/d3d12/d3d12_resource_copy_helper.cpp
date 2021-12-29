@@ -129,7 +129,7 @@ void D3D12ResourceCopyHelper::UploadData(
 
     // Record command to copy data from pTempResource to pResource
     {
-        TemporaryResourceTransition<ID3D12GraphicsCommandList> ResourceTransition(
+        D3D12ScopedStateTransition<ID3D12GraphicsCommandList> ResourceTransition(
             m_pCommandList.Get(),
             pResource,
             D3D12_RESOURCE_STATE_COPY_DEST,
@@ -212,7 +212,7 @@ void D3D12ResourceCopyHelper::ReadbackData(
 
     {
         // Record command to copy data from pResource to pTempResource
-        TemporaryResourceTransition<ID3D12GraphicsCommandList> ResourceTransition(
+        D3D12ScopedStateTransition<ID3D12GraphicsCommandList> ResourceTransition(
             m_pCommandList.Get(),
             pResource,
             D3D12_RESOURCE_STATE_COPY_SOURCE,

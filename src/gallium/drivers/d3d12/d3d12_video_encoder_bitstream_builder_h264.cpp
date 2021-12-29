@@ -41,13 +41,13 @@ inline H264_SPEC_PROFILES Convert12ToSpecH264Profiles(D3D12_VIDEO_ENCODER_PROFIL
         } break;
         default:
         {
-            D3D12_LOG_ERROR("[D3D12 H264BitstreamBuilder] Not a supported profile");
+            D3D12_LOG_ERROR("[D3D12 D3D12VideoBitstreamBuilderH264] Not a supported profile");
             return static_cast<H264_SPEC_PROFILES>(0);
         } break;            
     }
 }
 
-void H264BitstreamBuilder::BuildSPS
+void D3D12VideoBitstreamBuilderH264::BuildSPS
 (
     const D3D12_VIDEO_ENCODER_PROFILE_H264& profile,
     const D3D12_VIDEO_ENCODER_LEVELS_H264& level,
@@ -135,7 +135,7 @@ void H264BitstreamBuilder::BuildSPS
     };
 
     // Print built PPS structure
-    D3D12_LOG_DBG("[D3D12 H264BitstreamBuilder] H264_SPS Structure generated before writing to bitstream:\n");
+    D3D12_LOG_DBG("[D3D12 D3D12VideoBitstreamBuilderH264] H264_SPS Structure generated before writing to bitstream:\n");
     PrintSPS(spsStructure);
 
     // Convert the H264 SPS structure into bytes
@@ -143,17 +143,17 @@ void H264BitstreamBuilder::BuildSPS
     m_writtenSPSCount++;
 }   
 
-void H264BitstreamBuilder::WriteEndOfStreamNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart,size_t &writtenBytes)
+void D3D12VideoBitstreamBuilderH264::WriteEndOfStreamNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart,size_t &writtenBytes)
 {
     m_h264Encoder.WriteEndOfStreamNALU(headerBitstream, placingPositionStart, writtenBytes);
 }
 
-void H264BitstreamBuilder::WriteEndOfSequenceNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t &writtenBytes)
+void D3D12VideoBitstreamBuilderH264::WriteEndOfSequenceNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t &writtenBytes)
 {
     m_h264Encoder.WriteEndOfSequenceNALU(headerBitstream, placingPositionStart, writtenBytes);
 }
 
-void H264BitstreamBuilder::BuildPPS
+void D3D12VideoBitstreamBuilderH264::BuildPPS
 (
     const D3D12_VIDEO_ENCODER_PROFILE_H264& profile,
     const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264& codecConfig,
@@ -181,7 +181,7 @@ void H264BitstreamBuilder::BuildPPS
     };
 
     // Print built PPS structure
-    D3D12_LOG_DBG("[D3D12 H264BitstreamBuilder] H264_PPS Structure generated before writing to bitstream:\n");
+    D3D12_LOG_DBG("[D3D12 D3D12VideoBitstreamBuilderH264] H264_PPS Structure generated before writing to bitstream:\n");
     PrintPPS(ppsStructure);
 
     // Convert the H264 SPS structure into bytes
@@ -189,15 +189,15 @@ void H264BitstreamBuilder::BuildPPS
     m_writtenPPSCount++;
 }
 
-void H264BitstreamBuilder::PrintPPS(const H264_PPS& pps)
+void D3D12VideoBitstreamBuilderH264::PrintPPS(const H264_PPS& pps)
 {
     // Be careful that BuildPPS also wraps some other NALU bytes in PPSToNALUBytes so bitstream returned by BuildPPS won't be exactly the bytes from the H264_PPS struct
     
     static_assert(sizeof(H264_PPS) == (sizeof(UINT)*8)); // Update the number of UINT in struct in assert and add case below if structure changes
 
-    // Declared fields from definition in H264NALUWriter.h
+    // Declared fields from definition in d3d12_video_encoder_bitstream_builder_h264.h
 
-    D3D12_LOG_DBG("[D3D12 H264BitstreamBuilder] H264_PPS values below:\n");
+    D3D12_LOG_DBG("[D3D12 D3D12VideoBitstreamBuilderH264] H264_PPS values below:\n");
     D3D12_LOG_DBG("pic_parameter_set_id: %d\n", pps.pic_parameter_set_id);
     D3D12_LOG_DBG("seq_parameter_set_id: %d\n", pps.seq_parameter_set_id);
     D3D12_LOG_DBG("entropy_coding_mode_flag: %d\n", pps.entropy_coding_mode_flag);
@@ -206,19 +206,19 @@ void H264BitstreamBuilder::PrintPPS(const H264_PPS& pps)
     D3D12_LOG_DBG("num_ref_idx_l1_active_minus1: %d\n", pps.num_ref_idx_l1_active_minus1);
     D3D12_LOG_DBG("constrained_intra_pred_flag: %d\n", pps.constrained_intra_pred_flag);
     D3D12_LOG_DBG("transform_8x8_mode_flag: %d\n", pps.transform_8x8_mode_flag);
-    D3D12_LOG_DBG("[D3D12 H264BitstreamBuilder] H264_PPS values end\n--------------------------------------\n");
+    D3D12_LOG_DBG("[D3D12 D3D12VideoBitstreamBuilderH264] H264_PPS values end\n--------------------------------------\n");
 }
 
-void H264BitstreamBuilder::PrintSPS(const H264_SPS& sps)
+void D3D12VideoBitstreamBuilderH264::PrintSPS(const H264_SPS& sps)
 {
     // Be careful when calling this method that BuildSPS also wraps some other NALU bytes in SPSToNALUBytes so bitstream returned by BuildSPS won't be exactly the bytes from the H264_SPS struct
-    // From definition in H264NALUWriter.h
+    // From definition in d3d12_video_encoder_bitstream_builder_h264.h
 
     static_assert(sizeof(H264_SPS) == (sizeof(UINT)*19)); // Update the number of UINT in struct in assert and add case below if structure changes   
 
-// Declared fields from definition in H264NALUWriter.h
+// Declared fields from definition in d3d12_video_encoder_bitstream_builder_h264.h
 
-    D3D12_LOG_DBG("[D3D12 H264BitstreamBuilder] H264_SPS values below:\n");
+    D3D12_LOG_DBG("[D3D12 D3D12VideoBitstreamBuilderH264] H264_SPS values below:\n");
     D3D12_LOG_DBG("profile_idc: %d\n", sps.profile_idc);
     D3D12_LOG_DBG("constraint_set3_flag: %d\n", sps.constraint_set3_flag);
     D3D12_LOG_DBG("level_idc: %d\n", sps.level_idc);
@@ -238,5 +238,5 @@ void H264BitstreamBuilder::PrintSPS(const H264_SPS& sps)
     D3D12_LOG_DBG("frame_cropping_rect_right_offset: %d\n", sps.frame_cropping_rect_right_offset);
     D3D12_LOG_DBG("frame_cropping_rect_top_offset: %d\n", sps.frame_cropping_rect_top_offset);
     D3D12_LOG_DBG("frame_cropping_rect_bottom_offset: %d\n", sps.frame_cropping_rect_bottom_offset);
-    D3D12_LOG_DBG("[D3D12 H264BitstreamBuilder] H264_SPS values end\n--------------------------------------\n");
+    D3D12_LOG_DBG("[D3D12 D3D12VideoBitstreamBuilderH264] H264_SPS values end\n--------------------------------------\n");
 }

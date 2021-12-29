@@ -24,7 +24,7 @@
 #include "d3d12_video_encoder_nalu_writer_h264.h"
 #include <algorithm>
 
-void H264NaluWriter::RBSPTrailing(CBitStream *pBitstream)
+void D3D12VideoNaluWriterH264::RBSPTrailing(D3D12VideoBitstream *pBitstream)
 {
     pBitstream->PutBits(1, 1);
     INT32 iLeft = pBitstream->GetNumBitsForByteAlign();
@@ -37,7 +37,7 @@ void H264NaluWriter::RBSPTrailing(CBitStream *pBitstream)
     assert(pBitstream->IsByteAligned());
 }
 
-UINT32 H264NaluWriter::WriteSPSBytes(CBitStream *pBitstream, H264_SPS *pSPS)
+UINT32 D3D12VideoNaluWriterH264::WriteSPSBytes(D3D12VideoBitstream *pBitstream, H264_SPS *pSPS)
 {
     INT32 iBytesWritten = pBitstream->GetByteCount();
 
@@ -113,7 +113,7 @@ UINT32 H264NaluWriter::WriteSPSBytes(CBitStream *pBitstream, H264_SPS *pSPS)
     return (UINT32)iBytesWritten;
 }
 
-UINT32 H264NaluWriter::WritePPSBytes(CBitStream *pBitstream, H264_PPS *pPPS, BOOL bIsHighProfile)
+UINT32 D3D12VideoNaluWriterH264::WritePPSBytes(D3D12VideoBitstream *pBitstream, H264_PPS *pPPS, BOOL bIsHighProfile)
 {
     INT32 iBytesWritten = pBitstream->GetByteCount();
 
@@ -157,17 +157,17 @@ UINT32 H264NaluWriter::WritePPSBytes(CBitStream *pBitstream, H264_PPS *pPPS, BOO
     return (UINT32)iBytesWritten;
 }
 
-UINT32 H264NaluWriter::WrapSPSNalu(CBitStream *pNALU, CBitStream *pRBSP)
+UINT32 D3D12VideoNaluWriterH264::WrapSPSNalu(D3D12VideoBitstream *pNALU, D3D12VideoBitstream *pRBSP)
 {
     return WrapRbspIntoNalu(pNALU, pRBSP, NAL_REFIDC_REF, NAL_TYPE_SPS);
 }
 
-UINT32 H264NaluWriter::WrapPPSNalu(CBitStream *pNALU, CBitStream *pRBSP)
+UINT32 D3D12VideoNaluWriterH264::WrapPPSNalu(D3D12VideoBitstream *pNALU, D3D12VideoBitstream *pRBSP)
 {
     return WrapRbspIntoNalu(pNALU, pRBSP, NAL_REFIDC_REF, NAL_TYPE_PPS);
 }
 
-void H264NaluWriter::WriteNaluEnd(CBitStream *pNALU)
+void D3D12VideoNaluWriterH264::WriteNaluEnd(D3D12VideoBitstream *pNALU)
 {
     pNALU->Flush();
     pNALU->SetStartCodePrevention(FALSE);
@@ -181,8 +181,8 @@ void H264NaluWriter::WriteNaluEnd(CBitStream *pNALU)
     }
 }
 
-UINT32 H264NaluWriter::WrapRbspIntoNalu(CBitStream *pNALU,
-                              CBitStream *pRBSP,
+UINT32 D3D12VideoNaluWriterH264::WrapRbspIntoNalu(D3D12VideoBitstream *pNALU,
+                              D3D12VideoBitstream *pRBSP,
                               UINT iNaluIdc,
                               UINT iNaluType)
 {
@@ -232,10 +232,10 @@ UINT32 H264NaluWriter::WrapRbspIntoNalu(CBitStream *pNALU,
     return (UINT32)iBytesWritten;
 }
 
-void H264NaluWriter::SPSToNALUBytes(H264_SPS *pSPS, std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
+void D3D12VideoNaluWriterH264::SPSToNALUBytes(H264_SPS *pSPS, std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
 {
     // Wrap SPS into NALU and copy full NALU into output byte array
-    CBitStream rbsp, nalu;
+    D3D12VideoBitstream rbsp, nalu;
     assert(rbsp.CreateBitStream(MAX_COMPRESSED_SPS));
     assert(nalu.CreateBitStream(2*MAX_COMPRESSED_SPS));
 
@@ -261,10 +261,10 @@ void H264NaluWriter::SPSToNALUBytes(H264_SPS *pSPS, std::vector<BYTE> &headerBit
     writtenBytes = naluByteSize;
 }
 
-void H264NaluWriter::PPSToNALUBytes(H264_PPS *pPPS, std::vector<BYTE> &headerBitstream, BOOL bIsHighProfile, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
+void D3D12VideoNaluWriterH264::PPSToNALUBytes(H264_PPS *pPPS, std::vector<BYTE> &headerBitstream, BOOL bIsHighProfile, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
 {
     // Wrap PPS into NALU and copy full NALU into output byte array
-    CBitStream rbsp, nalu;
+    D3D12VideoBitstream rbsp, nalu;
     assert(rbsp.CreateBitStream(MAX_COMPRESSED_PPS));
     assert(nalu.CreateBitStream(2*MAX_COMPRESSED_PPS));
 
@@ -290,9 +290,9 @@ void H264NaluWriter::PPSToNALUBytes(H264_PPS *pPPS, std::vector<BYTE> &headerBit
     writtenBytes = naluByteSize;
 }
 
-void H264NaluWriter::WriteEndOfStreamNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
+void D3D12VideoNaluWriterH264::WriteEndOfStreamNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
 {
-    CBitStream rbsp, nalu;
+    D3D12VideoBitstream rbsp, nalu;
     assert(rbsp.CreateBitStream(8));
     assert(nalu.CreateBitStream(2*MAX_COMPRESSED_PPS));
 
@@ -317,9 +317,9 @@ void H264NaluWriter::WriteEndOfStreamNALU(std::vector<BYTE> &headerBitstream, st
     writtenBytes = naluByteSize;
 }
 
-void H264NaluWriter::WriteEndOfSequenceNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
+void D3D12VideoNaluWriterH264::WriteEndOfSequenceNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
 {    
-    CBitStream rbsp, nalu;
+    D3D12VideoBitstream rbsp, nalu;
     assert(rbsp.CreateBitStream(8));
     assert(nalu.CreateBitStream(2*MAX_COMPRESSED_PPS));
 

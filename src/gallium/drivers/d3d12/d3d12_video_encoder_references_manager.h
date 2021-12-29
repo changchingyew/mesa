@@ -35,7 +35,7 @@ typedef struct D3D12VideoEncoderH264FrameDesc
     UINT m_curFrameDecodingOrderNumber;
 } D3D12VideoEncoderH264FrameDesc;
 
-class ID3D12AutomaticVideoEncodeReferencePicManager
+class ID3D12VideoEncodeReferencePicManager
 {
 public:
 
@@ -45,7 +45,7 @@ public:
     virtual void GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& codecAllocation) = 0;
     virtual bool IsCurrentFrameUsedAsReference() = 0;
     virtual D3D12_VIDEO_ENCODE_REFERENCE_FRAMES GetCurrentFrameReferenceFrames() = 0;
-    virtual ~ID3D12AutomaticVideoEncodeReferencePicManager() { }
+    virtual ~ID3D12VideoEncodeReferencePicManager() { }
 };
 
 #endif

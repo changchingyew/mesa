@@ -28,9 +28,9 @@
 #include "d3d12_video_dpb_storage_manager.h"
 #include <d3dx12.h>
 
-struct D3D12VidDecReferenceDataManager
+struct D3D12VideoDecoderReferencesManager
 {
-    D3D12VidDecReferenceDataManager(
+    D3D12VideoDecoderReferencesManager(
         const struct d3d12_screen* pD3D12Screen,
         UINT NodeMask,
         D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
@@ -91,7 +91,7 @@ private:
     // but we need a +1 allocation without the REFERENCE_FRAME to use as clear decoded output.
     // In this case we provide two options:
     // 1. Class client passes D3D12DPBDescriptor.m_pfnGetCurrentFrameDecodeOutputTexture to handle the situation
-    // 2. D3D12DPBDescriptor.m_pfnGetCurrentFrameDecodeOutputTexture is nullptr and D3D12VidDecReferenceDataManager allocates and provides m_pClearDecodedOutputTexture   
+    // 2. D3D12DPBDescriptor.m_pfnGetCurrentFrameDecodeOutputTexture is nullptr and D3D12VideoDecoderReferencesManager allocates and provides m_pClearDecodedOutputTexture   
     // Please note that m_pClearDecodedOutputTexture needs to be copied/read by the client before calling end_frame again, as the allocation will be reused for the next frame.
     ComPtr<ID3D12Resource> m_pClearDecodedOutputTexture;
 
@@ -106,7 +106,7 @@ private:
 
 //----------------------------------------------------------------------------------------------------------------------------------
 template<typename T, size_t size>
-void D3D12VidDecReferenceDataManager::UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> & outNeededTransitions)
+void D3D12VideoDecoderReferencesManager::UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> & outNeededTransitions)
 {
     outNeededTransitions.clear();
 
@@ -146,7 +146,7 @@ void D3D12VidDecReferenceDataManager::UpdateEntries(T (&picEntries)[size], std::
 
 //----------------------------------------------------------------------------------------------------------------------------------    
 template<typename T, size_t size> 
-void D3D12VidDecReferenceDataManager::MarkReferencesInUse(const T (&picEntries)[size])
+void D3D12VideoDecoderReferencesManager::MarkReferencesInUse(const T (&picEntries)[size])
 {
     for (auto& picEntry : picEntries)
     {

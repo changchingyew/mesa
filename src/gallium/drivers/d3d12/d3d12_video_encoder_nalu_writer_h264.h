@@ -101,11 +101,11 @@ typedef enum H264_SPEC_PROFILES
 #define MAX_COMPRESSED_PPS 256
 #define MAX_COMPRESSED_SPS 256
 
-class H264NaluWriter
+class D3D12VideoNaluWriterH264
 {
 public:
-    H264NaluWriter() { }
-    ~H264NaluWriter() { }
+    D3D12VideoNaluWriterH264() { }
+    ~D3D12VideoNaluWriterH264() { }
 
     // Writes the H264 SPS structure into a bitstream passed in headerBitstream
     // Function resizes bitstream accordingly and puts result in byte vector
@@ -120,17 +120,17 @@ public:
 
 private:
     // Writes from structure into bitstream with RBSP trailing but WITHOUT NAL unit wrap (eg. nal_idc_type, etc)
-    UINT32 WriteSPSBytes (CBitStream *pBitstream, H264_SPS *pSPS);
-    UINT32 WritePPSBytes (CBitStream *pBitstream, H264_PPS *pPPS, BOOL bIsFREXTProfile);
+    UINT32 WriteSPSBytes (D3D12VideoBitstream *pBitstream, H264_SPS *pSPS);
+    UINT32 WritePPSBytes (D3D12VideoBitstream *pBitstream, H264_PPS *pPPS, BOOL bIsFREXTProfile);
 
     // Adds NALU wrapping into structures and ending NALU control bits
-    UINT32 WrapSPSNalu (CBitStream *pNALU, CBitStream *pRBSP);
-    UINT32 WrapPPSNalu (CBitStream *pNALU, CBitStream *pRBSP);
+    UINT32 WrapSPSNalu (D3D12VideoBitstream *pNALU, D3D12VideoBitstream *pRBSP);
+    UINT32 WrapPPSNalu (D3D12VideoBitstream *pNALU, D3D12VideoBitstream *pRBSP);
     
     // Helpers
-    void WriteNaluEnd (CBitStream *pNALU);
-    void RBSPTrailing (CBitStream *pBitstream);
-    UINT32 WrapRbspIntoNalu (CBitStream *pNALU, CBitStream *pRBSP, UINT iNaluIdc, UINT iNaluType);
+    void WriteNaluEnd (D3D12VideoBitstream *pNALU);
+    void RBSPTrailing (D3D12VideoBitstream *pBitstream);
+    UINT32 WrapRbspIntoNalu (D3D12VideoBitstream *pNALU, D3D12VideoBitstream *pRBSP, UINT iNaluIdc, UINT iNaluType);
 };
 
 #endif

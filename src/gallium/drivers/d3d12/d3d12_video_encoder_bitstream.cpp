@@ -24,7 +24,7 @@
 #include <climits>
 #include "d3d12_video_encoder_bitstream.h"
 
-CBitStream::CBitStream()
+D3D12VideoBitstream::D3D12VideoBitstream()
 {
     m_pBitsBuffer = nullptr;
     m_uiBitsBufferSize = 0;
@@ -36,7 +36,7 @@ CBitStream::CBitStream()
     m_bAllowReallocate = false;
 }
 
-CBitStream::~CBitStream()
+D3D12VideoBitstream::~D3D12VideoBitstream()
 {
     if (!m_bExternalBuffer)
     {
@@ -45,7 +45,7 @@ CBitStream::~CBitStream()
 }
 
 int32_t
-CBitStream::GetExpGolomb0CodeLength (uint32_t uiVal)
+D3D12VideoBitstream::GetExpGolomb0CodeLength (uint32_t uiVal)
 {
     int32_t iLen = 0;
     uiVal++;
@@ -67,7 +67,7 @@ CBitStream::GetExpGolomb0CodeLength (uint32_t uiVal)
 }
 
 void
-CBitStream::Exp_Golomb_ue (uint32_t uiVal)
+D3D12VideoBitstream::Exp_Golomb_ue (uint32_t uiVal)
 {
     if (uiVal != UINT_MAX)
     {
@@ -83,7 +83,7 @@ CBitStream::Exp_Golomb_ue (uint32_t uiVal)
 }
 
 void
-CBitStream::Exp_Golomb_se (int32_t iVal)
+D3D12VideoBitstream::Exp_Golomb_se (int32_t iVal)
 {
     if (iVal > 0)
     {
@@ -96,7 +96,7 @@ CBitStream::Exp_Golomb_se (int32_t iVal)
 }
 
 void
-CBitStream::SetupBitStream(
+D3D12VideoBitstream::SetupBitStream(
     uint32_t uiInitBufferSize,
     uint8_t *pBuffer
     )
@@ -110,7 +110,7 @@ CBitStream::SetupBitStream(
 }
 
 bool
-CBitStream::CreateBitStream(uint32_t uiInitBufferSize)
+D3D12VideoBitstream::CreateBitStream(uint32_t uiInitBufferSize)
 {
     assert((uiInitBufferSize) >= 4 && !(uiInitBufferSize & 3));
 
@@ -130,7 +130,7 @@ CBitStream::CreateBitStream(uint32_t uiInitBufferSize)
 }
 
 bool
-CBitStream::ReallocateBuffer()
+D3D12VideoBitstream::ReallocateBuffer()
 {
     uint32_t uiBufferSize = m_uiBitsBufferSize * 3 / 2;
     uint8_t *pNewBuffer = (uint8_t *)new uint8_t[uiBufferSize];
@@ -148,7 +148,7 @@ CBitStream::ReallocateBuffer()
 }
 
 bool
-CBitStream::VerifyBuffer(uint32_t uiBytesToWrite)
+D3D12VideoBitstream::VerifyBuffer(uint32_t uiBytesToWrite)
 {
     if (!m_bBufferOverflow)
     {
@@ -168,14 +168,14 @@ CBitStream::VerifyBuffer(uint32_t uiBytesToWrite)
 }
 
 void
-CBitStream::IncCurrentOffset(int32_t dwOffset)
+D3D12VideoBitstream::IncCurrentOffset(int32_t dwOffset)
 {
     assert(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
     m_uiOffset += dwOffset;
 }
 
 void
-CBitStream::GetCurrentBufferPostionAndSize(uint8_t **ppCurrBufPos,
+D3D12VideoBitstream::GetCurrentBufferPostionAndSize(uint8_t **ppCurrBufPos,
         int32_t *pdwLeftBufSize)
 {
     assert(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
@@ -184,7 +184,7 @@ CBitStream::GetCurrentBufferPostionAndSize(uint8_t **ppCurrBufPos,
 }
 
 void
-CBitStream::Attach(uint8_t *pBitsBuffer, uint32_t uiBufferSize)
+D3D12VideoBitstream::Attach(uint8_t *pBitsBuffer, uint32_t uiBufferSize)
 {
     m_pBitsBuffer = pBitsBuffer;
     m_uiBitsBufferSize = uiBufferSize;
@@ -196,7 +196,7 @@ CBitStream::Attach(uint8_t *pBitsBuffer, uint32_t uiBufferSize)
 }
 
 void
-CBitStream::WriteByteStartCodePrevention(uint8_t u8Val)
+D3D12VideoBitstream::WriteByteStartCodePrevention(uint8_t u8Val)
 {
     int32_t iOffset = m_uiOffset;
     uint8_t *pBuffer = m_pBitsBuffer + iOffset;
@@ -219,7 +219,7 @@ CBitStream::WriteByteStartCodePrevention(uint8_t u8Val)
 #define WRITE_BYTE(byte) WriteByteStartCodePrevention(byte)
 
 void
-CBitStream::PutBits(
+D3D12VideoBitstream::PutBits(
     int32_t uiBitsCount,
     uint32_t iBitsVal
     )
@@ -253,7 +253,7 @@ CBitStream::PutBits(
 }
 
 void
-CBitStream::Flush()
+D3D12VideoBitstream::Flush()
 {
     assert(IsByteAligned());
 
@@ -276,7 +276,7 @@ CBitStream::Flush()
 }
 
 void
-CBitStream::AppendByteStream(CBitStream *pStream)
+D3D12VideoBitstream::AppendByteStream(D3D12VideoBitstream *pStream)
 {
     assert(pStream->IsByteAligned() && IsByteAligned());
     assert(m_iBitsToGo == 32);

@@ -63,15 +63,15 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
 	pD3D12Dec->base.width = codec->width;
 	pD3D12Dec->base.height = codec->height;
    // Only fill methods that are supported by the d3d12 decoder, leaving null the rest (ie. encode_* / decode_macroblock / get_feedback for encode)
-	pD3D12Dec->base.destroy = d3d12_video_destroy;
-	pD3D12Dec->base.begin_frame = d3d12_video_begin_frame;
-	pD3D12Dec->base.decode_bitstream = d3d12_video_decode_bitstream;
-	pD3D12Dec->base.end_frame = d3d12_video_end_frame;
-	pD3D12Dec->base.flush = d3d12_video_flush;   
+	pD3D12Dec->base.destroy = d3d12_video_decoder_destroy;
+	pD3D12Dec->base.begin_frame = d3d12_video_decoder_begin_frame;
+	pD3D12Dec->base.decode_bitstream = d3d12_video_decoder_decode_bitstream;
+	pD3D12Dec->base.end_frame = d3d12_video_decoder_end_frame;
+	pD3D12Dec->base.flush = d3d12_video_decode_flush;   
    
    pD3D12Dec->m_decodeFormat = D3D12VideoFormatHelper::d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);   
-   pD3D12Dec->m_d3d12DecProfileType = d3d12_convert_pipe_video_profile_to_profile_type(codec->profile);
-   pD3D12Dec->m_d3d12DecProfile = d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(codec->profile);
+   pD3D12Dec->m_d3d12DecProfileType = d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(codec->profile);
+   pD3D12Dec->m_d3d12DecProfile = d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(codec->profile);
 
    ///
    /// Try initializing D3D12 Video device and check for device caps
@@ -90,21 +90,21 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
       goto failed;
    }
 
-   if(!d3d12_check_caps_and_create_video_decoder_objects(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
+   if(!d3d12_video_decoder_check_caps_and_create_decoder(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_create_decoder - Failure on d3d12_check_caps_and_create_video_decoder_objects\n");
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_create_decoder - Failure on d3d12_video_decoder_check_caps_and_create_decoder\n");
       goto failed;
    }
 
-   if(!d3d12_create_video_command_objects(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
+   if(!d3d12_video_decoder_create_command_objects(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_create_decoder - Failure on d3d12_create_video_command_objects\n");
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_create_decoder - Failure on d3d12_video_decoder_create_command_objects\n");
       goto failed;
    }
 
-   if(!d3d12_create_video_state_buffers(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
+   if(!d3d12_video_decoder_create_video_state_buffers(pD3D12Dec->m_pD3D12Screen, pD3D12Dec))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_create_decoder - Failure on d3d12_create_video_state_buffers\n");
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_create_decoder - Failure on d3d12_video_decoder_create_video_state_buffers\n");
       goto failed;
    }   
 
@@ -116,7 +116,7 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
 failed:
    if (pD3D12Dec != nullptr)
    {
-      d3d12_video_destroy((struct pipe_video_codec*) pD3D12Dec);
+      d3d12_video_decoder_destroy((struct pipe_video_codec*) pD3D12Dec);
    }
 
    return nullptr;
@@ -127,14 +127,14 @@ failed:
  * Call destroy_XX for applicable XX nested member types before deallocating 
  * Destroy methods should check != nullptr on their input target argument as this method can be called as part of cleanup from failure on the creation method
 */
-void d3d12_video_destroy(struct pipe_video_codec *codec)
+void d3d12_video_decoder_destroy(struct pipe_video_codec *codec)
 {
    if(codec == nullptr)
    {
       return;
    }
 
-   d3d12_video_flush(codec); // Flush pending work before destroying.
+   d3d12_video_decode_flush(codec); // Flush pending work before destroying.
 
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
 
@@ -160,29 +160,29 @@ void d3d12_video_destroy(struct pipe_video_codec *codec)
 /**
  * start decoding of a new frame
  */
-void d3d12_video_begin_frame(struct pipe_video_codec *codec,
+void d3d12_video_decoder_begin_frame(struct pipe_video_codec *codec,
                      struct pipe_video_buffer *target,
                      struct pipe_picture_desc *picture)
 {
-   // Do nothing here. Initialize happens on decoder creation, re-config (if any) happens in d3d12_video_decode_bitstream
+   // Do nothing here. Initialize happens on decoder creation, re-config (if any) happens in d3d12_video_decoder_decode_bitstream
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
    assert(pD3D12Dec);
-   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_begin_frame started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_begin_frame started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
    if(pD3D12Dec->m_numNestedBeginFrame > 0)
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] Nested d3d12_video_begin_frame calls are not supported. Call d3d12_video_end_frame to finalize current frame before calling d3d12_video_begin_frame again.\n");
+      D3D12_LOG_ERROR("[d3d12_video_decoder] Nested d3d12_video_decoder_begin_frame calls are not supported. Call d3d12_video_decoder_end_frame to finalize current frame before calling d3d12_video_decoder_begin_frame again.\n");
    }
 
    pD3D12Dec->m_numNestedBeginFrame++;
 
-   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_begin_frame finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_begin_frame finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 }
 
 /**
  * decode a bitstream
  */
-void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
+void d3d12_video_decoder_decode_bitstream(struct pipe_video_codec *codec,
                            struct pipe_video_buffer *target,
                            struct pipe_picture_desc *picture,
                            unsigned num_buffers,
@@ -191,7 +191,7 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
 {
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
    assert(pD3D12Dec);
-   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_bitstream started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
    assert(pD3D12Dec->m_spD3D12VideoDevice);
    assert(pD3D12Dec->m_spDecodeCommandQueue);
    assert(pD3D12Dec->m_pD3D12Screen);
@@ -240,7 +240,7 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
       // To handle the case where VDPAU send all the slices at once in a single decode_bitstream call, let's pretend it was a series of different calls
 
       // group by start codes and buffers and perform calls for the number of slices so m_numConsecutiveDecodeFrame matches that number.
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_bitstream multiple slices on same call detected for fenceValue: %d, breaking down the calls into one per slice\n", pD3D12Dec->m_fenceValue);
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream multiple slices on same call detected for fenceValue: %d, breaking down the calls into one per slice\n", pD3D12Dec->m_fenceValue);
 
       size_t curBufferIdx = 0;
 
@@ -260,7 +260,7 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
          call_num_buffers = (sizes[curBufferIdx] <= 4) ? 2 : 1;
 
          // Delegate call with one or two buffers only
-         d3d12_video_decode_bitstream(codec,
+         d3d12_video_decoder_decode_bitstream(codec,
                            target,
                            picture,
                            call_num_buffers,
@@ -308,7 +308,7 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
       // Only load the picture params on the first call to decode_bitstream for this frame, the subsequent calls should have the same pic params/qmatrix.
       if(pD3D12Dec->m_numConsecutiveDecodeFrame == 0)
       {
-         d3d12_store_converted_dxva_picparams_from_pipe_input (
+         d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input (
             pD3D12Dec,
             picture,
             pD3D12VideoBuffer
@@ -318,14 +318,14 @@ void d3d12_video_decode_bitstream(struct pipe_video_codec *codec,
 
       pD3D12Dec->m_numConsecutiveDecodeFrame++;
 
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_bitstream finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
    }   
 }
 
 /**
  * end decoding of the current frame
  */
-void d3d12_video_end_frame(struct pipe_video_codec *codec,
+void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
                   struct pipe_video_buffer *target,
                   struct pipe_picture_desc *picture)
 {
@@ -333,7 +333,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    assert(pD3D12Dec);
    struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pD3D12Dec->m_pD3D12Screen;
    assert(pD3D12Screen);
-   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_end_frame started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_end_frame started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
    assert(pD3D12Dec->m_spD3D12VideoDevice);
    assert(pD3D12Dec->m_spDecodeCommandQueue);
    struct d3d12_video_buffer* pD3D12VideoBuffer = (struct d3d12_video_buffer*) target;
@@ -343,7 +343,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 /// Prepare Slice control buffers before clearing staging buffer
 ///
    assert(pD3D12Dec->m_stagingDecodeBitstream.size() > 0); // Make sure the staging wasn't cleared yet in end_frame
-   d3d12_prepare_dxva_slices_control(pD3D12Dec);
+   d3d12_video_decoder_prepare_dxva_slices_control(pD3D12Dec);
    assert(pD3D12Dec->m_SliceControlBuffer.size() > 0);
 
 ///
@@ -356,9 +356,9 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    // Reallocate if necessary to accomodate the current frame bitstream buffer in GPU memory
    if(pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize < sliceDataStagingBufferSize)
    {
-      if(!d3d12_create_video_staging_bitstream_buffer(pD3D12Screen, pD3D12Dec, sliceDataStagingBufferSize))
+      if(!d3d12_video_decoder_create_staging_bitstream_buffer(pD3D12Screen, pD3D12Dec, sliceDataStagingBufferSize))
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_end_frame - Failure on d3d12_create_video_staging_bitstream_buffer\n");
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_end_frame - Failure on d3d12_video_decoder_create_staging_bitstream_buffer\n");
       }
    }   
 
@@ -388,7 +388,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
 ///
 
    // Requested conversions by caller upper layer (none for now)
-   D3D12DecVideoDecodeOutputConversionArguments requestedConversionArguments = { };
+   D3D12VideoDecodeOutputConversionArguments requestedConversionArguments = { };
 
    ///
    /// Record DecodeFrame operation and resource state transitions.
@@ -431,7 +431,7 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
    ID3D12Resource* pRefOnlyOutputD3D12Texture;
    uint refOnlyOutputD3D12Subresource = 0;
 
-   d3d12_decoder_prepare_for_decode_frame(
+   d3d12_video_decoder_prepare_for_decode_frame(
       pD3D12Dec,
       pD3D12VideoBuffer,
       &pOutputD3D12Texture, // output
@@ -559,13 +559,13 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
       &d3d12InputArguments
    );
 
-   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_end_frame finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_end_frame finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
    ///
    /// Flush work to the GPU and blocking wait until decode finishes 
    ///
    pD3D12Dec->m_needsGPUFlush = true;
-   d3d12_video_flush(codec);
+   d3d12_video_decode_flush(codec);
 
    ///
    /// Due to DPB allocations tracking/management reasons, in some cases we need to deep copy the texture output into pD3D12VideoBuffer target
@@ -655,24 +655,24 @@ void d3d12_video_end_frame(struct pipe_video_codec *codec,
  * flush any outstanding command buffers to the hardware
  * should be called before a video_buffer is acessed by the gallium frontend again
  */
-void d3d12_video_flush(struct pipe_video_codec *codec)
+void d3d12_video_decode_flush(struct pipe_video_codec *codec)
 {
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
    assert(pD3D12Dec);
    assert(pD3D12Dec->m_spD3D12VideoDevice);
    assert(pD3D12Dec->m_spDecodeCommandQueue);   
-   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_flush started. Will flush video queue work and CPU wait on fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_flush started. Will flush video queue work and CPU wait on fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
    if(!pD3D12Dec->m_needsGPUFlush)
    {
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_flush started. Nothing to flush, all up to date.\n");
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_flush started. Nothing to flush, all up to date.\n");
    }
    else
    {
       HRESULT hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if(hr != S_OK)
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_flush - D3D12Device was removed BEFORE commandlist execution.\n");
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - D3D12Device was removed BEFORE commandlist execution.\n");
       }
 
       // Close and execute command list and wait for idle on CPU blocking 
@@ -687,42 +687,42 @@ void d3d12_video_flush(struct pipe_video_codec *codec)
       hr = pD3D12Dec->m_spDecodeCommandList->Close();
       if (FAILED(hr))
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_flush - Can't close command list with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - Can't close command list with HR %x\n", hr);
       }
 
       ID3D12CommandList *ppCommandLists[1] = { pD3D12Dec->m_spDecodeCommandList.Get() };
       pD3D12Dec->m_spDecodeCommandQueue->ExecuteCommandLists(1, ppCommandLists);
       pD3D12Dec->m_spDecodeCommandQueue->Signal(pD3D12Dec->m_spFence.Get(), pD3D12Dec->m_fenceValue);
       pD3D12Dec->m_spFence->SetEventOnCompletion(pD3D12Dec->m_fenceValue, nullptr);
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
       hr = pD3D12Dec->m_spCommandAllocator->Reset();
       if (FAILED(hr))
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_flush - resetting ID3D12CommandAllocator failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - resetting ID3D12CommandAllocator failed with HR %x\n", hr);
       }
 
       hr = pD3D12Dec->m_spDecodeCommandList->Reset(pD3D12Dec->m_spCommandAllocator.Get());
       if (FAILED(hr))
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_flush - resetting ID3D12GraphicsCommandList failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - resetting ID3D12GraphicsCommandList failed with HR %x\n", hr);
       }
 
       // Validate device was not removed
       hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if(hr != S_OK)
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_flush - D3D12Device was removed AFTER commandlist execution, but wasn't before.\n");
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - D3D12Device was removed AFTER commandlist execution, but wasn't before.\n");
       }
       
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
       
       pD3D12Dec->m_fenceValue++;
       pD3D12Dec->m_needsGPUFlush = false;
    }
 }
 
-bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
+bool d3d12_video_decoder_create_command_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
 {
    assert(pD3D12Dec->m_spD3D12VideoDevice);
 
@@ -732,14 +732,14 @@ bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen,
       IID_PPV_ARGS(pD3D12Dec->m_spDecodeCommandQueue.GetAddressOf()));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_create_video_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_create_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
       return false;
    }
 
    hr = pD3D12Screen->dev->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pD3D12Dec->m_spFence));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_create_video_command_objects - Call to CreateFence failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_create_command_objects - Call to CreateFence failed with HR %x\n", hr);
       return false;
    }
    
@@ -748,7 +748,7 @@ bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen,
       IID_PPV_ARGS(pD3D12Dec->m_spCommandAllocator.GetAddressOf()));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_create_video_command_objects - Call to CreateCommandAllocator failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_create_command_objects - Call to CreateCommandAllocator failed with HR %x\n", hr);
       return false;
    }
 
@@ -761,7 +761,7 @@ bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen,
 
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_create_video_command_objects - Call to CreateCommandList failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_create_command_objects - Call to CreateCommandList failed with HR %x\n", hr);
       return false;
    }
 
@@ -772,7 +772,7 @@ bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen,
 
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_create_video_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_create_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
       return false;
    }
 
@@ -781,7 +781,7 @@ bool d3d12_create_video_command_objects(const struct d3d12_screen* pD3D12Screen,
    return true;
 }
 
-bool d3d12_check_caps_and_create_video_decoder_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
+bool d3d12_video_decoder_check_caps_and_create_decoder(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
 {
    assert(pD3D12Dec->m_spD3D12VideoDevice);
 
@@ -791,7 +791,7 @@ bool d3d12_check_caps_and_create_video_decoder_objects(const struct d3d12_screen
    { 
       pD3D12Dec->m_d3d12DecProfile, 
       D3D12_BITSTREAM_ENCRYPTION_TYPE_NONE,
-      D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE // Assume progressive for now, can adjust in d3d12_decoder_reconfigure_dpb with pipe_video_buffer input argument target.interlaced;
+      D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE // Assume progressive for now, can adjust in d3d12_video_decoder_reconfigure_dpb with pipe_video_buffer input argument target.interlaced;
    };
 
    D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport = {};
@@ -808,20 +808,20 @@ bool d3d12_check_caps_and_create_video_decoder_objects(const struct d3d12_screen
    HRESULT hr = pD3D12Dec->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_DECODE_SUPPORT, &decodeSupport, sizeof(decodeSupport));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_check_caps_and_create_video_decoder_objects - CheckFeatureSupport failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_check_caps_and_create_decoder - CheckFeatureSupport failed with HR %x\n", hr);
       return false;
    }
 
    if (!(decodeSupport.SupportFlags & D3D12_VIDEO_DECODE_SUPPORT_FLAG_SUPPORTED))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_check_caps_and_create_video_decoder_objects - D3D12_VIDEO_DECODE_SUPPORT_FLAG_SUPPORTED was false when checking caps \n");
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_check_caps_and_create_decoder - D3D12_VIDEO_DECODE_SUPPORT_FLAG_SUPPORTED was false when checking caps \n");
       return false;
    }
 
    pD3D12Dec->m_configurationFlags = decodeSupport.ConfigurationFlags;
    pD3D12Dec->m_tier = decodeSupport.DecodeTier;
 
-   if (d3d12_video_dec_supports_aot_dpb(decodeSupport, pD3D12Dec->m_d3d12DecProfileType))
+   if (d3d12_video_decoder_supports_aot_dpb(decodeSupport, pD3D12Dec->m_d3d12DecProfileType))
    {
       pD3D12Dec->m_ConfigDecoderSpecificFlags |= D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ARRAY_OF_TEXTURES;
    }
@@ -842,26 +842,26 @@ bool d3d12_check_caps_and_create_video_decoder_objects(const struct d3d12_screen
    hr = pD3D12Dec->m_spD3D12VideoDevice->CreateVideoDecoder(&pD3D12Dec->m_decoderDesc, IID_PPV_ARGS(pD3D12Dec->m_spVideoDecoder.GetAddressOf()));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_check_caps_and_create_video_decoder_objects - CreateVideoDecoder failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_check_caps_and_create_decoder - CreateVideoDecoder failed with HR %x\n", hr);
       return false;
    }
 
    return true;
 }
 
-bool d3d12_create_video_state_buffers(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
+bool d3d12_video_decoder_create_video_state_buffers(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec)
 {   
    assert(pD3D12Dec->m_spD3D12VideoDevice);
-   if(!d3d12_create_video_staging_bitstream_buffer(pD3D12Screen, pD3D12Dec, pD3D12Dec->m_InitialCompBitstreamGPUBufferSize))
+   if(!d3d12_video_decoder_create_staging_bitstream_buffer(pD3D12Screen, pD3D12Dec, pD3D12Dec->m_InitialCompBitstreamGPUBufferSize))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_create_video_state_buffers - Failure on d3d12_create_video_staging_bitstream_buffer\n");
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_create_video_state_buffers - Failure on d3d12_video_decoder_create_staging_bitstream_buffer\n");
       return false;
    }
 
    return true;
 }
 
-bool d3d12_create_video_staging_bitstream_buffer(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec, UINT64 bufSize)
+bool d3d12_video_decoder_create_staging_bitstream_buffer(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec, UINT64 bufSize)
 {   
    assert(pD3D12Dec->m_spD3D12VideoDevice);
 
@@ -881,7 +881,7 @@ bool d3d12_create_video_staging_bitstream_buffer(const struct d3d12_screen* pD3D
             IID_PPV_ARGS(pD3D12Dec->m_curFrameCompressedBitstreamBuffer.GetAddressOf()));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_create_video_staging_bitstream_buffer - CreateCommittedResource failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_create_staging_bitstream_buffer - CreateCommittedResource failed with HR %x\n", hr);
       return false;
    }
 
@@ -889,23 +889,23 @@ bool d3d12_create_video_staging_bitstream_buffer(const struct d3d12_screen* pD3D
    return true;
 }
 
-void d3d12_decoder_prepare_for_decode_frame(
+void d3d12_video_decoder_prepare_for_decode_frame(
    struct d3d12_video_decoder *pD3D12Dec,
    struct d3d12_video_buffer* pD3D12VideoBuffer,
    ID3D12Resource** ppOutTexture2D,
    UINT* pOutSubresourceIndex,
    ID3D12Resource** ppRefOnlyOutTexture2D,
    UINT* pRefOnlyOutSubresourceIndex,
-   const D3D12DecVideoDecodeOutputConversionArguments& conversionArgs
+   const D3D12VideoDecodeOutputConversionArguments& conversionArgs
 )
 {   
-   d3d12_decoder_reconfigure_dpb(
+   d3d12_video_decoder_reconfigure_dpb(
       pD3D12Dec,
       pD3D12VideoBuffer,
       conversionArgs);
 
    // Refresh DPB active references for current frame, release memory for unused references.
-   d3d12_decoder_refresh_dpb_active_references(pD3D12Dec);
+   d3d12_video_decoder_refresh_dpb_active_references(pD3D12Dec);
 
    // Get the output texture for the current frame to be decoded
    pD3D12Dec->m_spDPBManager->GetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
@@ -957,7 +957,7 @@ void d3d12_decoder_prepare_for_decode_frame(
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {
-         d3d12_decoder_prepare_current_frame_references_h264(
+         d3d12_video_decoder_prepare_current_frame_references_h264(
             pD3D12Dec,
             pCurrentFrameDPBEntry,
             currentFrameDPBEntrySubresource
@@ -970,20 +970,20 @@ void d3d12_decoder_prepare_for_decode_frame(
    }
 }
 
-void d3d12_decoder_reconfigure_dpb(
+void d3d12_video_decoder_reconfigure_dpb(
    struct d3d12_video_decoder *pD3D12Dec,
    struct d3d12_video_buffer* pD3D12VideoBuffer,
-   const D3D12DecVideoDecodeOutputConversionArguments& conversionArguments   
+   const D3D12VideoDecodeOutputConversionArguments& conversionArguments   
    )
 {
    UINT width;
    UINT height;
    UINT16 maxDPB;
-   d3d12_decoder_get_frame_info(pD3D12Dec, &width, &height, &maxDPB);   
+   d3d12_video_decoder_get_frame_info(pD3D12Dec, &width, &height, &maxDPB);   
 
    ID3D12Resource* pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
    D3D12_RESOURCE_DESC outputResourceDesc = pPipeD3D12DstResource->GetDesc();
-   VIDEO_DECODE_PROFILE_BIT_DEPTH resourceBitDepth = d3d12_dec_get_format_bitdepth(outputResourceDesc.Format);
+   VIDEO_DECODE_PROFILE_BIT_DEPTH resourceBitDepth = d3d12_video_decoder_get_format_bitdepth(outputResourceDesc.Format);
 
    D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE interlaceTypeRequested = pD3D12VideoBuffer->base.interlaced ? D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_FIELD_BASED : D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; 
    if ((pD3D12Dec->m_decodeFormat != outputResourceDesc.Format)
@@ -992,12 +992,12 @@ void d3d12_decoder_reconfigure_dpb(
       // Copy current pD3D12Dec->m_decoderDesc, modify decodeprofile and re-create decoder.
       D3D12_VIDEO_DECODER_DESC decoderDesc = pD3D12Dec->m_decoderDesc;
       decoderDesc.Configuration.InterlaceType = interlaceTypeRequested;
-      decoderDesc.Configuration.DecodeProfile = d3d12_decoder_resolve_profile(pD3D12Dec->m_d3d12DecProfileType, resourceBitDepth);
+      decoderDesc.Configuration.DecodeProfile = d3d12_video_decoder_resolve_profile(pD3D12Dec->m_d3d12DecProfileType, resourceBitDepth);
       pD3D12Dec->m_spVideoDecoder.Reset();
       HRESULT hr = pD3D12Dec->m_spD3D12VideoDevice->CreateVideoDecoder(&decoderDesc, IID_PPV_ARGS(pD3D12Dec->m_spVideoDecoder.GetAddressOf()));
       if(FAILED(hr))
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_decoder_reconfigure_dpb - CreateVideoDecoder failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_reconfigure_dpb - CreateVideoDecoder failed with HR %x\n", hr);
       }
       // Update state after CreateVideoDecoder succeeds only.
       pD3D12Dec->m_decoderDesc = decoderDesc;
@@ -1034,7 +1034,7 @@ void d3d12_decoder_reconfigure_dpb(
       // Create DPB manager
       if(pD3D12Dec->m_spDPBManager == nullptr)
       {
-         pD3D12Dec->m_spDPBManager.reset(new D3D12VidDecReferenceDataManager(pD3D12Dec->m_pD3D12Screen, pD3D12Dec->m_NodeMask, pD3D12Dec->m_d3d12DecProfileType, dpbDesc));
+         pD3D12Dec->m_spDPBManager.reset(new D3D12VideoDecoderReferencesManager(pD3D12Dec->m_pD3D12Screen, pD3D12Dec->m_NodeMask, pD3D12Dec->m_d3d12DecProfileType, dpbDesc));
       }
 
       //
@@ -1051,7 +1051,7 @@ void d3d12_decoder_reconfigure_dpb(
       HRESULT hr = pD3D12Dec->m_spD3D12VideoDevice->CreateVideoDecoderHeap(&decoderHeapDesc, IID_PPV_ARGS(pD3D12Dec->m_spVideoDecoderHeap.GetAddressOf()));
       if(FAILED(hr))
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_decoder_reconfigure_dpb - CreateVideoDecoderHeap failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_reconfigure_dpb - CreateVideoDecoderHeap failed with HR %x\n", hr);
       }
       // Update pD3D12Dec after CreateVideoDecoderHeap succeeds only.
       pD3D12Dec->m_decoderHeapDesc = decoderHeapDesc;
@@ -1060,7 +1060,7 @@ void d3d12_decoder_reconfigure_dpb(
    pD3D12Dec->m_decodeFormat = outputResourceDesc.Format;
 }
 
-void d3d12_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3D12Dec)
+void d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3D12Dec)
 {
    // Method overview
    // 1. Codec specific strategy in switch statement regarding reference frames eviction policy. Should only mark active DPB references, leaving evicted ones as unused
@@ -1071,7 +1071,7 @@ void d3d12_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {
-         d3d12_decoder_refresh_dpb_active_references_h264(pD3D12Dec);         
+         d3d12_video_decoder_refresh_dpb_active_references_h264(pD3D12Dec);         
       }
       break;
 
@@ -1084,7 +1084,7 @@ void d3d12_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3
    pD3D12Dec->m_spDPBManager->ReleaseUnusedReferencesTexturesMemory();
 }
 
-void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB)
+void d3d12_video_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB)
 {
    *pWidth = 0;
    *pHeight = 0;
@@ -1094,7 +1094,7 @@ void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *p
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {         
-         d3d12_decoder_get_frame_info_h264(pD3D12Dec, pWidth, pHeight, pMaxDPB);
+         d3d12_video_decoder_get_frame_info_h264(pD3D12Dec, pWidth, pHeight, pMaxDPB);
       }
       break;
 
@@ -1114,7 +1114,7 @@ void d3d12_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *p
 /// Returns the number of bytes starting from [buf.data() + buffsetOffset] where the _targetCode_ is found
 /// Returns -1 if start code not found
 ///
-int GetNextStartCodeOffset(std::vector<BYTE> &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer)
+int d3d12_video_decoder_get_next_startcode_offset(std::vector<BYTE> &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer)
 {
    struct vl_vlc vlc = {0};
 
@@ -1135,7 +1135,7 @@ int GetNextStartCodeOffset(std::vector<BYTE> &buf, unsigned int bufferOffset, un
    return -1;
 }
 
-void d3d12_store_converted_dxva_picparams_from_pipe_input (
+void d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input (
     struct d3d12_video_decoder *codec, // input argument, current decoder
     struct pipe_picture_desc *picture, // input argument, base structure of pipe_XXX_picture_desc where XXX is the codec name
     struct d3d12_video_buffer* pD3D12VideoBuffer // input argument, target video buffer
@@ -1145,7 +1145,7 @@ void d3d12_store_converted_dxva_picparams_from_pipe_input (
    assert(codec);
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
 
-   D3D12_VIDEO_DECODE_PROFILE_TYPE profileType = d3d12_convert_pipe_video_profile_to_profile_type(codec->base.profile);
+   D3D12_VIDEO_DECODE_PROFILE_TYPE profileType = d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(codec->base.profile);
    switch (profileType)
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
@@ -1154,16 +1154,16 @@ void d3d12_store_converted_dxva_picparams_from_pipe_input (
          pipe_h264_picture_desc* pPicControlH264 = (pipe_h264_picture_desc*) picture;
          ID3D12Resource* pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
          D3D12_RESOURCE_DESC outputResourceDesc = pPipeD3D12DstResource->GetDesc();
-         DXVA_PicParams_H264 dxvaPicParamsH264 = d3d12_dec_dxva_picparams_from_pipe_picparams_h264(pD3D12Dec->m_fenceValue, codec->base.profile, outputResourceDesc.Width, outputResourceDesc.Height, pPicControlH264);
-         d3d12_store_dxva_picparams_in_picparams_buffer(codec, &dxvaPicParamsH264, dxvaPicParamsBufferSize);
+         DXVA_PicParams_H264 dxvaPicParamsH264 = d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(pD3D12Dec->m_fenceValue, codec->base.profile, outputResourceDesc.Width, outputResourceDesc.Height, pPicControlH264);
+         d3d12_video_decoder_store_dxva_picparams_in_picparams_buffer(codec, &dxvaPicParamsH264, dxvaPicParamsBufferSize);
 
          size_t dxvaQMatrixBufferSize = sizeof(DXVA_Qmatrix_H264);
          DXVA_Qmatrix_H264 dxvaQmatrixH264 = { };
          bool seq_scaling_matrix_present_flag = false;
-         d3d12_dec_dxva_qmatrix_from_pipe_picparams_h264((pipe_h264_picture_desc*) picture, dxvaQmatrixH264, seq_scaling_matrix_present_flag);
+         d3d12_video_decoder_dxva_qmatrix_from_pipe_picparams_h264((pipe_h264_picture_desc*) picture, dxvaQmatrixH264, seq_scaling_matrix_present_flag);
          if(seq_scaling_matrix_present_flag)
          {
-            d3d12_store_dxva_qmatrix_in_qmatrix_buffer(codec, &dxvaQmatrixH264, dxvaQMatrixBufferSize);
+            d3d12_video_decoder_store_dxva_qmatrix_in_qmatrix_buffer(codec, &dxvaQmatrixH264, dxvaQMatrixBufferSize);
          }
          else
          {
@@ -1177,11 +1177,11 @@ void d3d12_store_converted_dxva_picparams_from_pipe_input (
    }
 }
 
-void d3d12_prepare_dxva_slices_control (
+void d3d12_video_decoder_prepare_dxva_slices_control (
     struct d3d12_video_decoder *pD3D12Dec // input argument, current decoder    
 )
 {
-   D3D12_VIDEO_DECODE_PROFILE_TYPE profileType = d3d12_convert_pipe_video_profile_to_profile_type(pD3D12Dec->base.profile);
+   D3D12_VIDEO_DECODE_PROFILE_TYPE profileType = d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(pD3D12Dec->base.profile);
    switch (profileType)
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
@@ -1189,12 +1189,12 @@ void d3d12_prepare_dxva_slices_control (
          size_t numSlices = pD3D12Dec->m_numConsecutiveDecodeFrame;
          std::vector<DXVA_Slice_H264_Short> pOutSliceControlBuffers(numSlices);
          
-         d3d12_prepare_dxva_slices_control_h264(pD3D12Dec, numSlices, pOutSliceControlBuffers);
+         d3d12_video_decoder_prepare_dxva_slices_control_h264(pD3D12Dec, numSlices, pOutSliceControlBuffers);
 
          assert( sizeof(pOutSliceControlBuffers.data()[0]) == sizeof(DXVA_Slice_H264_Short) );
          UINT64 DXVAStructSize = pOutSliceControlBuffers.size() * sizeof((pOutSliceControlBuffers.data()[0]));
          assert((DXVAStructSize % sizeof(DXVA_Slice_H264_Short)) == 0);
-         d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(pD3D12Dec, pOutSliceControlBuffers.data(), DXVAStructSize);
+         d3d12_video_decoder_store_dxva_slicecontrol_in_slicecontrol_buffer(pD3D12Dec, pOutSliceControlBuffers.data(), DXVAStructSize);
          assert(pD3D12Dec->m_SliceControlBuffer.size() == DXVAStructSize);
       }
       break;
@@ -1204,7 +1204,7 @@ void d3d12_prepare_dxva_slices_control (
    }
 }
 
-void d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
+void d3d12_video_decoder_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
 {   
    if (pD3D12Dec->m_SliceControlBuffer.capacity() < DXVAStructSize)
    {
@@ -1215,7 +1215,7 @@ void d3d12_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_dec
    memcpy(pD3D12Dec->m_SliceControlBuffer.data(), pDXVAStruct, DXVAStructSize);
 }
 
-void d3d12_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
+void d3d12_video_decoder_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
 {
    if (pD3D12Dec->m_InverseQuantMatrixBuffer.capacity() < DXVAStructSize)
    {   
@@ -1226,7 +1226,7 @@ void d3d12_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_decoder *pD3D
    memcpy(pD3D12Dec->m_InverseQuantMatrixBuffer.data(), pDXVAStruct, DXVAStructSize);
 }
 
-void d3d12_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
+void d3d12_video_decoder_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize)
 {
    if (pD3D12Dec->m_picParamsBuffer.capacity() < DXVAStructSize)
    {   
@@ -1237,7 +1237,7 @@ void d3d12_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *
    memcpy(pD3D12Dec->m_picParamsBuffer.data(), pDXVAStruct, DXVAStructSize);
 }
 
-bool d3d12_video_dec_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport, D3D12_VIDEO_DECODE_PROFILE_TYPE profileType)
+bool d3d12_video_decoder_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport, D3D12_VIDEO_DECODE_PROFILE_TYPE profileType)
 {
     bool supportedProfile = false;
     switch (profileType)
@@ -1254,7 +1254,7 @@ bool d3d12_video_dec_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT de
         && supportedProfile;
 }
 
-D3D12_VIDEO_DECODE_PROFILE_TYPE d3d12_convert_pipe_video_profile_to_profile_type(enum pipe_video_profile profile)
+D3D12_VIDEO_DECODE_PROFILE_TYPE d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(enum pipe_video_profile profile)
 {
     switch (profile)
     {
@@ -1273,7 +1273,7 @@ D3D12_VIDEO_DECODE_PROFILE_TYPE d3d12_convert_pipe_video_profile_to_profile_type
    }
 }
 
-GUID d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(enum pipe_video_profile profile)
+GUID d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(enum pipe_video_profile profile)
 {
     switch (profile)
     {
@@ -1291,7 +1291,7 @@ GUID d3d12_convert_pipe_video_profile_to_d3d12_video_decode_profile(enum pipe_vi
    }
 }
 
-GUID d3d12_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profileType, UINT resourceBitDepth)
+GUID d3d12_video_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profileType, UINT resourceBitDepth)
 {
     switch (profileType)
     {
@@ -1305,7 +1305,7 @@ GUID d3d12_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profileType, 
     }
 }
 
-VIDEO_DECODE_PROFILE_BIT_DEPTH d3d12_dec_get_format_bitdepth(DXGI_FORMAT Format)
+VIDEO_DECODE_PROFILE_BIT_DEPTH d3d12_video_decoder_get_format_bitdepth(DXGI_FORMAT Format)
 {
     switch (Format)
     {

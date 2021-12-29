@@ -27,10 +27,10 @@
 #include "d3d12_format_utils.h"
 
 template <class TCommandList>
-class TemporaryResourceTransition
+class D3D12ScopedStateTransition
 {
 public:
-    TemporaryResourceTransition() :
+    D3D12ScopedStateTransition() :
         m_List(NULL),
         m_Resource(NULL),
         m_OriginalUsage(D3D12_RESOURCE_STATE_COMMON)
@@ -38,7 +38,7 @@ public:
 
     }
 
-    TemporaryResourceTransition(
+    D3D12ScopedStateTransition(
         TCommandList *List,
         ID3D12Resource *Resource,
         D3D12_RESOURCE_STATES DestinationUsage,
@@ -57,7 +57,7 @@ public:
         }
     }
 
-    ~TemporaryResourceTransition()
+    ~D3D12ScopedStateTransition()
     {
         if (m_List && (m_OriginalUsage != m_DestUsage))
         {

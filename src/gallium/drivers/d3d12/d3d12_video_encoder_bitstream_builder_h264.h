@@ -26,12 +26,12 @@
 
 #include "d3d12_video_encoder_nalu_writer_h264.h"
 
-class H264BitstreamBuilder
+class D3D12VideoBitstreamBuilderH264
 {
 
 public:
-    H264BitstreamBuilder() { };
-    ~H264BitstreamBuilder() { };
+    D3D12VideoBitstreamBuilderH264() { };
+    ~D3D12VideoBitstreamBuilderH264() { };
 
     void BuildSPS
     (
@@ -73,7 +73,7 @@ public:
     UINT GetPPSCount() { return m_writtenPPSCount; };
 
 private:
-    H264NaluWriter m_h264Encoder;
+    D3D12VideoNaluWriterH264 m_h264Encoder;
 };
 
 #endif

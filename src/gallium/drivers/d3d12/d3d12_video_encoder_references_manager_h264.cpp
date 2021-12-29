@@ -30,7 +30,7 @@
 
 using namespace std;
 
-D3D12VideoEncoderH264FIFOReferenceManager::D3D12VideoEncoderH264FIFOReferenceManager(
+D3D12VideoEncoderReferencesManagerH264::D3D12VideoEncoderReferencesManagerH264(
     bool gopHasIorPFrames,
     ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap>& rDpbStorageManager,
     UINT MaxL0ReferencesForP,
@@ -49,14 +49,14 @@ D3D12VideoEncoderH264FIFOReferenceManager::D3D12VideoEncoderH264FIFOReferenceMan
 {
     assert((m_MaxDPBCapacity + 1/*extra for cur frame output recon pic*/) == m_rDPBStorageManager.GetNumberOfTrackedAllocations());
 
-    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] Completed construction of D3D12VideoEncoderH264FIFOReferenceManager instance, settings are\n");
+    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] Completed construction of D3D12VideoEncoderReferencesManagerH264 instance, settings are\n");
     D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] m_MaxL0ReferencesForP: %d\n", m_MaxL0ReferencesForP);
     D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] m_MaxL0ReferencesForB: %d\n", m_MaxL0ReferencesForB);
     D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] m_MaxL1ReferencesForB: %d\n", m_MaxL1ReferencesForB);    
     D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] m_MaxDPBCapacity: %d\n", m_MaxDPBCapacity);  
 }
 
-void D3D12VideoEncoderH264FIFOReferenceManager::ResetGOPTrackingAndDPB()
+void D3D12VideoEncoderReferencesManagerH264::ResetGOPTrackingAndDPB()
 {
     // Reset m_CurrentFrameReferencesData tracking
     m_CurrentFrameReferencesData.pList0ReferenceFrames.clear();
@@ -82,7 +82,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::ResetGOPTrackingAndDPB()
 }
 
 // Calculates the picture control structure for the current frame
-void D3D12VideoEncoderH264FIFOReferenceManager::GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& codecAllocation)
+void D3D12VideoEncoderReferencesManagerH264::GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& codecAllocation)
 {
     PrepareCurrentFrameL0L1Lists();
 
@@ -120,12 +120,12 @@ void D3D12VideoEncoderH264FIFOReferenceManager::GetCurrentFramePictureControlDat
 }
 
 // Returns the resource allocation for a reconstructed picture output for the current frame
-D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE D3D12VideoEncoderH264FIFOReferenceManager::GetCurrentFrameReconPicOutputAllocation()
+D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE D3D12VideoEncoderReferencesManagerH264::GetCurrentFrameReconPicOutputAllocation()
 {
     return m_CurrentFrameReferencesData.ReconstructedPicTexture;
 }
 
-D3D12_VIDEO_ENCODE_REFERENCE_FRAMES D3D12VideoEncoderH264FIFOReferenceManager::GetCurrentFrameReferenceFrames()
+D3D12_VIDEO_ENCODE_REFERENCE_FRAMES D3D12VideoEncoderReferencesManagerH264::GetCurrentFrameReferenceFrames()
 {
     D3D12_VIDEO_ENCODE_REFERENCE_FRAMES retVal =
     {
@@ -150,7 +150,7 @@ D3D12_VIDEO_ENCODE_REFERENCE_FRAMES D3D12VideoEncoderH264FIFOReferenceManager::G
     return retVal;
 }
 
-void D3D12VideoEncoderH264FIFOReferenceManager::PrepareCurrentFrameReconPicAllocation()
+void D3D12VideoEncoderReferencesManagerH264::PrepareCurrentFrameReconPicAllocation()
 {
     m_CurrentFrameReferencesData.ReconstructedPicTexture = { nullptr, 0 };
 
@@ -163,7 +163,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrepareCurrentFrameReconPicAlloc
     }
 }
 
-void D3D12VideoEncoderH264FIFOReferenceManager::UpdateFIFODPB_PushFrontCurReconPicture()
+void D3D12VideoEncoderReferencesManagerH264::UpdateFIFODPB_PushFrontCurReconPicture()
 {
     // Keep the order of the dpb storage and dpb descriptors in a circular buffer
     // order such that the DPB array consists of a sequence of frames in DECREASING encoding order
@@ -235,7 +235,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::UpdateFIFODPB_PushFrontCurReconP
     VERIFY_IS_LESS_THAN_OR_EQUAL(m_rDPBStorageManager.GetNumberOfTrackedAllocations(), (m_MaxDPBCapacity + 1));
 }
 
-void D3D12VideoEncoderH264FIFOReferenceManager::PrepareCurrentFrameL0L1Lists()
+void D3D12VideoEncoderReferencesManagerH264::PrepareCurrentFrameL0L1Lists()
 {
     // Clear the lists always since this method will be called for every frame advanced
     // If frames are not B or P, lists need to be cleared and empty.
@@ -359,7 +359,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrepareCurrentFrameL0L1Lists()
     PrintL0L1();
 }
 
-void D3D12VideoEncoderH264FIFOReferenceManager::PrintL0L1()
+void D3D12VideoEncoderReferencesManagerH264::PrintL0L1()
 {
     if( D3D12_LOG_DBG_ON &&
         (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME)
@@ -406,7 +406,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrintL0L1()
     }
 }
 
-void D3D12VideoEncoderH264FIFOReferenceManager::PrintDPB()
+void D3D12VideoEncoderReferencesManagerH264::PrintDPB()
 {
     if(D3D12_LOG_DBG_ON)
     {
@@ -444,7 +444,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::PrintDPB()
 }
 
 // Advances state to next frame in GOP; subsequent calls to GetCurrentFrame* point to the advanced frame status    
-void D3D12VideoEncoderH264FIFOReferenceManager::EndFrame()
+void D3D12VideoEncoderReferencesManagerH264::EndFrame()
 {
     D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] %d resources IN USE out of a total of %d ALLOCATED resources at EndFrame for frame with POC: %d\n",
         m_rDPBStorageManager.GetNumberOfInUseAllocations(),
@@ -457,7 +457,7 @@ void D3D12VideoEncoderH264FIFOReferenceManager::EndFrame()
     UpdateFIFODPB_PushFrontCurReconPicture();
 }
 
-bool D3D12VideoEncoderH264FIFOReferenceManager::IsCurrentFrameUsedAsReference()
+bool D3D12VideoEncoderReferencesManagerH264::IsCurrentFrameUsedAsReference()
 {
     // This class doesn't provide support for hierarchical Bs and TemporalLayerIds
     // so we should only use as references IDR, I, and P frames
@@ -466,7 +466,7 @@ bool D3D12VideoEncoderH264FIFOReferenceManager::IsCurrentFrameUsedAsReference()
     );
 }
 
-void D3D12VideoEncoderH264FIFOReferenceManager::BeginFrame(D3D12VideoEncoderH264FrameDesc curFrameData, D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA defaultPicParamValues)
+void D3D12VideoEncoderReferencesManagerH264::BeginFrame(D3D12VideoEncoderH264FrameDesc curFrameData, D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA defaultPicParamValues)
 {
     m_currentGOPStateDescriptor = curFrameData;
     m_curFrameState = *defaultPicParamValues.pH264PicData;

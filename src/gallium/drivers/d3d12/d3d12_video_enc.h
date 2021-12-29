@@ -120,11 +120,11 @@ struct d3d12_video_encoder
     // Number of consecutive begin_frame calls without end_frame call
     UINT m_numNestedBeginFrame = 0;
 
-    std::unique_ptr<ID3D12AutomaticVideoEncodeReferencePicManager> m_upDPBManager;
+    std::unique_ptr<ID3D12VideoEncodeReferencePicManager> m_upDPBManager;
     std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap> > m_upDPBStorageManager;
 
     // TODO: Templatize codec specific
-    std::unique_ptr<H264BitstreamBuilder> m_upH264BitstreamBuilder;
+    std::unique_ptr<D3D12VideoBitstreamBuilderH264> m_upH264BitstreamBuilder;
 
     bool m_needsGPUFlush = false;
 
@@ -231,7 +231,7 @@ struct d3d12_video_encoder
     } m_currentEncodeConfig;
 };
 
-bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D12Enc);
+bool d3d12_video_encoder_create_command_objects(struct d3d12_video_encoder* pD3D12Enc);
 bool d3d12_video_encoder_reconfigure_session(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);
 void d3d12_video_encoder_update_current_encoder_config_state(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);
 void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);

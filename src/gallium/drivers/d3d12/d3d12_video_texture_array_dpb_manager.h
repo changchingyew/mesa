@@ -29,7 +29,7 @@
 #include "d3d12_video_types.h"
 
 template <typename TVideoHeap>
-class TexturesArrayDPBManager : public ID3D12VideoDPBStorageManager<TVideoHeap>
+class D3D12TexturesArrayDPBManager : public ID3D12VideoDPBStorageManager<TVideoHeap>
 {
 // ID3D12VideoDPBStorageManager
 public:
@@ -71,9 +71,9 @@ public:
 
     UINT GetNumberOfTrackedAllocations();
 
-// TexturesArrayDPBManager
+// D3D12TexturesArrayDPBManager
 public:
-    TexturesArrayDPBManager(
+    D3D12TexturesArrayDPBManager(
         UINT16 dpbInitialSize, // Maximum in use resources for a DPB of size x should be x+1 for cases when a P frame is using the x references in the L0 list and also using an extra resource to output it's own recon pic.
         ID3D12Device* pDevice,
         DXGI_FORMAT encodeSessionFormat,
@@ -81,9 +81,9 @@ public:
         D3D12_RESOURCE_FLAGS resourceAllocFlags = D3D12_RESOURCE_FLAG_NONE,
         UINT nodeMask = 0
     );
-    ~TexturesArrayDPBManager();
+    ~D3D12TexturesArrayDPBManager();
 
-// TexturesArrayDPBManager
+// D3D12TexturesArrayDPBManager
 private:
 
     void CreateReconstructedPicAllocations(ID3D12Resource** ppResource, UINT16 texArraySize);
