@@ -151,35 +151,49 @@ void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* p
       
       default:
          assert(0);
-   }   
+   }
 }
 
 void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
 {
    VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
-   bool needsObjCreation = 
-      (!pD3D12Enc->m_upDPBManager)
-      || (!pD3D12Enc->m_spVideoEncoder)
-      || (!pD3D12Enc->m_spVideoEncoderHeap);
 
-   bool needsReconfiguration = false;
-   if(!needsObjCreation)
+   bool codecChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_CODEC) != 0);
+   bool profileChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_PROFILE) != 0);
+   bool levelChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_LEVEL) != 0);
+   bool codecConfigChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_CODEC_CONFIG) != 0);
+   bool inputFormatChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_INPUT_FORMAT) != 0);
+   bool resolutionChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_RESOLUTION) != 0);
+   bool rateControlChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_RATE_CONTROL) != 0);
+   bool slicesChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_SLICES) != 0);
+   bool gopChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_GOP) != 0);
+   bool motionPrecisionLimitChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_MOTION_PRECISION_LIMIT) != 0);   
+
+   // Events that that trigger a re-creation of the reference picture manager
+   // Stores codec agnostic textures so only input format, resolution and gop (num dpb references) affects this
+   if(
+         !pD3D12Enc->m_upDPBManager
+      // || codecChanged
+      // || profileChanged
+      // || levelChanged
+      // || codecConfigChanged
+      || inputFormatChanged
+      || resolutionChanged
+      // || rateControlChanged
+      // || slicesChanged
+      || gopChanged
+      // || motionPrecisionLimitChanged
+      )
    {
-      UINT numRes = pD3D12Enc->m_spVideoEncoderHeap->GetResolutionListCount();
-      std::vector<D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC> heapRes(numRes);
-      VERIFY_SUCCEEDED(pD3D12Enc->m_spVideoEncoderHeap->GetResolutionList(numRes, heapRes.data()));
-      assert(numRes == 1); // Need to extend validation below otherwise
+      if(!pD3D12Enc->m_upDPBManager)
+      {
+         D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_reconfigure_encoder_objects - Creating Reference Pictures Manager for the first time\n");
+      }
+      else
+      {
+         D3D12_LOG_DBG("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating Reference Pictures Manager\n");
+      }
 
-      needsReconfiguration = 
-         (pD3D12Enc->m_spVideoEncoder->GetInputFormat() != pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format)
-         || (heapRes[0].Width != pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Width)
-         || (heapRes[0].Height != pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Height);
-      // TODO: set reconfig (ie. slices, rate control, resolution, codec config struct, etc) flags in encodeframe structs without re-creating dpb/heap/encoder sometimes
-      // need to check in pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags if on-the-fly reconfig is available
-   }
-
-   if (needsObjCreation || needsReconfiguration)
-   {
       D3D12_RESOURCE_FLAGS resourceAllocFlags = D3D12_RESOURCE_FLAG_VIDEO_ENCODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
       bool fArrayOfTextures = ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RECONSTRUCTED_FRAMES_REQUIRE_TEXTURE_ARRAYS) == 0);
       UINT16 texturePoolSize = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc) + 1u; // adding an extra slot as we also need to count the current frame output recon allocation along max reference frame allocations
@@ -207,8 +221,54 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
       d3d12_video_encoder_create_reference_picture_manager(pD3D12Enc);
       VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
-      // Create encoder and encoder heap descriptors based off m_currentEncodeConfig
+   }
 
+   // Check for m_SupportFlags reconfiguration flags
+   // 1. If NOT SUPPORTED: Re-create encoder/heap and DO NOT SET D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_*_CHANGED reconfiguration flags in EncodeFrame
+   // 2. If SUPPORTED: Don't recreate but SET the according D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_*_CHANGED reconfiguration flags in EncodeFrame
+
+   if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_RECONFIGURATION_AVAILABLE) != 0/*checking if the flag it's actually set*/)
+   {
+      pD3D12Enc->m_currentEncodeConfig.m_seqFlags |= D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_RATE_CONTROL_CHANGE;
+   }
+
+   if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SUBREGION_LAYOUT_RECONFIGURATION_AVAILABLE) != 0/*checking if the flag it's actually set*/)
+   {
+      pD3D12Enc->m_currentEncodeConfig.m_seqFlags |= D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_SUBREGION_LAYOUT_CHANGE;
+   }
+
+   if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SEQUENCE_GOP_RECONFIGURATION_AVAILABLE) != 0/*checking if the flag it's actually set*/)
+   {
+      pD3D12Enc->m_currentEncodeConfig.m_seqFlags |= D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_GOP_SEQUENCE_CHANGE;
+   }
+
+   // Events that that trigger a re-creation of the encoder
+   if (
+      !pD3D12Enc->m_spVideoEncoder
+      || codecChanged
+      || profileChanged
+      // || levelChanged // Only affects encoder heap
+      || codecConfigChanged
+      || inputFormatChanged
+      // || resolutionChanged // Only affects encoder heap
+      // Only re-create if there is NO SUPPORT for reconfiguring rateControl on the fly
+      || (rateControlChanged && ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_RECONFIGURATION_AVAILABLE) == 0/*checking the flag is NOT set*/))
+      // Only re-create if there is NO SUPPORT for reconfiguring slices on the fly
+      || (slicesChanged && ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SUBREGION_LAYOUT_RECONFIGURATION_AVAILABLE) == 0/*checking the flag is NOT set*/))
+      // Only re-create if there is NO SUPPORT for reconfiguring gop on the fly
+      || (gopChanged && ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SEQUENCE_GOP_RECONFIGURATION_AVAILABLE) == 0/*checking the flag is NOT set*/))
+      || motionPrecisionLimitChanged
+   )
+   {
+      if(!pD3D12Enc->m_spVideoEncoder)
+      {
+         D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_reconfigure_encoder_objects - Creating D3D12VideoEncoder for the first time\n");
+      }
+      else
+      {
+         D3D12_LOG_DBG("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating D3D12VideoEncoder\n");
+      }
+      
       D3D12_VIDEO_ENCODER_DESC encoderDesc = 
       {
          pD3D12Enc->m_NodeMask,
@@ -219,6 +279,38 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
          d3d12_video_encoder_get_current_codec_config_desc(pD3D12Enc),
          pD3D12Enc->m_currentEncodeConfig.m_encoderMotionPrecisionLimit
       };
+
+      // Create encoder
+      VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CreateVideoEncoder(&encoderDesc, IID_PPV_ARGS(pD3D12Enc->m_spVideoEncoder.GetAddressOf())));
+      VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
+   }
+
+   // Events that that trigger a re-creation of the encoder heap
+   if (
+      !pD3D12Enc->m_spVideoEncoderHeap
+      || codecChanged
+      || profileChanged
+      || levelChanged
+      // || codecConfigChanged // Only affects encoder
+      || inputFormatChanged // Might affect internal textures in the heap
+      || resolutionChanged
+      // Only re-create if there is NO SUPPORT for reconfiguring rateControl on the fly
+      || (rateControlChanged && ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_RECONFIGURATION_AVAILABLE) == 0/*checking the flag is NOT set*/))
+      // Only re-create if there is NO SUPPORT for reconfiguring slices on the fly
+      || (slicesChanged && ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SUBREGION_LAYOUT_RECONFIGURATION_AVAILABLE) == 0/*checking the flag is NOT set*/))
+      // Only re-create if there is NO SUPPORT for reconfiguring gop on the fly
+      || (gopChanged && ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SEQUENCE_GOP_RECONFIGURATION_AVAILABLE) == 0/*checking the flag is NOT set*/))
+      // || motionPrecisionLimitChanged // Only affects encoder
+   )
+   {
+      if(!pD3D12Enc->m_spVideoEncoderHeap)
+      {
+         D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_reconfigure_encoder_objects - Creating D3D12VideoEncoderHeap for the first time\n");
+      }      
+      else
+      {
+         D3D12_LOG_DBG("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating D3D12VideoEncoderHeap\n");
+      }
 
       D3D12_VIDEO_ENCODER_HEAP_DESC heapDesc =
       {
@@ -232,10 +324,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
          // resolution list
          &pD3D12Enc->m_currentEncodeConfig.m_currentResolution
       };
-
-      // Create encoder
-      VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CreateVideoEncoder(&encoderDesc, IID_PPV_ARGS(pD3D12Enc->m_spVideoEncoder.GetAddressOf())));
-      VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
+      
       // Create encoder heap
       VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CreateVideoEncoderHeap(&heapDesc, IID_PPV_ARGS(pD3D12Enc->m_spVideoEncoderHeap.GetAddressOf())));
       VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
@@ -905,7 +994,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
       }
    };
 
-    // Record EncodeFrame
+   // Record EncodeFrame
    pD3D12Enc->m_spEncodeCommandList->EncodeFrame(pD3D12Enc->m_spVideoEncoder.Get(), pD3D12Enc->m_spVideoEncoderHeap.Get(), &inputStreamArguments, &outputStreamArguments);
 
    // Upload the CPU buffers with the bitstream headers to the compressed bitstream resource in the interval [0, prefixGeneratedHeadersByteSize)
