@@ -145,6 +145,7 @@ void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* p
       case PIPE_VIDEO_FORMAT_MPEG4_AVC:
       {
          D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
+         currentPicParams.pH264PicData->pic_parameter_set_id = pD3D12Enc->m_upH264BitstreamBuilder->GetPPSCount();
          pD3D12Enc->m_upDPBManager->BeginFrame(d3d12_video_encoder_convert_current_frame_gop_info_h264(pD3D12Enc, srcTexture, picture), currentPicParams);
       } break;
       
@@ -259,6 +260,8 @@ void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_enc
             pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL1ReferencesForB,
             pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxDPBCapacity // Max number of frames to be used as a reference, without counting the current picture recon picture
          );
+
+         pD3D12Enc->m_upH264BitstreamBuilder = std::make_unique<H264BitstreamBuilder>();
       } break;
       
       default:
@@ -368,8 +371,18 @@ D3D12_VIDEO_ENCODER_LEVEL_SETTING d3d12_video_encoder_get_current_level_desc(str
 
 UINT d3d12_video_encoder_build_codec_headers(struct d3d12_video_encoder* pD3D12Enc)
 {
-   // TODO: Implement me as codec specific delegating to codec methods
-   // ie. pipe_h264_enc_pic_control.enc_frame_cropping_flag for h264 sps
+   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   switch (codec)
+   {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         return d3d12_video_encoder_build_codec_headers_h264(pD3D12Enc);
+         
+      } break;
+      
+      default:
+         assert(0);
+   }   
    return 0u;
 }
 
@@ -829,9 +842,9 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
    }
 
    // Update current frame pic params state after reconfiguring above.
-   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
-   pD3D12Enc->m_upDPBManager->GetCurrentFramePictureControlData(currentPicParams);
-
+   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);   
+   pD3D12Enc->m_upDPBManager->GetCurrentFramePictureControlData(currentPicParams);   
+   
    UINT prefixGeneratedHeadersByteSize = d3d12_video_encoder_build_codec_headers(pD3D12Enc);
 
    const D3D12_VIDEO_ENCODER_ENCODEFRAME_INPUT_ARGUMENTS inputStreamArguments = 
@@ -870,7 +883,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
       // D3D12_VIDEO_ENCODER_COMPRESSED_BITSTREAM
       {
             pOutputBufferD3D12Res,
-            0, // FrameStartOffset hint to driver to start writing after this count of bytes
+            prefixGeneratedHeadersByteSize, // Start writing after the reserved interval [0, prefixGeneratedHeadersByteSize) for bitstream headers
       },
       // D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE
       reconPicOutputTextureDesc,
@@ -883,6 +896,17 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
         
     // Record EncodeFrame
    pD3D12Enc->m_spEncodeCommandList->EncodeFrame(pD3D12Enc->m_spVideoEncoder.Get(), pD3D12Enc->m_spVideoEncoderHeap.Get(), &inputStreamArguments, &outputStreamArguments);
+
+   // Upload the CPU buffers with the bitstream headers to the compressed bitstream resource in the interval [0, prefixGeneratedHeadersByteSize)
+   assert(prefixGeneratedHeadersByteSize == pD3D12Enc->m_BitstreamHeadersBuffer.size());
+   pD3D12Enc->m_D3D12ResourceCopyHelper->UploadData(
+      pOutputBufferD3D12Res,
+      0,
+      D3D12_RESOURCE_STATE_COMMON,
+      pD3D12Enc->m_BitstreamHeadersBuffer.data(),
+      pD3D12Enc->m_BitstreamHeadersBuffer.size(),
+      pD3D12Enc->m_BitstreamHeadersBuffer.size()
+   );
 
    D3D12_RESOURCE_BARRIER rgResolveMetadataStateTransitions[] = 
    {
@@ -960,8 +984,8 @@ void d3d12_video_encoder_get_feedback(struct pipe_video_codec *codec, void *feed
       D3D12_LOG_ERROR("[D3D12 Video Driver] - Encode GPU command failed - EncodeErrorFlags: %ld\n", encoderMetadata.EncodeErrorFlags);
    }
 
-    assert(encoderMetadata.EncodedBitstreamWrittenBytesCount > 0u);
-   *size = encoderMetadata.EncodedBitstreamWrittenBytesCount;
+   assert(encoderMetadata.EncodedBitstreamWrittenBytesCount > 0u);
+   *size = (pD3D12Enc->m_BitstreamHeadersBuffer.size() + encoderMetadata.EncodedBitstreamWrittenBytesCount);
 }
 
 void d3d12_video_encoder_extract_encode_metadata(

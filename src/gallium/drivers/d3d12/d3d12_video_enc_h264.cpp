@@ -712,3 +712,47 @@ D3D12_VIDEO_ENCODER_CODEC d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(e
       } break;
    }
 }
+
+UINT d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder* pD3D12Enc)
+{
+   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
+
+   auto profDesc = d3d12_video_encoder_get_current_profile_desc(pD3D12Enc);
+   auto levelDesc = d3d12_video_encoder_get_current_level_desc(pD3D12Enc);
+   auto codecConfigDesc = d3d12_video_encoder_get_current_codec_config_desc(pD3D12Enc);
+   auto MaxDPBCapacity = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
+
+   size_t writtenSPSBytesCount = 0;
+   bool writeNewSPS = (pD3D12Enc->m_fenceValue == 1); // on first frame
+   writeNewSPS |= ((pD3D12Enc->m_currentEncodeConfig.m_seqFlags & D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_RESOLUTION_CHANGE) != 0); // also on resolution change   
+
+   UINT active_seq_parameter_set_id = pD3D12Enc->m_upH264BitstreamBuilder->GetSPSCount();
+   if(writeNewSPS)
+   {
+      pD3D12Enc->m_upH264BitstreamBuilder->BuildSPS(*profDesc.pH264Profile,
+         *levelDesc.pH264LevelSetting,
+         pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
+         *codecConfigDesc.pH264Config,
+         pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures,
+         active_seq_parameter_set_id,
+         MaxDPBCapacity, // max_num_ref_frames
+         pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
+         pD3D12Enc->m_BitstreamHeadersBuffer,
+         pD3D12Enc->m_BitstreamHeadersBuffer.begin(),
+         writtenSPSBytesCount);
+   }
+
+   size_t writtenPPSBytesCount = 0;
+   UINT pic_parameter_set_id = pD3D12Enc->m_upH264BitstreamBuilder->GetPPSCount();
+   pD3D12Enc->m_upH264BitstreamBuilder->BuildPPS(*profDesc.pH264Profile,
+         *codecConfigDesc.pH264Config,
+         *currentPicParams.pH264PicData,
+         pic_parameter_set_id,
+         active_seq_parameter_set_id,
+         pD3D12Enc->m_BitstreamHeadersBuffer,
+         pD3D12Enc->m_BitstreamHeadersBuffer.begin() + writtenSPSBytesCount,
+         writtenPPSBytesCount);
+
+   assert(pD3D12Enc->m_BitstreamHeadersBuffer.size() == (writtenPPSBytesCount + writtenSPSBytesCount));
+   return pD3D12Enc->m_BitstreamHeadersBuffer.size();
+}

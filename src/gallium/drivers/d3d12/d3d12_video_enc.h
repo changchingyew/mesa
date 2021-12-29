@@ -30,6 +30,7 @@
 #include "d3d12_video_dpb_storage_manager.h"
 #include <d3dx12.h>
 #include "d3d12_format_utils.h"
+#include "d3d12_video_encoder_bitstream_builder_h264.h"
 
 ///
 /// Pipe video interface starts
@@ -122,10 +123,15 @@ struct d3d12_video_encoder
     std::unique_ptr<ID3D12AutomaticVideoEncodeReferencePicManager> m_upDPBManager;
     std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap> > m_upDPBStorageManager;
 
+    // TODO: Templatize codec specific
+    std::unique_ptr<H264BitstreamBuilder> m_upH264BitstreamBuilder;
+
     bool m_needsGPUFlush = false;
 
     ComPtr<ID3D12Resource> m_spResolvedMetadataBuffer;
     ComPtr<ID3D12Resource> m_spMetadataOutputBuffer;
+
+    std::vector<uint8_t> m_BitstreamHeadersBuffer;
 
     struct 
     {

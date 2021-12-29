@@ -51,6 +51,9 @@ files_libd3d12 = files(
   'd3d12_video_enc.cpp',
   'd3d12_video_enc_h264.cpp',
   'd3d12_video_encoder_references_manager_h264.cpp',  
+  'd3d12_video_encoder_nalu_writer_h264.cpp',  
+  'd3d12_video_encoder_bitstream_builder_h264.cpp',  
+  'd3d12_video_encoder_bitstream.cpp',  
 )
 
 if host_machine.system() == 'windows'

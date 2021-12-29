@@ -36,5 +36,6 @@ D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 d3d12_video_encoder_convert_h264_co
 bool d3d12_video_encoder_is_gop_supported(UINT GOPLength, UINT PPicturePeriod, UINT MaxDPBCapacity, UINT MaxL0ReferencesForP, UINT MaxL0ReferencesForB, UINT MaxL1ReferencesForB);
 D3D12VideoEncoderH264FrameDesc d3d12_video_encoder_convert_current_frame_gop_info_h264(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture);
 D3D12_VIDEO_ENCODER_FRAME_TYPE_H264 d3d12_video_encoder_convert_frame_type(enum pipe_h2645_enc_picture_type picType);
+UINT d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder* pD3D12Enc);
 
 #endif
