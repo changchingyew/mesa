@@ -163,11 +163,12 @@ void d3d12_video_decoder_destroy(struct pipe_video_codec *codec)
 void d3d12_video_decoder_begin_frame(struct pipe_video_codec *codec,
                      struct pipe_video_buffer *target,
                      struct pipe_picture_desc *picture)
-{
+{   
    // Do nothing here. Initialize happens on decoder creation, re-config (if any) happens in d3d12_video_decoder_decode_bitstream
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
    assert(pD3D12Dec);
    D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_begin_frame started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
 
    if(pD3D12Dec->m_numNestedBeginFrame > 0)
    {
@@ -192,6 +193,7 @@ void d3d12_video_decoder_decode_bitstream(struct pipe_video_codec *codec,
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
    assert(pD3D12Dec);
    D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
    assert(pD3D12Dec->m_spD3D12VideoDevice);
    assert(pD3D12Dec->m_spDecodeCommandQueue);
    assert(pD3D12Dec->m_pD3D12Screen);
@@ -320,6 +322,7 @@ void d3d12_video_decoder_decode_bitstream(struct pipe_video_codec *codec,
 
       D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
    }   
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
 }
 
 /**
@@ -331,6 +334,7 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
 {
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
    assert(pD3D12Dec);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
    struct d3d12_screen* pD3D12Screen = (struct d3d12_screen*) pD3D12Dec->m_pD3D12Screen;
    assert(pD3D12Screen);
    D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_end_frame started for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
@@ -560,6 +564,7 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
    );
 
    D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_end_frame finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
 
    ///
    /// Flush work to the GPU and blocking wait until decode finishes 
@@ -649,6 +654,7 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
       // Not doing this causes readbacks to that texture to be all zeroes (ie. in vaGetImage) because the copies aren't flushed in the context
       pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
    }
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
 }
 
 /**
@@ -658,7 +664,7 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
 void d3d12_video_decoder_flush(struct pipe_video_codec *codec)
 {
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
-   assert(pD3D12Dec);
+   assert(pD3D12Dec);   
    assert(pD3D12Dec->m_spD3D12VideoDevice);
    assert(pD3D12Dec->m_spDecodeCommandQueue);   
    D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_flush started. Will flush video queue work and CPU wait on fenceValue: %d\n", pD3D12Dec->m_fenceValue);
@@ -736,6 +742,7 @@ bool d3d12_video_decoder_create_command_objects(const struct d3d12_screen* pD3D1
       return false;
    }
 
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
    hr = pD3D12Screen->dev->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pD3D12Dec->m_spFence));
    if(FAILED(hr))
    {
@@ -743,6 +750,7 @@ bool d3d12_video_decoder_create_command_objects(const struct d3d12_screen* pD3D1
       return false;
    }
    
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
    hr = pD3D12Screen->dev->CreateCommandAllocator(
       D3D12_COMMAND_LIST_TYPE_VIDEO_DECODE,
       IID_PPV_ARGS(pD3D12Dec->m_spCommandAllocator.GetAddressOf()));
@@ -752,6 +760,7 @@ bool d3d12_video_decoder_create_command_objects(const struct d3d12_screen* pD3D1
       return false;
    }
 
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
    hr = pD3D12Screen->dev->CreateCommandList(
       0,
       D3D12_COMMAND_LIST_TYPE_VIDEO_DECODE,
@@ -766,6 +775,7 @@ bool d3d12_video_decoder_create_command_objects(const struct d3d12_screen* pD3D1
    }
 
    D3D12_COMMAND_QUEUE_DESC copyQueueDesc = { D3D12_COMMAND_LIST_TYPE_COPY };
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
    hr = pD3D12Screen->dev->CreateCommandQueue(
       &copyQueueDesc,
       IID_PPV_ARGS(pD3D12Dec->m_spCopyQueue.GetAddressOf()));

@@ -581,12 +581,10 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    capEncoderSupportData.MaxReferenceFramesInDPB = pD3D12Enc->base.max_references; // Max number of frames to be used as a reference, without counting the current picture recon picture
    capEncoderSupportData.CodecConfiguration = d3d12_video_encoder_get_current_codec_config_desc(pD3D12Enc);
 
-   D3D12_VIDEO_ENCODER_PROFILE_H264 suggestedProfileH264 = { };
-   D3D12_VIDEO_ENCODER_LEVELS_H264 suggestedLevelH264 = { };
-   capEncoderSupportData.SuggestedProfile.pH264Profile = &suggestedProfileH264;
-   capEncoderSupportData.SuggestedProfile.DataSize = sizeof(suggestedProfileH264);
-   capEncoderSupportData.SuggestedLevel.pH264LevelSetting = &suggestedLevelH264;
-   capEncoderSupportData.SuggestedLevel.DataSize = sizeof(suggestedLevelH264);
+   capEncoderSupportData.SuggestedProfile.pH264Profile = &pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile;
+   capEncoderSupportData.SuggestedProfile.DataSize = sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile);
+   capEncoderSupportData.SuggestedLevel.pH264LevelSetting = &pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting;
+   capEncoderSupportData.SuggestedLevel.DataSize = sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting);
 
    // prepare inout storage for the resolution dependent result.
    capEncoderSupportData.pResolutionDependentSupport = &pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps;
@@ -650,9 +648,24 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps.MaxSubregionsNumber,
    pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
    pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps.SubregionBlockPixelsSize);
+   
+   if(pD3D12Enc->m_currentEncodeConfig.m_encoderProfileDesc.m_H264Profile != pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile)
+   {
+      D3D12_LOG_DBG("[d3d12_video_encoder_h264] Warning: Requested D3D12_VIDEO_ENCODER_PROFILE_H264 by upper layer: %d mismatches UMD suggested D3D12_VIDEO_ENCODER_PROFILE_H264: %d\n" ,
+      pD3D12Enc->m_currentEncodeConfig.m_encoderProfileDesc.m_H264Profile,
+      pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile);
+   }
+   
+   if(pD3D12Enc->m_currentEncodeConfig.m_encoderLevelDesc.m_H264LevelSetting != pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting)
+   {
+      D3D12_LOG_DBG("[d3d12_video_encoder_h264] Warning: Requested D3D12_VIDEO_ENCODER_LEVELS_H264 by upper layer: %d mismatches UMD suggested D3D12_VIDEO_ENCODER_LEVELS_H264: %d\n",
+      pD3D12Enc->m_currentEncodeConfig.m_encoderLevelDesc.m_H264LevelSetting,
+      pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting);
+   }
+   
    if(pD3D12Enc->m_currentEncodeCapabilities.m_MaxSlicesInOutput > pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps.MaxSubregionsNumber)
    {
-      D3D12_LOG_ERROR("[d3d12_video_encoder_h264 Error] Desired number of subregions is not supported (higher than max reported slice number in query caps)\n.");
+      D3D12_LOG_ERROR("[d3d12_video_encoder_h264] Desired number of subregions is not supported (higher than max reported slice number in query caps)\n.");
    }
 }
 
@@ -681,7 +694,7 @@ D3D12_VIDEO_ENCODER_PROFILE_H264 d3d12_video_encoder_convert_profile_to_d3d12_en
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
       default:
       {
-         D3D12_LOG_ERROR("[d3d12_video_encoder_h264 Error] d3d12_video_encoder_update_current_encoder_config_state_h264 - Unsupported profile\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder_h264] d3d12_video_encoder_update_current_encoder_config_state_h264 - Unsupported profile\n");
          return static_cast<D3D12_VIDEO_ENCODER_PROFILE_H264>(0);
       } break;         
    }
@@ -707,7 +720,7 @@ D3D12_VIDEO_ENCODER_CODEC d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(e
       case PIPE_VIDEO_FORMAT_UNKNOWN:
       default:
       {
-         D3D12_LOG_ERROR("[d3d12_video_encoder_h264 Error] d3d12_video_encoder_convert_codec_to_d3d12_enc_codec - Unsupported codec\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder_h264] d3d12_video_encoder_convert_codec_to_d3d12_enc_codec - Unsupported codec\n");
          return static_cast<D3D12_VIDEO_ENCODER_CODEC>(0);
       } break;
    }

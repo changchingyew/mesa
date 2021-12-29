@@ -98,7 +98,7 @@ struct d3d12_video_encoder
     /// D3D12 objects and context info
     ///
 
-    const uint m_NodeMask = 1 << 0u;
+    const uint m_NodeMask = 0u;
     const uint m_NodeIndex = 0u;
 
     ComPtr<ID3D12Fence> m_spFence;
@@ -146,6 +146,17 @@ struct d3d12_video_encoder
         D3D12_VIDEO_ENCODER_SUPPORT_FLAGS m_SupportFlags;
         D3D12_VIDEO_ENCODER_VALIDATION_FLAGS m_ValidationFlags;
         D3D12_FEATURE_DATA_VIDEO_ENCODER_RESOLUTION_SUPPORT_LIMITS m_currentResolutionSupportCaps;
+        union 
+        {
+            D3D12_VIDEO_ENCODER_PROFILE_H264 m_H264Profile;
+            D3D12_VIDEO_ENCODER_PROFILE_HEVC m_HEVCProfile;
+        } m_encoderSuggestedProfileDesc = { };
+
+        union 
+        {
+            D3D12_VIDEO_ENCODER_LEVELS_H264 m_H264LevelSetting;
+            D3D12_VIDEO_ENCODER_LEVEL_TIER_CONSTRAINTS_HEVC m_HEVCLevelSetting;
+        } m_encoderLevelSuggestedDesc = { };
         
         // Required size for the layout-resolved metadata buffer of current frame to be encoded
         size_t m_resolvedLayoutMetadataBufferRequiredSize;

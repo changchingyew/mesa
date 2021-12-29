@@ -44,9 +44,13 @@
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 
+// The following defines can be tweaked for better code performance or debug verbosity
 #define D3D12_LOG_DBG_ON true
-#define D3D12_LOG_DBG(args...) if(D3D12_LOG_DBG_ON) fprintf(stderr, args);
 #define D3D12_ASSERT_ON_ERROR true
+#define D3D12_VALIDATE_DEVICE_REMOVED true
+#define VERIFY_DEVICE_NOT_REMOVED(videoObj) { if(D3D12_VALIDATE_DEVICE_REMOVED){ HRESULT hr = videoObj->m_pD3D12Screen->dev->GetDeviceRemovedReason(); if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12 Device was removed with HR %x\n", hr); } } }
+
+#define D3D12_LOG_DBG(args...) if(D3D12_LOG_DBG_ON) fprintf(stderr, args);
 #define D3D12_LOG_ERROR(args...) { fprintf(stderr, args); if(D3D12_ASSERT_ON_ERROR) {assert(0);} }
 #define VERIFY_SUCCEEDED(x) { HRESULT hr = x; if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_SUCCEEDED failed with HR %x\n", hr); } }
 #define VERIFY_ARE_EQUAL(a, b) { if(a != b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_ARE_EQUAL failed\n"); assert((a) == (b)); } }

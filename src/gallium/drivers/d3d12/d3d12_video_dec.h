@@ -91,7 +91,7 @@ struct d3d12_video_decoder
     /// D3D12 objects and context info
     ///
 
-    const uint m_NodeMask = 1 << 0u;
+    const uint m_NodeMask = 0u;
     const uint m_NodeIndex = 0u;
 
     ComPtr<ID3D12Fence> m_spFence;

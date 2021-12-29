@@ -156,6 +156,7 @@ void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* p
 
 void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
 {
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    bool needsObjCreation = 
       (!pD3D12Enc->m_upDPBManager)
       || (!pD3D12Enc->m_spVideoEncoder)
@@ -203,9 +204,9 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
             resourceAllocFlags,
             pD3D12Enc->m_NodeMask);
       }
-      
+      VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
       d3d12_video_encoder_create_reference_picture_manager(pD3D12Enc);
-      
+      VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
       // Create encoder and encoder heap descriptors based off m_currentEncodeConfig
 
       D3D12_VIDEO_ENCODER_DESC encoderDesc = 
@@ -234,9 +235,10 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
 
       // Create encoder
       VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CreateVideoEncoder(&encoderDesc, IID_PPV_ARGS(pD3D12Enc->m_spVideoEncoder.GetAddressOf())));
-
+      VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
       // Create encoder heap
       VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CreateVideoEncoderHeap(&heapDesc, IID_PPV_ARGS(pD3D12Enc->m_spVideoEncoderHeap.GetAddressOf())));
+      VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    }
 }
 
@@ -504,7 +506,8 @@ bool d3d12_video_encoder_create_command_objects(struct d3d12_video_encoder* pD3D
       D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
       return false;
    }
-
+   
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    hr = pD3D12Enc->m_pD3D12Screen->dev->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pD3D12Enc->m_spFence));
    if(FAILED(hr))
    {
@@ -512,6 +515,7 @@ bool d3d12_video_encoder_create_command_objects(struct d3d12_video_encoder* pD3D
       return false;
    }
    
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    hr = pD3D12Enc->m_pD3D12Screen->dev->CreateCommandAllocator(
       D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE,
       IID_PPV_ARGS(pD3D12Enc->m_spCommandAllocator.GetAddressOf()));
@@ -521,6 +525,7 @@ bool d3d12_video_encoder_create_command_objects(struct d3d12_video_encoder* pD3D
       return false;
    }
 
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    hr = pD3D12Enc->m_pD3D12Screen->dev->CreateCommandList(
       0,
       D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE,
@@ -534,6 +539,7 @@ bool d3d12_video_encoder_create_command_objects(struct d3d12_video_encoder* pD3D
       return false;
    }
 
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    D3D12_COMMAND_QUEUE_DESC copyQueueDesc = { D3D12_COMMAND_LIST_TYPE_COPY };
    hr = pD3D12Enc->m_pD3D12Screen->dev->CreateCommandQueue(
       &copyQueueDesc,
@@ -648,12 +654,15 @@ void d3d12_video_encoder_prepare_output_buffers(struct d3d12_video_encoder* pD3D
 bool d3d12_video_encoder_reconfigure_session(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
 {
    assert(pD3D12Enc->m_spD3D12VideoDevice);   
-   
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    d3d12_video_encoder_update_current_encoder_config_state(pD3D12Enc, srcTexture, picture);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    d3d12_video_encoder_reconfigure_encoder_objects(pD3D12Enc, srcTexture, picture);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    d3d12_video_encoder_update_picparams_tracking(pD3D12Enc, srcTexture, picture);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    d3d12_video_encoder_prepare_output_buffers(pD3D12Enc, srcTexture, picture);
-
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    return true;
 }
 
@@ -668,6 +677,7 @@ void d3d12_video_encoder_begin_frame(struct pipe_video_codec *codec,
    struct d3d12_video_encoder* pD3D12Enc = (struct d3d12_video_encoder*) codec;
    assert(pD3D12Enc);
    D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_begin_frame started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
 
    if(pD3D12Enc->m_numNestedBeginFrame > 0)
    {
@@ -679,7 +689,6 @@ void d3d12_video_encoder_begin_frame(struct pipe_video_codec *codec,
    ///
    /// Caps check
    ///
-
    int capsResult = d3d12_screen_get_video_param(&pD3D12Enc->m_pD3D12Screen->base,
                                codec->profile,
                                PIPE_VIDEO_ENTRYPOINT_ENCODE,
@@ -688,13 +697,14 @@ void d3d12_video_encoder_begin_frame(struct pipe_video_codec *codec,
    {
       D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_begin_frame - d3d12_screen_get_video_param returned no support.\n");
    }
-
+   
    if(!d3d12_video_encoder_reconfigure_session(pD3D12Enc, target, picture))
    {
       D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_begin_frame - Failure on d3d12_video_encoder_reconfigure_session\n");
    }
 
    D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_begin_frame finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
 }
 
 void d3d12_video_encoder_calculate_metadata_resolved_buffer_size(UINT maxSliceNumber, size_t& bufferSize)
@@ -760,6 +770,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
    assert(pD3D12Enc->m_spD3D12VideoDevice);
    assert(pD3D12Enc->m_spEncodeCommandQueue);
    assert(pD3D12Enc->m_pD3D12Screen);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
 
    struct d3d12_video_buffer* pInputVideoBuffer = (struct d3d12_video_buffer*) source;
    assert(pInputVideoBuffer);
@@ -893,7 +904,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
          0
       }
    };
-        
+
     // Record EncodeFrame
    pD3D12Enc->m_spEncodeCommandList->EncodeFrame(pD3D12Enc->m_spVideoEncoder.Get(), pD3D12Enc->m_spVideoEncoderHeap.Get(), &inputStreamArguments, &outputStreamArguments);
 
@@ -961,6 +972,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
 
    pD3D12Enc->m_spEncodeCommandList->ResourceBarrier(_countof(rgRevertResolveMetadataStateTransitions), rgRevertResolveMetadataStateTransitions);
 
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_encode_bitstream finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 }
 
@@ -968,6 +980,12 @@ void d3d12_video_encoder_get_feedback(struct pipe_video_codec *codec, void *feed
 {
    struct d3d12_video_encoder* pD3D12Enc = (struct d3d12_video_encoder*) codec;
    assert(pD3D12Enc);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
+
+   if(pD3D12Enc->m_needsGPUFlush)
+   {
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_get_feedback - Cannot get feedback with outstanding GPU buffers. Call d3d12_video_encoder_flush and try again.\n");
+   }
 
    D3D12_VIDEO_ENCODER_OUTPUT_METADATA encoderMetadata;
    std::vector<D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA> pSubregionsMetadata;
@@ -986,10 +1004,11 @@ void d3d12_video_encoder_get_feedback(struct pipe_video_codec *codec, void *feed
 
    assert(encoderMetadata.EncodedBitstreamWrittenBytesCount > 0u);
    *size = (pD3D12Enc->m_BitstreamHeadersBuffer.size() + encoderMetadata.EncodedBitstreamWrittenBytesCount);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
 }
 
 void d3d12_video_encoder_extract_encode_metadata(
-   struct d3d12_video_encoder* pD3D12Dec,
+   struct d3d12_video_encoder* pD3D12Enc,
    ID3D12Resource* pResolvedMetadataBuffer, // input
    size_t resourceMetadataSize, // input
    D3D12_VIDEO_ENCODER_OUTPUT_METADATA &parsedMetadata, // output
@@ -998,7 +1017,7 @@ void d3d12_video_encoder_extract_encode_metadata(
 {
    std::vector<uint8_t> pTmp(resourceMetadataSize);
    uint8_t* pMetadataBufferSrc = pTmp.data();
-   pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
+   pD3D12Enc->m_D3D12ResourceCopyHelper->ReadbackData(
       pMetadataBufferSrc,
       resourceMetadataSize,
       resourceMetadataSize,
@@ -1042,7 +1061,8 @@ void d3d12_video_encoder_end_frame(struct pipe_video_codec *codec,
    struct d3d12_video_encoder* pD3D12Enc = (struct d3d12_video_encoder*) codec;
    assert(pD3D12Enc);
    D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_end_frame started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
-
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
+   
    // Signal finish of current frame encoding to the picture management tracker
    pD3D12Enc->m_upDPBManager->EndFrame();
 
@@ -1059,6 +1079,7 @@ void d3d12_video_encoder_end_frame(struct pipe_video_codec *codec,
    ///
    pD3D12Enc->m_needsGPUFlush = true;
    d3d12_video_encoder_flush(codec);
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
 }
 
 #pragma GCC diagnostic pop
