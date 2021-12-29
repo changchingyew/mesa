@@ -56,20 +56,20 @@ struct pipe_video_buffer *d3d12_video_buffer_create(struct pipe_context *pipe,
    
    if( !(tmpl->buffer_format == PIPE_FORMAT_NV12))
    {
-      D3D12_LOG_DBG("assert(>buffer_format == PIPE_FORMAT_NV12) failed, skipping");
+      D3D12_LOG_DBG("[d3d12_video_buffer] assert(>buffer_format == PIPE_FORMAT_NV12) failed, skipping");
       return nullptr;
    }
    
    if( !(pipe_format_to_chroma_format(tmpl->buffer_format) == PIPE_VIDEO_CHROMA_FORMAT_420))
    {
-      D3D12_LOG_DBG("assert((pipe_format_to_chroma_format(tmpl->buffer_format) == PIPE_VIDEO_CHROMA_FORMAT_420) failed, skipping");
+      D3D12_LOG_DBG("[d3d12_video_buffer] assert((pipe_format_to_chroma_format(tmpl->buffer_format) == PIPE_VIDEO_CHROMA_FORMAT_420) failed, skipping");
       return nullptr;
    }
 
    struct d3d12_video_buffer* pD3D12VideoBuffer = CALLOC_STRUCT(d3d12_video_buffer);
    if (!pD3D12VideoBuffer)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_buffer_create - Could not allocate memory for d3d12_video_buffer\n");
+      D3D12_LOG_ERROR("[d3d12_video_buffer] d3d12_video_buffer_create - Could not allocate memory for d3d12_video_buffer\n");
       return nullptr;
    }
 
@@ -106,7 +106,7 @@ struct pipe_video_buffer *d3d12_video_buffer_create(struct pipe_context *pipe,
    
    if(pD3D12VideoBuffer->m_pD3D12Resource == nullptr)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_buffer_create - Call to resource_create() to create d3d12_resource failed\n");
+      D3D12_LOG_ERROR("[d3d12_video_buffer] d3d12_video_buffer_create - Call to resource_create() to create d3d12_resource failed\n");
       goto failed;
    }
 

@@ -58,16 +58,16 @@ void d3d12_video_encoder_flush(struct pipe_video_codec *codec)
 
    if(!pD3D12Enc->m_needsGPUFlush)
    {
-      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_flush started. Nothing to flush, all up to date.\n");
+      D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_flush started. Nothing to flush, all up to date.\n");
    }
    else
    {
-      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_flush started. Will flush video queue work and CPU wait on fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+      D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_flush started. Will flush video queue work and CPU wait on fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 
       HRESULT hr = pD3D12Enc->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if(hr != S_OK)
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_flush - D3D12Device was removed BEFORE commandlist execution.\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - D3D12Device was removed BEFORE commandlist execution.\n");
       }
 
       // Close and execute command list and wait for idle on CPU blocking 
@@ -82,35 +82,35 @@ void d3d12_video_encoder_flush(struct pipe_video_codec *codec)
       hr = pD3D12Enc->m_spEncodeCommandList->Close();
       if (FAILED(hr))
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_flush - Can't close command list with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - Can't close command list with HR %x\n", hr);
       }
 
       ID3D12CommandList *ppCommandLists[1] = { pD3D12Enc->m_spEncodeCommandList.Get() };
       pD3D12Enc->m_spEncodeCommandQueue->ExecuteCommandLists(1, ppCommandLists);
       pD3D12Enc->m_spEncodeCommandQueue->Signal(pD3D12Enc->m_spFence.Get(), pD3D12Enc->m_fenceValue);
       pD3D12Enc->m_spFence->SetEventOnCompletion(pD3D12Enc->m_fenceValue, nullptr);
-      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+      D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 
       hr = pD3D12Enc->m_spCommandAllocator->Reset();
       if (FAILED(hr))
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_flush - resetting ID3D12CommandAllocator failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - resetting ID3D12CommandAllocator failed with HR %x\n", hr);
       }
 
       hr = pD3D12Enc->m_spEncodeCommandList->Reset(pD3D12Enc->m_spCommandAllocator.Get());
       if (FAILED(hr))
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_flush - resetting ID3D12GraphicsCommandList failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - resetting ID3D12GraphicsCommandList failed with HR %x\n", hr);
       }
 
       // Validate device was not removed
       hr = pD3D12Enc->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if(hr != S_OK)
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_flush - D3D12Device was removed AFTER commandlist execution, but wasn't before.\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - D3D12Device was removed AFTER commandlist execution, but wasn't before.\n");
       }
       
-      D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+      D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
       
       pD3D12Enc->m_fenceValue++;
       pD3D12Enc->m_needsGPUFlush = false;
@@ -501,14 +501,14 @@ bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D1
       IID_PPV_ARGS(pD3D12Enc->m_spEncodeCommandQueue.GetAddressOf()));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_create_video_encode_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
       return false;
    }
 
    hr = pD3D12Enc->m_pD3D12Screen->dev->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pD3D12Enc->m_spFence));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_create_video_encode_command_objects - Call to CreateFence failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateFence failed with HR %x\n", hr);
       return false;
    }
    
@@ -517,7 +517,7 @@ bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D1
       IID_PPV_ARGS(pD3D12Enc->m_spCommandAllocator.GetAddressOf()));
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_create_video_encode_command_objects - Call to CreateCommandAllocator failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateCommandAllocator failed with HR %x\n", hr);
       return false;
    }
 
@@ -530,7 +530,7 @@ bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D1
 
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_create_video_encode_command_objects - Call to CreateCommandList failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateCommandList failed with HR %x\n", hr);
       return false;
    }
 
@@ -541,7 +541,7 @@ bool d3d12_create_video_encode_command_objects(struct d3d12_video_encoder* pD3D1
 
    if(FAILED(hr))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_create_video_encode_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_create_video_encode_command_objects - Call to CreateCommandQueue failed with HR %x\n", hr);
       return false;
    }
 
@@ -560,7 +560,7 @@ struct pipe_video_codec *d3d12_video_encoder_create_encoder(struct pipe_context 
    struct d3d12_video_encoder* pD3D12Enc = new d3d12_video_encoder; // Not using new doesn't call ctor and the initializations in the class declaration are lost
    if (!pD3D12Enc)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_create_encoder - Could not allocate memory for d3d12_video_encoder\n");
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_encoder - Could not allocate memory for d3d12_video_encoder\n");
       return nullptr;
    }
 
@@ -582,13 +582,13 @@ struct pipe_video_codec *d3d12_video_encoder_create_encoder(struct pipe_context 
 
    if(FAILED(pD3D12Enc->m_pD3D12Screen->dev->QueryInterface(IID_PPV_ARGS(pD3D12Enc->m_spD3D12VideoDevice.GetAddressOf()))))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_create_encoder - D3D12 Device has no Video encode support\n");
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_encoder - D3D12 Device has no Video encode support\n");
       goto failed;
    }   
 
    if(!d3d12_create_video_encode_command_objects(pD3D12Enc))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_create_encoder - Failure on d3d12_create_video_encode_command_objects\n");
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_create_encoder - Failure on d3d12_create_video_encode_command_objects\n");
       goto failed;
    }
 
@@ -614,7 +614,7 @@ void d3d12_video_encoder_prepare_output_buffers(struct d3d12_video_encoder* pD3D
    VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_RESOURCE_REQUIREMENTS, &pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps, sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps)));
    if(!pD3D12Enc->m_currentEncodeCapabilities.m_ResourceRequirementsCaps.IsSupported)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12_FEATURE_VIDEO_ENCODER_RESOURCE_REQUIREMENTS arguments are not supported.\n");
+      D3D12_LOG_ERROR("[d3d12_video_encoder] D3D12_FEATURE_VIDEO_ENCODER_RESOURCE_REQUIREMENTS arguments are not supported.\n");
    }
 
    d3d12_video_encoder_calculate_metadata_resolved_buffer_size(pD3D12Enc->m_currentEncodeCapabilities.m_MaxSlicesInOutput, pD3D12Enc->m_currentEncodeCapabilities.m_resolvedLayoutMetadataBufferRequiredSize);   
@@ -667,11 +667,11 @@ void d3d12_video_encoder_begin_frame(struct pipe_video_codec *codec,
    // Do nothing here. Initialize happens on encoder creation, re-config (if any) happens in d3d12_video_encoder_encode_bitstream
    struct d3d12_video_encoder* pD3D12Enc = (struct d3d12_video_encoder*) codec;
    assert(pD3D12Enc);
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_begin_frame started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_begin_frame started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 
    if(pD3D12Enc->m_numNestedBeginFrame > 0)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver] Nested d3d12_video_encoder_begin_frame calls are not supported. Call d3d12_video_encoder_end_frame to finalize current frame before calling d3d12_video_encoder_begin_frame again.\n");
+      D3D12_LOG_ERROR("[d3d12_video_encoder] Nested d3d12_video_encoder_begin_frame calls are not supported. Call d3d12_video_encoder_end_frame to finalize current frame before calling d3d12_video_encoder_begin_frame again.\n");
    }
 
    pD3D12Enc->m_numNestedBeginFrame++;
@@ -686,15 +686,15 @@ void d3d12_video_encoder_begin_frame(struct pipe_video_codec *codec,
                                PIPE_VIDEO_CAP_SUPPORTED);
    if(capsResult == 0)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver] d3d12_video_encoder_begin_frame - d3d12_screen_get_video_param returned no support.\n");
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_begin_frame - d3d12_screen_get_video_param returned no support.\n");
    }
 
    if(!d3d12_video_encoder_reconfigure_session(pD3D12Enc, target, picture))
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver] d3d12_video_encoder_begin_frame - Failure on d3d12_video_encoder_reconfigure_session\n");
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_begin_frame - Failure on d3d12_video_encoder_reconfigure_session\n");
    }
 
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_begin_frame finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_begin_frame finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 }
 
 void d3d12_video_encoder_calculate_metadata_resolved_buffer_size(UINT maxSliceNumber, size_t& bufferSize)
@@ -739,7 +739,7 @@ UINT d3d12_video_encoder_calculate_max_slices_count_in_output(
         } break;
         default:
         {
-            D3D12_LOG_ERROR("[D3D12 Video Driver] - CalculateMaxSlicesInOutputCount the slice pattern mode %d is unknown\n", slicesMode);
+            D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_calculate_max_slices_count_in_output - the slice pattern mode %d is unknown\n", slicesMode);
         } break;
     }
 
@@ -756,7 +756,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
 {
    struct d3d12_video_encoder* pD3D12Enc = (struct d3d12_video_encoder*) codec;
    assert(pD3D12Enc);
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_encode_bitstream started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_encode_bitstream started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
    assert(pD3D12Enc->m_spD3D12VideoDevice);
    assert(pD3D12Enc->m_spEncodeCommandQueue);
    assert(pD3D12Enc->m_pD3D12Screen);
@@ -772,7 +772,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
 
    if(pD3D12Enc->m_numConsecutiveEncodeFrame > 0)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver] Nested d3d12_video_encoder_encode_bitstream calls are not supported. Call d3d12_video_encoder_end_frame to finalize current frame before calling d3d12_video_encoder_encode_bitstream again.\n");
+      D3D12_LOG_ERROR("[d3d12_video_encoder] Nested d3d12_video_encoder_encode_bitstream calls are not supported. Call d3d12_video_encoder_end_frame to finalize current frame before calling d3d12_video_encoder_encode_bitstream again.\n");
    }
 
    pD3D12Enc->m_numConsecutiveEncodeFrame++;
@@ -961,7 +961,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
 
    pD3D12Enc->m_spEncodeCommandList->ResourceBarrier(_countof(rgRevertResolveMetadataStateTransitions), rgRevertResolveMetadataStateTransitions);
 
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_encode_bitstream finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_encode_bitstream finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 }
 
 void d3d12_video_encoder_get_feedback(struct pipe_video_codec *codec, void *feedback, unsigned *size)
@@ -981,7 +981,7 @@ void d3d12_video_encoder_get_feedback(struct pipe_video_codec *codec, void *feed
    // Read metadata from encoderMetadata
    if(encoderMetadata.EncodeErrorFlags != D3D12_VIDEO_ENCODER_ENCODE_ERROR_FLAG_NO_ERROR)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver] - Encode GPU command failed - EncodeErrorFlags: %ld\n", encoderMetadata.EncodeErrorFlags);
+      D3D12_LOG_ERROR("[d3d12_video_encoder] Encode GPU command failed - EncodeErrorFlags: %ld\n", encoderMetadata.EncodeErrorFlags);
    }
 
    assert(encoderMetadata.EncodedBitstreamWrittenBytesCount > 0u);
@@ -1041,7 +1041,7 @@ void d3d12_video_encoder_end_frame(struct pipe_video_codec *codec,
 {
    struct d3d12_video_encoder* pD3D12Enc = (struct d3d12_video_encoder*) codec;
    assert(pD3D12Enc);
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_end_frame started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_end_frame started for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 
    // Signal finish of current frame encoding to the picture management tracker
    pD3D12Enc->m_upDPBManager->EndFrame();
@@ -1052,7 +1052,7 @@ void d3d12_video_encoder_end_frame(struct pipe_video_codec *codec,
    // Decrement begin_frame counter at end_frame call
    pD3D12Enc->m_numNestedBeginFrame--;
 
-   D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_end_frame finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_end_frame finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
 
    ///
    /// Flush work to the GPU and blocking wait until encode finishes 

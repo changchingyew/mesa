@@ -89,7 +89,7 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
       } break;
       default:
       {
-         D3D12_LOG_DBG("[D3D12 Video Driver] d3d12_video_encoder_update_current_rate_control_h264 invalid RC config, using default RC CQP mode\n");
+         D3D12_LOG_DBG("[d3d12_video_encoder_h264] d3d12_video_encoder_update_current_rate_control_h264 invalid RC config, using default RC CQP mode\n");
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Mode = D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_CQP;
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CQP.ConstantQP_FullIntracodedFrame = 30;
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CQP.ConstantQP_InterPredictedFrame_PrevRefOnly = 30;
@@ -134,11 +134,11 @@ D3D12_VIDEO_ENCODER_FRAME_TYPE_H264 d3d12_video_encoder_convert_frame_type(enum 
       } break;
       case PIPE_H2645_ENC_PICTURE_TYPE_SKIP:
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver] PIPE_H2645_ENC_PICTURE_TYPE_SKIP not supported.\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder_h264] PIPE_H2645_ENC_PICTURE_TYPE_SKIP not supported.\n");
       } break;
       default:
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver] d3d12_video_encoder_convert_frame_type - Invalid pipe_h2645_enc_picture_type %d.\n", picType);
+         D3D12_LOG_ERROR("[d3d12_video_encoder_h264] d3d12_video_encoder_convert_frame_type - Invalid pipe_h2645_enc_picture_type %d.\n", picType);
       } break;
    }
 }
@@ -238,7 +238,7 @@ D3D12_VIDEO_ENCODER_LEVELS_H264 d3d12_video_encoder_convert_level_h264(UINT h264
       } break;
       default:
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_convert_level_h264 - Unsupported level\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder_h264] d3d12_video_encoder_convert_level_h264 - Unsupported level\n");
       } break;            
    }
 }
@@ -333,7 +333,7 @@ void d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVEL
         } break;
         default:
         {
-            D3D12_LOG_ERROR("Not a supported level\n"); // Not a supported level
+            D3D12_LOG_ERROR("[d3d12_video_encoder_h264] d3d12_video_encoder_h264 level\n"); // Not a supported level
         } break;            
     }
 }
@@ -346,25 +346,25 @@ bool d3d12_video_encoder_is_gop_supported(UINT GOPLength, UINT PPicturePeriod, U
 
     if(gopHasPFrames && (MaxL0ReferencesForP == 0))
     {
-        D3D12_LOG_DBG("GOP not supported based on HW capabilities - Reason: no P frames support - GOP Length: %d GOP PPicPeriod: %d\n", GOPLength, PPicturePeriod);
+        D3D12_LOG_DBG("[d3d12_video_encoder_h264] GOP not supported based on HW capabilities - Reason: no P frames support - GOP Length: %d GOP PPicPeriod: %d\n", GOPLength, PPicturePeriod);
         bSupportedGOP = false;
     }
 
     if(gopHasBFrames && ((MaxL0ReferencesForB + MaxL1ReferencesForB) == 0))
     {
-        D3D12_LOG_DBG("GOP not supported based on HW capabilities - Reason: no B frames support - GOP Length: %d GOP PPicPeriod: %d\n", GOPLength, PPicturePeriod);
+        D3D12_LOG_DBG("[d3d12_video_encoder_h264] GOP not supported based on HW capabilities - Reason: no B frames support - GOP Length: %d GOP PPicPeriod: %d\n", GOPLength, PPicturePeriod);
         bSupportedGOP = false;
     }
 
     if(gopHasPFrames && !gopHasBFrames && (MaxL0ReferencesForP < MaxDPBCapacity))
     {
-        D3D12_LOG_DBG("MaxL0ReferencesForP must be equal or higher than the reported MaxDPBCapacity -- P frames should be able to address all the DPB unique indices at least once\n");
+        D3D12_LOG_DBG("[d3d12_video_encoder_h264] MaxL0ReferencesForP must be equal or higher than the reported MaxDPBCapacity -- P frames should be able to address all the DPB unique indices at least once\n");
         bSupportedGOP = false;
     }
 
     if(gopHasPFrames && gopHasBFrames && ((MaxL0ReferencesForB + MaxL1ReferencesForB) < MaxDPBCapacity))
     {
-        D3D12_LOG_DBG("Insufficient L0 and L1 lists size to address all the unique ref pic indices reported by MaxDPBCapacity\n");
+        D3D12_LOG_DBG("[d3d12_video_encoder_h264] Insufficient L0 and L1 lists size to address all the unique ref pic indices reported by MaxDPBCapacity\n");
         bSupportedGOP = false;
     }
     
@@ -455,7 +455,7 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
          // Check if underlying HW supports the GOP
          if(h264PicCtrlData.MaxL0ReferencesForP == 0)
          {
-               D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P frames.\n");
+               D3D12_LOG_ERROR("[d3d12_video_encoder_h264] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P frames.\n");
                return;
          }
 
@@ -477,13 +477,13 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
          // Check if underlying HW supports the GOP for
          if(gopHasPFrames && (h264PicCtrlData.MaxL0ReferencesForP == 0))
          {
-               D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P and B frames.\n");
+               D3D12_LOG_ERROR("[d3d12_video_encoder_h264] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support P frames and the GOP has P and B frames.\n");
                return;
          }
 
          if(gopHasBFrames && ((h264PicCtrlData.MaxL0ReferencesForB + h264PicCtrlData.MaxL1ReferencesForB) == 0))
          {
-               D3D12_LOG_ERROR("[D3D12 Video Error] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support B frames and the GOP has P and B frames.\n");
+               D3D12_LOG_ERROR("[d3d12_video_encoder_h264] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT doesn't support B frames and the GOP has P and B frames.\n");
                return;
          }
 
@@ -500,7 +500,7 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
 
       if(!d3d12_video_encoder_is_gop_supported(GOPLength, PPicturePeriod, h264PicCtrlData.MaxDPBCapacity, h264PicCtrlData.MaxL0ReferencesForP, h264PicCtrlData.MaxL0ReferencesForB, h264PicCtrlData.MaxL1ReferencesForB))
       {
-         D3D12_LOG_ERROR("Invalid or unsupported GOP \n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder_h264] Invalid or unsupported GOP \n");
       }
    }
 }
@@ -601,45 +601,45 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    {
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested codec is not supported\n");
+         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested codec is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RESOLUTION_NOT_SUPPORTED_IN_LIST) != 0)
       {
-         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested resolution is not supported\n");
+         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested resolution is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_CONFIGURATION_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested bitrate or rc config is not supported\n");
+         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested bitrate or rc config is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_CONFIGURATION_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested codec config is not supported\n");
+         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested codec config is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_MODE_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested rate control mode is not supported\n");
+         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested rate control mode is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INTRA_REFRESH_MODE_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested intra refresh config is not supported\n");
+         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested intra refresh config is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_SUBREGION_LAYOUT_MODE_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested subregion layout mode is not supported\n");
+         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested subregion layout mode is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INPUT_FORMAT_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[D3D12 Video Driver] - Requested input dxgi format is not supported\n");
+         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested input dxgi format is not supported\n");
       }
 
-      D3D12_LOG_ERROR("[D3D12 Video Driver] D3D12_FEATURE_VIDEO_ENCODER_SUPPORT arguments are not supported - ValidationFlags: 0x%x - SupportFlags: 0x%x\n",
+      D3D12_LOG_ERROR("[d3d12_video_encoder_h264] D3D12_FEATURE_VIDEO_ENCODER_SUPPORT arguments are not supported - ValidationFlags: 0x%x - SupportFlags: 0x%x\n",
             capEncoderSupportData.ValidationFlags,
             capEncoderSupportData.SupportFlags);
    }
@@ -652,7 +652,7 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps.SubregionBlockPixelsSize);
    if(pD3D12Enc->m_currentEncodeCapabilities.m_MaxSlicesInOutput > pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps.MaxSubregionsNumber)
    {
-      D3D12_LOG_ERROR("[D3D12 Video Driver Error] Desired number of subregions is not supported (higher than max reported slice number in query caps)\n.");
+      D3D12_LOG_ERROR("[d3d12_video_encoder_h264 Error] Desired number of subregions is not supported (higher than max reported slice number in query caps)\n.");
    }
 }
 
@@ -681,7 +681,7 @@ D3D12_VIDEO_ENCODER_PROFILE_H264 d3d12_video_encoder_convert_profile_to_d3d12_en
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
       default:
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_update_current_encoder_config_state_h264 - Unsupported profile\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder_h264 Error] d3d12_video_encoder_update_current_encoder_config_state_h264 - Unsupported profile\n");
          return static_cast<D3D12_VIDEO_ENCODER_PROFILE_H264>(0);
       } break;         
    }
@@ -707,7 +707,7 @@ D3D12_VIDEO_ENCODER_CODEC d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(e
       case PIPE_VIDEO_FORMAT_UNKNOWN:
       default:
       {
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_encoder_convert_codec_to_d3d12_enc_codec - Unsupported codec\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder_h264 Error] d3d12_video_encoder_convert_codec_to_d3d12_enc_codec - Unsupported codec\n");
          return static_cast<D3D12_VIDEO_ENCODER_CODEC>(0);
       } break;
    }

@@ -111,7 +111,7 @@ void D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput(
 {
     if(!IsReferenceOnly())
     {
-        D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput expected IsReferenceOnly() to be true.\n");
+        D3D12_LOG_ERROR("[D3D12VidDecReferenceDataManager] D3D12VidDecReferenceDataManager::GetReferenceOnlyOutput expected IsReferenceOnly() to be true.\n");
     }
 
     // The DPB Storage only has REFERENCE_ONLY allocations, use one of those.
@@ -257,7 +257,7 @@ UINT16 D3D12VidDecReferenceDataManager::StoreFutureReference(UINT16 index, ComPt
 
     if (remappedIndex == m_invalidIndex)
     {
-        D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12VidDecReferenceDataManager - Decode - No available reference map entry for output.\n");
+        D3D12_LOG_ERROR("[D3D12VidDecReferenceDataManager] D3D12VidDecReferenceDataManager - Decode - No available reference map entry for output.\n");
     }
 
     // Set the index as the key in this map entry.

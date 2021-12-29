@@ -1917,7 +1917,7 @@ struct pipe_video_codec* d3d12_video_create_codec( struct pipe_context *context,
     }
     else
     {
-        D3D12_LOG_ERROR("[D3D12 Video Driver Error] d3d12_video_create_codec - Unsupported entrypoint %d\n", templat->entrypoint);
+        D3D12_LOG_ERROR("[d3d12_context] d3d12_video_create_codec - Unsupported entrypoint %d\n", templat->entrypoint);
         return nullptr;
     }
 }
