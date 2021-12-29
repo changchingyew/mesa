@@ -67,7 +67,7 @@ struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context
 	pD3D12Dec->base.begin_frame = d3d12_video_decoder_begin_frame;
 	pD3D12Dec->base.decode_bitstream = d3d12_video_decoder_decode_bitstream;
 	pD3D12Dec->base.end_frame = d3d12_video_decoder_end_frame;
-	pD3D12Dec->base.flush = d3d12_video_decode_flush;   
+	pD3D12Dec->base.flush = d3d12_video_decoder_flush;   
    
    pD3D12Dec->m_decodeFormat = D3D12VideoFormatHelper::d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);   
    pD3D12Dec->m_d3d12DecProfileType = d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(codec->profile);
@@ -134,7 +134,7 @@ void d3d12_video_decoder_destroy(struct pipe_video_codec *codec)
       return;
    }
 
-   d3d12_video_decode_flush(codec); // Flush pending work before destroying.
+   d3d12_video_decoder_flush(codec); // Flush pending work before destroying.
 
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
 
@@ -565,7 +565,7 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
    /// Flush work to the GPU and blocking wait until decode finishes 
    ///
    pD3D12Dec->m_needsGPUFlush = true;
-   d3d12_video_decode_flush(codec);
+   d3d12_video_decoder_flush(codec);
 
    ///
    /// Due to DPB allocations tracking/management reasons, in some cases we need to deep copy the texture output into pD3D12VideoBuffer target
@@ -655,24 +655,24 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
  * flush any outstanding command buffers to the hardware
  * should be called before a video_buffer is acessed by the gallium frontend again
  */
-void d3d12_video_decode_flush(struct pipe_video_codec *codec)
+void d3d12_video_decoder_flush(struct pipe_video_codec *codec)
 {
    struct d3d12_video_decoder* pD3D12Dec = (struct d3d12_video_decoder*) codec;
    assert(pD3D12Dec);
    assert(pD3D12Dec->m_spD3D12VideoDevice);
    assert(pD3D12Dec->m_spDecodeCommandQueue);   
-   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_flush started. Will flush video queue work and CPU wait on fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+   D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_flush started. Will flush video queue work and CPU wait on fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
    if(!pD3D12Dec->m_needsGPUFlush)
    {
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_flush started. Nothing to flush, all up to date.\n");
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_flush started. Nothing to flush, all up to date.\n");
    }
    else
    {
       HRESULT hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if(hr != S_OK)
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - D3D12Device was removed BEFORE commandlist execution.\n");
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_flush - D3D12Device was removed BEFORE commandlist execution with HR %x.\n", hr);
       }
 
       // Close and execute command list and wait for idle on CPU blocking 
@@ -687,35 +687,35 @@ void d3d12_video_decode_flush(struct pipe_video_codec *codec)
       hr = pD3D12Dec->m_spDecodeCommandList->Close();
       if (FAILED(hr))
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - Can't close command list with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_flush - Can't close command list with HR %x\n", hr);
       }
 
       ID3D12CommandList *ppCommandLists[1] = { pD3D12Dec->m_spDecodeCommandList.Get() };
       pD3D12Dec->m_spDecodeCommandQueue->ExecuteCommandLists(1, ppCommandLists);
       pD3D12Dec->m_spDecodeCommandQueue->Signal(pD3D12Dec->m_spFence.Get(), pD3D12Dec->m_fenceValue);
       pD3D12Dec->m_spFence->SetEventOnCompletion(pD3D12Dec->m_fenceValue, nullptr);
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_flush - ExecuteCommandLists finished on signal with fenceValue: %d\n", pD3D12Dec->m_fenceValue);
 
       hr = pD3D12Dec->m_spCommandAllocator->Reset();
       if (FAILED(hr))
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - resetting ID3D12CommandAllocator failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_flush - resetting ID3D12CommandAllocator failed with HR %x\n", hr);
       }
 
       hr = pD3D12Dec->m_spDecodeCommandList->Reset(pD3D12Dec->m_spCommandAllocator.Get());
       if (FAILED(hr))
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - resetting ID3D12GraphicsCommandList failed with HR %x\n", hr);
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_flush - resetting ID3D12GraphicsCommandList failed with HR %x\n", hr);
       }
 
       // Validate device was not removed
       hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if(hr != S_OK)
       {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decode_flush - D3D12Device was removed AFTER commandlist execution, but wasn't before.\n");
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_flush - D3D12Device was removed AFTER commandlist execution with HR %x, but wasn't before.\n", hr);
       }
       
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decode_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
       
       pD3D12Dec->m_fenceValue++;
       pD3D12Dec->m_needsGPUFlush = false;

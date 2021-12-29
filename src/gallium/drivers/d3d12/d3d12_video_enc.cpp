@@ -67,7 +67,7 @@ void d3d12_video_encoder_flush(struct pipe_video_codec *codec)
       HRESULT hr = pD3D12Enc->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if(hr != S_OK)
       {
-         D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - D3D12Device was removed BEFORE commandlist execution.\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - D3D12Device was removed BEFORE commandlist execution with HR %x.\n", hr);
       }
 
       // Close and execute command list and wait for idle on CPU blocking 
@@ -107,7 +107,7 @@ void d3d12_video_encoder_flush(struct pipe_video_codec *codec)
       hr = pD3D12Enc->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if(hr != S_OK)
       {
-         D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - D3D12Device was removed AFTER commandlist execution, but wasn't before.\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - D3D12Device was removed AFTER commandlist execution with HR %x, but wasn't before.\n", hr);
       }
       
       D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
@@ -795,7 +795,7 @@ void d3d12_video_encoder_encode_bitstream(struct pipe_video_codec *codec,
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAGS picCtrlFlags = D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_NONE;
 
    // Transition DPB reference pictures to read mode
-   // TODO: D3D12DecomposeSubresource in all transitions, take TextureArray case into account too
+   // TODO: D3D12DecomposeSubresource in all transitions, take TextureArray case into account too. For resources managed by pipe/mesa (ie. not DPB resources or staging frame textures), do we want to use d3d12_transition_resource_state from d3d12_context?
    UINT maxReferences = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
    std::vector<D3D12_RESOURCE_BARRIER> rgReferenceTransitions(maxReferences);
    if((referenceFramesDescriptor.NumTexture2Ds > 0) || (pD3D12Enc->m_upDPBManager->IsCurrentFrameUsedAsReference()))

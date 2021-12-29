@@ -71,7 +71,7 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
  * flush any outstanding command buffers to the hardware
  * should be called before a video_buffer is acessed by the gallium frontend again
  */
-void d3d12_video_decode_flush(struct pipe_video_codec *codec);
+void d3d12_video_decoder_flush(struct pipe_video_codec *codec);
 
 ///
 /// Pipe video interface ends
