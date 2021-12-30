@@ -105,18 +105,15 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
    }
 }
 
-D3D12VideoEncoderH264FrameDesc d3d12_video_encoder_convert_current_frame_gop_info_h264(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
+void d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture, D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& picParams)
 {
    struct pipe_h264_enc_picture_desc *h264Pic = (struct pipe_h264_enc_picture_desc *)picture;
 
-   D3D12VideoEncoderH264FrameDesc ret = {
-      h264Pic->idr_pic_id,
-      d3d12_video_encoder_convert_frame_type(h264Pic->picture_type),
-      h264Pic->pic_order_cnt,
-      h264Pic->frame_num_cnt,
-   };
-
-   return ret;
+   picParams.pH264PicData->pic_parameter_set_id = pD3D12Enc->m_upH264BitstreamBuilder->GetPPSCount();
+   picParams.pH264PicData->idr_pic_id = h264Pic->idr_pic_id;
+   picParams.pH264PicData->FrameType = d3d12_video_encoder_convert_frame_type(h264Pic->picture_type);
+   picParams.pH264PicData->PictureOrderCountNumber = h264Pic->pic_order_cnt;
+   picParams.pH264PicData->FrameDecodingOrderNumber = h264Pic->frame_num_cnt;
 }
 
 D3D12_VIDEO_ENCODER_FRAME_TYPE_H264 d3d12_video_encoder_convert_frame_type(enum pipe_h2645_enc_picture_type picType)

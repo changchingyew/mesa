@@ -27,19 +27,11 @@
 
 #include "d3d12_video_types.h"
 
-typedef struct D3D12VideoEncoderH264FrameDesc
-{
-    UINT64 idr_pic_id;
-    D3D12_VIDEO_ENCODER_FRAME_TYPE_H264 CurrentFrameType;
-    UINT m_curPictureOrderCountNumber;
-    UINT m_curFrameDecodingOrderNumber;
-} D3D12VideoEncoderH264FrameDesc;
-
 class ID3D12VideoEncodeReferencePicManager
 {
 public:
 
-    virtual void BeginFrame(D3D12VideoEncoderH264FrameDesc, D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA) = 0; // TODO: Templatize method BeginFrame<TCodecPictureData> and then use with D3D12VideoEncoderH264FrameDesc and other codecs
+    virtual void BeginFrame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA) = 0;
     virtual void EndFrame() = 0;
     virtual D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE GetCurrentFrameReconPicOutputAllocation() = 0;
     virtual void GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& codecAllocation) = 0;

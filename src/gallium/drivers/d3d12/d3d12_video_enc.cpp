@@ -139,19 +139,21 @@ void d3d12_video_encoder_destroy(struct pipe_video_codec *codec)
 
 void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)
 {
+   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
+
    enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
    switch (codec)
    {
       case PIPE_VIDEO_FORMAT_MPEG4_AVC:
       {
-         D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams = d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
-         currentPicParams.pH264PicData->pic_parameter_set_id = pD3D12Enc->m_upH264BitstreamBuilder->GetPPSCount();
-         pD3D12Enc->m_upDPBManager->BeginFrame(d3d12_video_encoder_convert_current_frame_gop_info_h264(pD3D12Enc, srcTexture, picture), currentPicParams);
+         d3d12_video_encoder_update_current_frame_pic_params_info_h264(pD3D12Enc, srcTexture, picture, currentPicParams);                  
       } break;
       
       default:
          assert(0);
    }
+
+   pD3D12Enc->m_upDPBManager->BeginFrame(currentPicParams);
 }
 
 void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture)

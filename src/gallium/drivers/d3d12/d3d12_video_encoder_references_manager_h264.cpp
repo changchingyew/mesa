@@ -44,8 +44,7 @@ D3D12VideoEncoderReferencesManagerH264::D3D12VideoEncoderReferencesManagerH264(
     m_MaxDPBCapacity(MaxDPBCapacity),
     m_rDPBStorageManager(rDpbStorageManager),
     m_CurrentFrameReferencesData({ }),
-    m_gopHasInterFrames(gopHasIorPFrames),
-    m_currentGOPStateDescriptor({ })
+    m_gopHasInterFrames(gopHasIorPFrames)
 {
     assert((m_MaxDPBCapacity + 1/*extra for cur frame output recon pic*/) == m_rDPBStorageManager.GetNumberOfTrackedAllocations());
 
@@ -93,22 +92,18 @@ void D3D12VideoEncoderReferencesManagerH264::GetCurrentFramePictureControlData(D
     D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] %d resources IN USE out of a total of %d ALLOCATED resources at frame with POC: %d\n",
         m_rDPBStorageManager.GetNumberOfInUseAllocations(),
         m_rDPBStorageManager.GetNumberOfTrackedAllocations(),
-        m_currentGOPStateDescriptor.m_curPictureOrderCountNumber);
+        m_curFrameState.PictureOrderCountNumber);
 
     // See casts below
     assert(m_CurrentFrameReferencesData.pList0ReferenceFrames.size() < UINT_MAX);
     assert(m_CurrentFrameReferencesData.pList1ReferenceFrames.size() < UINT_MAX);
     assert(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size() < UINT_MAX);
 
-    bool needsL0List = (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME) || (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME);
-    bool needsL1List = (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME);    
+    bool needsL0List = (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME) || (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME);
+    bool needsL1List = (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME);    
 
     assert(codecAllocation.DataSize == sizeof(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264));
     
-    m_curFrameState.FrameType = m_currentGOPStateDescriptor.CurrentFrameType;
-    m_curFrameState.idr_pic_id = static_cast<UCHAR>(m_currentGOPStateDescriptor.idr_pic_id);
-    m_curFrameState.PictureOrderCountNumber = m_currentGOPStateDescriptor.m_curPictureOrderCountNumber;
-    m_curFrameState.FrameDecodingOrderNumber = m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber;
     m_curFrameState.List0ReferenceFramesCount = needsL0List ? static_cast<UINT>(m_CurrentFrameReferencesData.pList0ReferenceFrames.size()) : 0;
     m_curFrameState.pList0ReferenceFrames = needsL0List ? m_CurrentFrameReferencesData.pList0ReferenceFrames.data() : nullptr,
     m_curFrameState.List1ReferenceFramesCount = needsL1List ? static_cast<UINT>(m_CurrentFrameReferencesData.pList1ReferenceFrames.size()) : 0,
@@ -139,7 +134,7 @@ D3D12_VIDEO_ENCODE_REFERENCE_FRAMES D3D12VideoEncoderReferencesManagerH264::GetC
     // Return nullptr for fully intra frames (eg IDR)
     // and return references information for inter frames (eg.P/B) and I frame that doesn't flush DPB
 
-    if((m_currentGOPStateDescriptor.CurrentFrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME) && (m_currentGOPStateDescriptor.CurrentFrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_I_FRAME) && m_gopHasInterFrames)
+    if((m_curFrameState.FrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME) && (m_curFrameState.FrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_I_FRAME) && m_gopHasInterFrames)
     {
         auto curRef = m_rDPBStorageManager.GetCurrentFrameReferenceFrames();
         retVal.NumTexture2Ds = curRef.NumTexture2Ds;
@@ -180,7 +175,7 @@ void D3D12VideoEncoderReferencesManagerH264::UpdateFIFODPB_PushFrontCurReconPict
         D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] MaxDPBCapacity is %d - Number of pics in DPB is %d when trying to put frame with POC %d at front of the DPB\n", 
             m_MaxDPBCapacity,
             m_rDPBStorageManager.GetNumberOfPicsInDPB(),
-            m_currentGOPStateDescriptor.m_curPictureOrderCountNumber
+            m_curFrameState.PictureOrderCountNumber
         );        
 
         // Release least recently used in DPB if we filled the m_MaxDPBCapacity allowed
@@ -211,9 +206,9 @@ void D3D12VideoEncoderReferencesManagerH264::UpdateFIFODPB_PushFrontCurReconPict
             // UINT LongTermPictureIdx;
             0,
             // UINT PictureOrderCountNumber;
-            m_currentGOPStateDescriptor.m_curPictureOrderCountNumber,
+            m_curFrameState.PictureOrderCountNumber,
             // UINT FrameDecodingOrderNumber;
-            m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber,
+            m_curFrameState.FrameDecodingOrderNumber,
             // UINT TemporalLayerIndex;
             0 // NO B-hierarchy in this impl of the picture manager
         };
@@ -245,7 +240,7 @@ void D3D12VideoEncoderReferencesManagerH264::PrepareCurrentFrameL0L1Lists()
     m_CurrentFrameReferencesData.pList1ReferenceFrames.reserve(m_MaxDPBCapacity);
 
     // If current frame require L0 and maybe L1 lists, build them below
-    if(m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME)
+    if(m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME)
     {
         // Only List 0 for P frame
         // Default H264 order - take first m_MaxL0ListForP DPB descriptors sorted by DECREASING FrameDecodingOrderNumber
@@ -264,7 +259,7 @@ void D3D12VideoEncoderReferencesManagerH264::PrepareCurrentFrameL0L1Lists()
             m_CurrentFrameReferencesData.pList0ReferenceFrames.resize(m_MaxL0ReferencesForP);
         }
     }
-    else if(m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME)
+    else if(m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME)
     {
         // List 0 for B Frames
 
@@ -277,7 +272,7 @@ void D3D12VideoEncoderReferencesManagerH264::PrepareCurrentFrameL0L1Lists()
         }
 
         // Partition the array in two groups -> Where x:dpbList x.POC < curFrame.POC and Where x:dpbList x.POC > curFrame.POC
-        UINT curFramePOC = m_currentGOPStateDescriptor.m_curPictureOrderCountNumber;
+        UINT curFramePOC = m_curFrameState.PictureOrderCountNumber;
         // partSplitIterator has the iterator in the vector to the first element of the second group
         auto partSplitIterator = std::partition(dpbDescs.begin(), dpbDescs.end(), 
             [curFramePOC](pair<UINT, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntry)
@@ -362,8 +357,8 @@ void D3D12VideoEncoderReferencesManagerH264::PrepareCurrentFrameL0L1Lists()
 void D3D12VideoEncoderReferencesManagerH264::PrintL0L1()
 {
     if( D3D12_LOG_DBG_ON &&
-        (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME)
-        || (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME)
+        (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME)
+        || (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME)
     )
     {
         std::string list0ContentsString;
@@ -380,8 +375,8 @@ void D3D12VideoEncoderReferencesManagerH264::PrintL0L1()
         }
 
         D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] L0 list for frame with POC %d - frame_num (%d) is: \n %s \n", 
-            m_currentGOPStateDescriptor.m_curPictureOrderCountNumber,
-            m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber,
+            m_curFrameState.PictureOrderCountNumber,
+            m_curFrameState.FrameDecodingOrderNumber,
             list0ContentsString.c_str()
         );
 
@@ -399,8 +394,8 @@ void D3D12VideoEncoderReferencesManagerH264::PrintL0L1()
         }
 
         D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] L1 list for frame with POC %d - frame_num (%d) is: \n %s \n", 
-            m_currentGOPStateDescriptor.m_curPictureOrderCountNumber,
-            m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber,
+            m_curFrameState.PictureOrderCountNumber,
+            m_curFrameState.FrameDecodingOrderNumber,
             list1ContentsString.c_str()
         );        
     }
@@ -436,8 +431,8 @@ void D3D12VideoEncoderReferencesManagerH264::PrintDPB()
 
         D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] DPB has %d frames - DPB references for frame with POC %d (frame_num: %d) are: \n %s \n", 
                 m_rDPBStorageManager.GetNumberOfPicsInDPB(),
-                m_currentGOPStateDescriptor.m_curPictureOrderCountNumber,
-                m_currentGOPStateDescriptor.m_curFrameDecodingOrderNumber,
+                m_curFrameState.PictureOrderCountNumber,
+                m_curFrameState.FrameDecodingOrderNumber,
                 dpbContents.c_str()
             );
     }
@@ -449,7 +444,7 @@ void D3D12VideoEncoderReferencesManagerH264::EndFrame()
     D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] %d resources IN USE out of a total of %d ALLOCATED resources at EndFrame for frame with POC: %d\n",
         m_rDPBStorageManager.GetNumberOfInUseAllocations(),
         m_rDPBStorageManager.GetNumberOfTrackedAllocations(),
-        m_currentGOPStateDescriptor.m_curPictureOrderCountNumber);
+        m_curFrameState.PictureOrderCountNumber);
 
     // Adds last used (if not null) GetCurrentFrameReconPicOutputAllocation to DPB for next EncodeFrame if necessary
     // updates pReferenceFramesReconPictureDescriptors and updates the dpb storage    
@@ -462,17 +457,16 @@ bool D3D12VideoEncoderReferencesManagerH264::IsCurrentFrameUsedAsReference()
     // This class doesn't provide support for hierarchical Bs and TemporalLayerIds
     // so we should only use as references IDR, I, and P frames
     return (
-        (m_currentGOPStateDescriptor.CurrentFrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME)
+        (m_curFrameState.FrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME)
     );
 }
 
-void D3D12VideoEncoderReferencesManagerH264::BeginFrame(D3D12VideoEncoderH264FrameDesc curFrameData, D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA defaultPicParamValues)
+void D3D12VideoEncoderReferencesManagerH264::BeginFrame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curFrameData)
 {
-    m_currentGOPStateDescriptor = curFrameData;
-    m_curFrameState = *defaultPicParamValues.pH264PicData;
+    m_curFrameState = *curFrameData.pH264PicData;
 
     // Advance the GOP tracking state
-    bool isDPBFlushNeeded = (m_currentGOPStateDescriptor.CurrentFrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME);
+    bool isDPBFlushNeeded = (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME);
     if(isDPBFlushNeeded)
     {
         ResetGOPTrackingAndDPB();
