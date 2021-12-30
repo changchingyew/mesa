@@ -225,25 +225,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    }
 
-   // Check for m_SupportFlags reconfiguration flags
-   // 1. If NOT SUPPORTED: Re-create encoder/heap and DO NOT SET D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_*_CHANGED reconfiguration flags in EncodeFrame
-   // 2. If SUPPORTED: Don't recreate but SET the according D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_*_CHANGED reconfiguration flags in EncodeFrame
-
-   if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_RECONFIGURATION_AVAILABLE) != 0/*checking if the flag it's actually set*/)
-   {
-      pD3D12Enc->m_currentEncodeConfig.m_seqFlags |= D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_RATE_CONTROL_CHANGE;
-   }
-
-   if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SUBREGION_LAYOUT_RECONFIGURATION_AVAILABLE) != 0/*checking if the flag it's actually set*/)
-   {
-      pD3D12Enc->m_currentEncodeConfig.m_seqFlags |= D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_SUBREGION_LAYOUT_CHANGE;
-   }
-
-   if((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SEQUENCE_GOP_RECONFIGURATION_AVAILABLE) != 0/*checking if the flag it's actually set*/)
-   {
-      pD3D12Enc->m_currentEncodeConfig.m_seqFlags |= D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_GOP_SEQUENCE_CHANGE;
-   }
-
+   bool reCreatedEncoder = false;
    // Events that that trigger a re-creation of the encoder
    if (
       !pD3D12Enc->m_spVideoEncoder
@@ -269,6 +251,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       else
       {
          D3D12_LOG_DBG("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating D3D12VideoEncoder\n");
+         reCreatedEncoder = true;
       }
       
       D3D12_VIDEO_ENCODER_DESC encoderDesc = 
@@ -287,6 +270,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
    }
 
+   bool reCreatedEncoderHeap = false;
    // Events that that trigger a re-creation of the encoder heap
    if (
       !pD3D12Enc->m_spVideoEncoderHeap
@@ -312,6 +296,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       else
       {
          D3D12_LOG_DBG("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating D3D12VideoEncoderHeap\n");
+         reCreatedEncoderHeap = true;
       }
 
       D3D12_VIDEO_ENCODER_HEAP_DESC heapDesc =
@@ -330,6 +315,37 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       // Create encoder heap
       VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CreateVideoEncoderHeap(&heapDesc, IID_PPV_ARGS(pD3D12Enc->m_spVideoEncoderHeap.GetAddressOf())));
       VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
+   }
+
+   // If on-the-fly reconfiguration happened without object recreation, set D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_*_CHANGED reconfiguration flags in EncodeFrame
+   if(
+      rateControlChanged
+      && ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_RECONFIGURATION_AVAILABLE) != 0/*checking if the flag it's actually set*/)
+      && (pD3D12Enc->m_fenceValue > 1)
+      && (!reCreatedEncoder || !reCreatedEncoderHeap)
+   )
+   {
+      pD3D12Enc->m_currentEncodeConfig.m_seqFlags |= D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_RATE_CONTROL_CHANGE;
+   }
+
+   if(
+      slicesChanged
+      && ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SUBREGION_LAYOUT_RECONFIGURATION_AVAILABLE) != 0/*checking if the flag it's actually set*/)
+      && (pD3D12Enc->m_fenceValue > 1)
+      && (!reCreatedEncoder || !reCreatedEncoderHeap)
+   )
+   {
+      pD3D12Enc->m_currentEncodeConfig.m_seqFlags |= D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_SUBREGION_LAYOUT_CHANGE;
+   }
+
+   if(
+      gopChanged
+      && ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_SEQUENCE_GOP_RECONFIGURATION_AVAILABLE) != 0/*checking if the flag it's actually set*/)
+      && (pD3D12Enc->m_fenceValue > 1)
+      && (!reCreatedEncoder || !reCreatedEncoderHeap)
+   )
+   {
+      pD3D12Enc->m_currentEncodeConfig.m_seqFlags |= D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_GOP_SEQUENCE_CHANGE;
    }
 }
 
