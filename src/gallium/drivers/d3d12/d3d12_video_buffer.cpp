@@ -111,7 +111,7 @@ struct pipe_video_buffer *d3d12_video_buffer_create(struct pipe_context *pipe,
    }
 
    pD3D12VideoBuffer->m_NumPlanes = util_format_get_num_planes(pD3D12VideoBuffer->m_pD3D12Resource->overall_format);
-   assert(pD3D12VideoBuffer->m_NumPlanes == 2);
+   VERIFY_IS_TRUE(pD3D12VideoBuffer->m_NumPlanes == 2);
    return &pD3D12VideoBuffer->base;
 
 failed:
