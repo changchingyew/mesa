@@ -570,7 +570,7 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    struct pipe_h264_enc_picture_desc *h264Pic = (struct pipe_h264_enc_picture_desc *)picture;
 
    // Reset reconfig dirty flags
-   pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_NONE;
+   pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags = D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_NONE;
    // Reset sequence changes flags
    pD3D12Enc->m_currentEncodeConfig.m_seqFlags = D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_NONE;
 
