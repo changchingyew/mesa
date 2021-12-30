@@ -81,7 +81,7 @@ D3D12TexturesArrayDPBManager<TVideoHeap>::D3D12TexturesArrayDPBManager(
     m_nodeMask(nodeMask)
 {
     // Initialize D3D12 DPB exposed in this class implemented CRUD interface for a DPB
-    assert(0u == ClearDecodePictureBuffer());
+    VERIFY_IS_TRUE(0u == ClearDecodePictureBuffer());
     
     // Implement a reusable pool of D3D12 Resources as an array of textures    
     UINT16 poolFixedSize = m_dpbTextureArraySize;

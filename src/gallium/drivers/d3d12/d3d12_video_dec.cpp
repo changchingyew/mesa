@@ -211,7 +211,7 @@ void d3d12_video_decoder_decode_bitstream(struct pipe_video_codec *codec,
                                codec->profile,
                                PIPE_VIDEO_ENTRYPOINT_BITSTREAM,
                                PIPE_VIDEO_CAP_SUPPORTED);
-   assert(capsResult != 0);
+   VERIFY_IS_TRUE(capsResult != 0);
 
    ///
    /// Compressed bitstream buffers
@@ -926,7 +926,7 @@ void d3d12_video_decoder_prepare_for_decode_frame(
    {
       bool needsTransitionToDecodeWrite = false;
       pD3D12Dec->m_spDPBManager->GetReferenceOnlyOutput(ppRefOnlyOutTexture2D, pRefOnlyOutSubresourceIndex, needsTransitionToDecodeWrite);
-      assert(needsTransitionToDecodeWrite);
+      VERIFY_IS_TRUE(needsTransitionToDecodeWrite);
 
       CD3DX12_RESOURCE_DESC outputDesc((*ppRefOnlyOutTexture2D)->GetDesc());
       UINT MipLevel, PlaneSlice, ArraySlice;

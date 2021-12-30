@@ -109,7 +109,7 @@ void d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_
 {
    struct pipe_h264_enc_picture_desc *h264Pic = (struct pipe_h264_enc_picture_desc *)picture;
    D3D12VideoBitstreamBuilderH264* pH264BitstreamBuilder = dynamic_cast<D3D12VideoBitstreamBuilderH264*>(pD3D12Enc->m_upBitstreamBuilder.get());
-   assert(pH264BitstreamBuilder);
+   VERIFY_IS_TRUE(pH264BitstreamBuilder != nullptr);
 
    picParams.pH264PicData->pic_parameter_set_id = pH264BitstreamBuilder->GetPPSCount();
    picParams.pH264PicData->idr_pic_id = h264Pic->idr_pic_id;
@@ -470,7 +470,7 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
       };
 
       VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT, &capPictureControlData, sizeof(capPictureControlData)));
-      assert(capPictureControlData.IsSupported);
+      VERIFY_IS_TRUE(capPictureControlData.IsSupported);
 
       // Calculate the DPB size for this session based on
       // 1. Driver reported caps
@@ -831,7 +831,7 @@ UINT d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder* pD
    writeNewSPS |= ((pD3D12Enc->m_currentEncodeConfig.m_seqFlags & D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_RESOLUTION_CHANGE) != 0); // also on resolution change   
 
    D3D12VideoBitstreamBuilderH264* pH264BitstreamBuilder = dynamic_cast<D3D12VideoBitstreamBuilderH264*>(pD3D12Enc->m_upBitstreamBuilder.get());
-   assert(pH264BitstreamBuilder);
+   VERIFY_IS_TRUE(pH264BitstreamBuilder);
 
    UINT active_seq_parameter_set_id = pH264BitstreamBuilder->GetSPSCount();
    if(active_seq_parameter_set_id > 0)

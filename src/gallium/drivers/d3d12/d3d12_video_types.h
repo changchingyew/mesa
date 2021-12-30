@@ -52,9 +52,10 @@ using Microsoft::WRL::ComPtr;
 
 #define D3D12_LOG_DBG(args...) if(D3D12_LOG_DBG_ON) fprintf(stderr, args);
 #define D3D12_LOG_ERROR(args...) { fprintf(stderr, args); if(D3D12_ASSERT_ON_ERROR) {assert(0);} }
-#define VERIFY_SUCCEEDED(x) { HRESULT hr = x; if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_SUCCEEDED failed with HR %x\n", hr); } }
-#define VERIFY_ARE_EQUAL(a, b) { if(a != b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_ARE_EQUAL failed\n"); assert((a) == (b)); } }
-#define VERIFY_IS_LESS_THAN_OR_EQUAL(a, b) { if(a > b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_LESS_THAN_OR_EQUAL failed\n"); assert((a) <= (b)); } }
+#define VERIFY_SUCCEEDED(x) { HRESULT hr = x; if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_SUCCEEDED(%s) failed with HR %x\n", #x, hr); } }
+#define VERIFY_IS_TRUE(x) { bool evaluationRes = (x); if(!evaluationRes) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_TRUE(%s) failed\n", #x); } }
+#define VERIFY_ARE_EQUAL(a, b) { if(a != b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_ARE_EQUAL(%s, %s) failed\n", #a, #b); } }
+#define VERIFY_IS_LESS_THAN_OR_EQUAL(a, b) { if(a > b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_LESS_THAN_OR_EQUAL(%s, %s) failed\n", #a, #b); } }
 
 typedef enum {
     D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_NONE = 0,

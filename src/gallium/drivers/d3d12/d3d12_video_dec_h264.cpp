@@ -93,7 +93,7 @@ void d3d12_video_decoder_prepare_dxva_slices_control_h264 (
       // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
       pOutSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
       bool sliceFound = d3d12_video_decoder_get_slice_size_and_offset_h264(sliceIdx, numSlices, pD3D12Dec->m_stagingDecodeBitstream, processedBitstreamBytes, pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
-      assert(sliceFound);
+      VERIFY_IS_TRUE(sliceFound);
       D3D12_LOG_DBG("[d3d12_video_decoder_h264] Detected slice index %ld with size %d and offset %d for frame with fenceValue: %d\n", sliceIdx, pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation, pD3D12Dec->m_fenceValue);
       
       processedBitstreamBytes += pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer;
@@ -109,7 +109,7 @@ bool d3d12_video_decoder_get_slice_size_and_offset_h264(size_t sliceIdx, size_t 
 
    uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset; // Search the rest of the full frame buffer after the offset
    int currentSlicePosition = d3d12_video_decoder_get_next_startcode_offset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
-   assert(currentSlicePosition >= 0);
+   VERIFY_IS_TRUE(currentSlicePosition >= 0);
 
    // Save the offset until the next slice in the output param
    outSliceOffset = currentSlicePosition + bufferOffset;
@@ -131,7 +131,7 @@ bool d3d12_video_decoder_get_slice_size_and_offset_h264(size_t sliceIdx, size_t 
       bufferOffset += DXVA_H264_START_CODE_LEN_BITS;
 
       int nextSlicePosition = DXVA_H264_START_CODE_LEN_BITS + d3d12_video_decoder_get_next_startcode_offset(buf, bufferOffset, DXVA_H264_START_CODE, DXVA_H264_START_CODE_LEN_BITS, numBitsToSearchIntoBuffer);
-      assert(nextSlicePosition >= 0); // if currentSlicePosition was the last slice, this might fail
+      VERIFY_IS_TRUE(nextSlicePosition >= 0); // if currentSlicePosition was the last slice, this might fail
 
       outSliceSize = nextSlicePosition - currentSlicePosition;
    }

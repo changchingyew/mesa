@@ -74,7 +74,7 @@ void D3D12VideoBitstreamBuilderH264::BuildSPS
         constraint_set3_flag = 0;
     }
 
-    assert((inputFmt == DXGI_FORMAT_NV12) ||
+    VERIFY_IS_TRUE((inputFmt == DXGI_FORMAT_NV12) ||
         (inputFmt == DXGI_FORMAT_P010)); 
 
     // Assume NV12 YUV 420 8 bits

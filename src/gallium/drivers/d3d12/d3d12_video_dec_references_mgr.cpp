@@ -301,7 +301,7 @@ void D3D12VideoDecoderReferencesManager::ReleaseUnusedReferencesTexturesMemory()
             if(reconPicture.pReconstructedPicture != nullptr)
             {
                 // Untrack this resource, will mark it as free un the underlying storage buffer pool
-                assert(m_upD3D12TexturesStorageManager->UntrackReconstructedPictureAllocation(reconPicture));                
+                VERIFY_IS_TRUE(m_upD3D12TexturesStorageManager->UntrackReconstructedPictureAllocation(reconPicture));                
                 D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoDecoderHeap> nullReconPic = 
                 {
                     nullptr,

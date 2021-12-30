@@ -61,7 +61,7 @@ D3D12VideoBitstream::GetExpGolomb0CodeLength (uint32_t uiVal)
         iLen += 8;
     }
 
-    assert(uiVal < 256);
+    VERIFY_IS_TRUE(uiVal < 256);
 
     return iLen + m_iLog_2_N[uiVal];
 }
@@ -112,7 +112,7 @@ D3D12VideoBitstream::SetupBitStream(
 bool
 D3D12VideoBitstream::CreateBitStream(uint32_t uiInitBufferSize)
 {
-    assert((uiInitBufferSize) >= 4 && !(uiInitBufferSize & 3));
+    VERIFY_IS_TRUE((uiInitBufferSize) >= 4 && !(uiInitBufferSize & 3));
 
     m_pBitsBuffer = (uint8_t *)new uint8_t[uiInitBufferSize];
 
@@ -170,7 +170,7 @@ D3D12VideoBitstream::VerifyBuffer(uint32_t uiBytesToWrite)
 void
 D3D12VideoBitstream::IncCurrentOffset(int32_t dwOffset)
 {
-    assert(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
+    VERIFY_IS_TRUE(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
     m_uiOffset += dwOffset;
 }
 
@@ -178,7 +178,7 @@ void
 D3D12VideoBitstream::GetCurrentBufferPostionAndSize(uint8_t **ppCurrBufPos,
         int32_t *pdwLeftBufSize)
 {
-    assert(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
+    VERIFY_IS_TRUE(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
     *ppCurrBufPos = m_pBitsBuffer + m_uiOffset;
     *pdwLeftBufSize = m_uiBitsBufferSize - m_uiOffset;
 }
@@ -224,7 +224,7 @@ D3D12VideoBitstream::PutBits(
     uint32_t iBitsVal
     )
 {
-    assert(uiBitsCount <= 32);
+    VERIFY_IS_TRUE(uiBitsCount <= 32);
 
     if (uiBitsCount < m_iBitsToGo)
     {
@@ -255,7 +255,7 @@ D3D12VideoBitstream::PutBits(
 void
 D3D12VideoBitstream::Flush()
 {
-    assert(IsByteAligned());
+    VERIFY_IS_TRUE(IsByteAligned());
 
     uint32_t temp = (uint32_t)(32 - m_iBitsToGo);
 
@@ -278,8 +278,8 @@ D3D12VideoBitstream::Flush()
 void
 D3D12VideoBitstream::AppendByteStream(D3D12VideoBitstream *pStream)
 {
-    assert(pStream->IsByteAligned() && IsByteAligned());
-    assert(m_iBitsToGo == 32);
+    VERIFY_IS_TRUE(pStream->IsByteAligned() && IsByteAligned());
+    VERIFY_IS_TRUE(m_iBitsToGo == 32);
 
     uint8_t *pDst = m_pBitsBuffer + m_uiOffset;
     uint8_t *pSrc = pStream->GetBitstreamBuffer();

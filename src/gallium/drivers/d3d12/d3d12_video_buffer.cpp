@@ -56,13 +56,13 @@ struct pipe_video_buffer *d3d12_video_buffer_create(struct pipe_context *pipe,
    
    if( !(tmpl->buffer_format == PIPE_FORMAT_NV12))
    {
-      D3D12_LOG_DBG("[d3d12_video_buffer] assert(>buffer_format == PIPE_FORMAT_NV12) failed, skipping");
+      D3D12_LOG_DBG("[d3d12_video_buffer] buffer_format is only supported as PIPE_FORMAT_NV12.\n");
       return nullptr;
    }
    
    if( !(pipe_format_to_chroma_format(tmpl->buffer_format) == PIPE_VIDEO_CHROMA_FORMAT_420))
    {
-      D3D12_LOG_DBG("[d3d12_video_buffer] assert((pipe_format_to_chroma_format(tmpl->buffer_format) == PIPE_VIDEO_CHROMA_FORMAT_420) failed, skipping");
+      D3D12_LOG_DBG("[d3d12_video_buffer] tmpl->buffer_format only supported as a PIPE_VIDEO_CHROMA_FORMAT_420 format.\n");
       return nullptr;
    }
 

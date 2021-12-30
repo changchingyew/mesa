@@ -34,7 +34,7 @@ void D3D12VideoNaluWriterH264::RBSPTrailing(D3D12VideoBitstream *pBitstream)
         pBitstream->PutBits(iLeft, 0);
     }
 
-    assert(pBitstream->IsByteAligned());
+    VERIFY_IS_TRUE(pBitstream->IsByteAligned());
 }
 
 UINT32 D3D12VideoNaluWriterH264::WriteSPSBytes(D3D12VideoBitstream *pBitstream, H264_SPS *pSPS)
@@ -186,7 +186,7 @@ UINT32 D3D12VideoNaluWriterH264::WrapRbspIntoNalu(D3D12VideoBitstream *pNALU,
                               UINT iNaluIdc,
                               UINT iNaluType)
 {
-    assert(pRBSP->IsByteAligned());
+    VERIFY_IS_TRUE(pRBSP->IsByteAligned());
 
     INT32 iBytesWritten = pNALU->GetByteCount();
 
@@ -223,7 +223,7 @@ UINT32 D3D12VideoNaluWriterH264::WrapRbspIntoNalu(D3D12VideoBitstream *pNALU,
         }
     }
 
-    assert(pNALU->IsByteAligned());
+    VERIFY_IS_TRUE(pNALU->IsByteAligned());
     WriteNaluEnd(pNALU);
 
     pNALU->Flush();
@@ -236,12 +236,12 @@ void D3D12VideoNaluWriterH264::SPSToNALUBytes(H264_SPS *pSPS, std::vector<BYTE> 
 {
     // Wrap SPS into NALU and copy full NALU into output byte array
     D3D12VideoBitstream rbsp, nalu;
-    assert(rbsp.CreateBitStream(MAX_COMPRESSED_SPS));
-    assert(nalu.CreateBitStream(2*MAX_COMPRESSED_SPS));
+    VERIFY_IS_TRUE(rbsp.CreateBitStream(MAX_COMPRESSED_SPS));
+    VERIFY_IS_TRUE(nalu.CreateBitStream(2*MAX_COMPRESSED_SPS));
 
     rbsp.SetStartCodePrevention(TRUE);
-    assert(WriteSPSBytes(&rbsp, pSPS) > 0u);
-    assert(WrapSPSNalu(&nalu, &rbsp) > 0u);
+    VERIFY_IS_TRUE(WriteSPSBytes(&rbsp, pSPS) > 0u);
+    VERIFY_IS_TRUE(WrapSPSNalu(&nalu, &rbsp) > 0u);
 
     // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer memory.
     BYTE* naluBytes = nalu.GetBitstreamBuffer();
@@ -265,12 +265,12 @@ void D3D12VideoNaluWriterH264::PPSToNALUBytes(H264_PPS *pPPS, std::vector<BYTE> 
 {
     // Wrap PPS into NALU and copy full NALU into output byte array
     D3D12VideoBitstream rbsp, nalu;
-    assert(rbsp.CreateBitStream(MAX_COMPRESSED_PPS));
-    assert(nalu.CreateBitStream(2*MAX_COMPRESSED_PPS));
+    VERIFY_IS_TRUE(rbsp.CreateBitStream(MAX_COMPRESSED_PPS));
+    VERIFY_IS_TRUE(nalu.CreateBitStream(2*MAX_COMPRESSED_PPS));
 
     rbsp.SetStartCodePrevention(TRUE);
-    assert(WritePPSBytes(&rbsp, pPPS, bIsHighProfile) > 0u);
-    assert(WrapPPSNalu(&nalu, &rbsp) > 0u);
+    VERIFY_IS_TRUE(WritePPSBytes(&rbsp, pPPS, bIsHighProfile) > 0u);
+    VERIFY_IS_TRUE(WrapPPSNalu(&nalu, &rbsp) > 0u);
 
     // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer memory.
     BYTE* naluBytes = nalu.GetBitstreamBuffer();
@@ -293,11 +293,11 @@ void D3D12VideoNaluWriterH264::PPSToNALUBytes(H264_PPS *pPPS, std::vector<BYTE> 
 void D3D12VideoNaluWriterH264::WriteEndOfStreamNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
 {
     D3D12VideoBitstream rbsp, nalu;
-    assert(rbsp.CreateBitStream(8));
-    assert(nalu.CreateBitStream(2*MAX_COMPRESSED_PPS));
+    VERIFY_IS_TRUE(rbsp.CreateBitStream(8));
+    VERIFY_IS_TRUE(nalu.CreateBitStream(2*MAX_COMPRESSED_PPS));
 
     rbsp.SetStartCodePrevention(TRUE);
-    assert(WrapRbspIntoNalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_STREAM) > 0u);
+    VERIFY_IS_TRUE(WrapRbspIntoNalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_STREAM) > 0u);
 
     // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer memory.
     BYTE* naluBytes = nalu.GetBitstreamBuffer();
@@ -320,11 +320,11 @@ void D3D12VideoNaluWriterH264::WriteEndOfStreamNALU(std::vector<BYTE> &headerBit
 void D3D12VideoNaluWriterH264::WriteEndOfSequenceNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t& writtenBytes)
 {    
     D3D12VideoBitstream rbsp, nalu;
-    assert(rbsp.CreateBitStream(8));
-    assert(nalu.CreateBitStream(2*MAX_COMPRESSED_PPS));
+    VERIFY_IS_TRUE(rbsp.CreateBitStream(8));
+    VERIFY_IS_TRUE(nalu.CreateBitStream(2*MAX_COMPRESSED_PPS));
 
     rbsp.SetStartCodePrevention(TRUE);
-    assert(WrapRbspIntoNalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_SEQUENCE) > 0u);
+    VERIFY_IS_TRUE(WrapRbspIntoNalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_SEQUENCE) > 0u);
 
     // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer memory.
     BYTE* naluBytes = nalu.GetBitstreamBuffer();
