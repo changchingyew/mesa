@@ -108,8 +108,10 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
 void d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video_encoder* pD3D12Enc, struct pipe_video_buffer *srcTexture, struct pipe_picture_desc *picture, D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& picParams)
 {
    struct pipe_h264_enc_picture_desc *h264Pic = (struct pipe_h264_enc_picture_desc *)picture;
+   D3D12VideoBitstreamBuilderH264* pH264BitstreamBuilder = dynamic_cast<D3D12VideoBitstreamBuilderH264*>(pD3D12Enc->m_upBitstreamBuilder.get());
+   assert(pH264BitstreamBuilder);
 
-   picParams.pH264PicData->pic_parameter_set_id = pD3D12Enc->m_upH264BitstreamBuilder->GetPPSCount();
+   picParams.pH264PicData->pic_parameter_set_id = pH264BitstreamBuilder->GetPPSCount();
    picParams.pH264PicData->idr_pic_id = h264Pic->idr_pic_id;
    picParams.pH264PicData->FrameType = d3d12_video_encoder_convert_frame_type(h264Pic->picture_type);
    picParams.pH264PicData->PictureOrderCountNumber = h264Pic->pic_order_cnt;
@@ -828,10 +830,13 @@ UINT d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder* pD
    bool writeNewSPS = (pD3D12Enc->m_fenceValue == 1); // on first frame
    writeNewSPS |= ((pD3D12Enc->m_currentEncodeConfig.m_seqFlags & D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_RESOLUTION_CHANGE) != 0); // also on resolution change   
 
-   UINT active_seq_parameter_set_id = pD3D12Enc->m_upH264BitstreamBuilder->GetSPSCount();
+   D3D12VideoBitstreamBuilderH264* pH264BitstreamBuilder = dynamic_cast<D3D12VideoBitstreamBuilderH264*>(pD3D12Enc->m_upBitstreamBuilder.get());
+   assert(pH264BitstreamBuilder);
+
+   UINT active_seq_parameter_set_id = pH264BitstreamBuilder->GetSPSCount();
    if(writeNewSPS)
    {
-      pD3D12Enc->m_upH264BitstreamBuilder->BuildSPS(*profDesc.pH264Profile,
+      pH264BitstreamBuilder->BuildSPS(*profDesc.pH264Profile,
          *levelDesc.pH264LevelSetting,
          pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
          *codecConfigDesc.pH264Config,
@@ -845,8 +850,8 @@ UINT d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder* pD
    }
 
    size_t writtenPPSBytesCount = 0;
-   UINT pic_parameter_set_id = pD3D12Enc->m_upH264BitstreamBuilder->GetPPSCount();
-   pD3D12Enc->m_upH264BitstreamBuilder->BuildPPS(*profDesc.pH264Profile,
+   UINT pic_parameter_set_id = pH264BitstreamBuilder->GetPPSCount();
+   pH264BitstreamBuilder->BuildPPS(*profDesc.pH264Profile,
          *codecConfigDesc.pH264Config,
          *currentPicParams.pH264PicData,
          pic_parameter_set_id,

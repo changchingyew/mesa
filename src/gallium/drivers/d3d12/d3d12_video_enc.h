@@ -138,9 +138,7 @@ struct d3d12_video_encoder
 
     std::unique_ptr<ID3D12VideoEncodeReferencePicManager> m_upDPBManager;
     std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap> > m_upDPBStorageManager;
-
-    // TODO: Templatize codec specific
-    std::unique_ptr<D3D12VideoBitstreamBuilderH264> m_upH264BitstreamBuilder;
+    std::unique_ptr<ID3D12VideoBitstreamBuilder> m_upBitstreamBuilder;
 
     bool m_needsGPUFlush = false;
 

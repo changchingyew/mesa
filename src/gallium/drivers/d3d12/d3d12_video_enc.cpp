@@ -354,7 +354,7 @@ void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_enc
             pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxDPBCapacity // Max number of frames to be used as a reference, without counting the current picture recon picture
          );
 
-         pD3D12Enc->m_upH264BitstreamBuilder = std::make_unique<D3D12VideoBitstreamBuilderH264>();
+         pD3D12Enc->m_upBitstreamBuilder = std::make_unique<D3D12VideoBitstreamBuilderH264>();
       } break;
       
       default:

@@ -25,8 +25,9 @@
 #define D3D12_VIDEO_ENC_BITSTREAM_BUILDER_H264_H
 
 #include "d3d12_video_encoder_nalu_writer_h264.h"
+#include "d3d12_video_encoder_bitstream_builder.h"
 
-class D3D12VideoBitstreamBuilderH264
+class D3D12VideoBitstreamBuilderH264 : public ID3D12VideoBitstreamBuilder
 {
 
 public:
