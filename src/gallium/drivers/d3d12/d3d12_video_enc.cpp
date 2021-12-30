@@ -43,7 +43,6 @@
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
 #include "util/u_video.h"
-#include "util/vl_vlc.h"
 
 /**
  * flush any outstanding command buffers to the hardware
