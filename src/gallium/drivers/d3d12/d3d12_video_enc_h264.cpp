@@ -834,6 +834,11 @@ UINT d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder* pD
    assert(pH264BitstreamBuilder);
 
    UINT active_seq_parameter_set_id = pH264BitstreamBuilder->GetSPSCount();
+   if(active_seq_parameter_set_id > 0)
+   {
+      active_seq_parameter_set_id--; // GetSPSCount returns the count of SPS written, we want the zero-indexed range for active_seq_parameter_set_id
+   }
+
    if(writeNewSPS)
    {
       pH264BitstreamBuilder->BuildSPS(*profDesc.pH264Profile,
@@ -850,11 +855,10 @@ UINT d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder* pD
    }
 
    size_t writtenPPSBytesCount = 0;
-   UINT pic_parameter_set_id = pH264BitstreamBuilder->GetPPSCount();
    pH264BitstreamBuilder->BuildPPS(*profDesc.pH264Profile,
          *codecConfigDesc.pH264Config,
          *currentPicParams.pH264PicData,
-         pic_parameter_set_id,
+         currentPicParams.pH264PicData->pic_parameter_set_id,
          active_seq_parameter_set_id,
          pD3D12Enc->m_BitstreamHeadersBuffer,
          pD3D12Enc->m_BitstreamHeadersBuffer.begin() + writtenSPSBytesCount,
