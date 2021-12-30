@@ -128,9 +128,7 @@ VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
    case VA_DISPLAY_X11:
       drv->vscreen = vl_dri3_screen_create(ctx->native_dpy, ctx->x11_screen);
       if (!drv->vscreen)
-      {
          drv->vscreen = vl_dri2_screen_create(ctx->native_dpy, ctx->x11_screen);
-      }      
       break;
    case VA_DISPLAY_WAYLAND:
    case VA_DISPLAY_DRM:
@@ -183,6 +181,7 @@ VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
 
    if (!drv->vscreen)
       goto error_screen;
+
    drv->pipe = pipe_create_multimedia_context(drv->vscreen->pscreen);
    if (!drv->pipe)
       goto error_pipe;
@@ -190,14 +189,17 @@ VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
    drv->htab = handle_table_create();
    if (!drv->htab)
       goto error_htab;
+
    if (!vl_compositor_init(&drv->compositor, drv->pipe))
       goto error_compositor;
    if (!vl_compositor_init_state(&drv->cstate, drv->pipe))
       goto error_compositor_state;
+
    vl_csc_get_matrix(VL_CSC_COLOR_STANDARD_BT_601, NULL, true, &drv->csc);
    if (!vl_compositor_set_csc_matrix(&drv->cstate, (const vl_csc_matrix *)&drv->csc, 1.0f, 0.0f))
       goto error_csc_matrix;
    (void) mtx_init(&drv->mutex, mtx_plain);
+
    ctx->pDriverData = (void *)drv;
    ctx->version_major = 0;
    ctx->version_minor = 1;
