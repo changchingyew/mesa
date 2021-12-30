@@ -504,6 +504,7 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
          return VA_STATUS_ERROR_OPERATION_FAILED;
       }
    }
+
    views = surf->buffer->get_sampler_view_planes(surf->buffer);
    if (!views) {
       mtx_unlock(&drv->mutex);
