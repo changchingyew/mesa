@@ -149,7 +149,9 @@ void d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder* p
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_update_picparams_tracking", "Unsupported codec", codec);
+      } break;         
    }
 
    pD3D12Enc->m_upDPBManager->BeginFrame(currentPicParams);
@@ -373,7 +375,9 @@ void d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_enc
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_create_reference_picture_manager", "Unsupported codec", codec);
+      } break;
    }
 }
 
@@ -394,7 +398,9 @@ D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA d3d12_video_encoder_g
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_slice_param_settings", "Unsupported codec", codec);
+      } break;
    }
 }
 
@@ -412,7 +418,9 @@ D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA d3d12_video_encoder_get_current_p
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_picture_param_settings", "Unsupported codec", codec);
+      } break;
    }
 }
 
@@ -452,7 +460,7 @@ D3D12_VIDEO_ENCODER_RATE_CONTROL d3d12_video_encoder_get_current_rate_control_se
       } break;
       default:
       {
-         assert(0);
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_rate_control_settings", "Unsupported D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE", pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Mode);
       } break;
    }
 
@@ -473,7 +481,9 @@ D3D12_VIDEO_ENCODER_LEVEL_SETTING d3d12_video_encoder_get_current_level_desc(str
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_level_desc", "Unsupported codec", codec);
+      } break;
    }
 }
 
@@ -489,7 +499,9 @@ UINT d3d12_video_encoder_build_codec_headers(struct d3d12_video_encoder* pD3D12E
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_build_codec_headers", "Unsupported codec", codec);
+      } break;
    }   
    return 0u;
 }
@@ -508,7 +520,9 @@ D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE d3d12_video_encoder_get_current_gop_d
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_gop_desc", "Unsupported codec", codec);
+      } break;
    }
 }
 
@@ -526,7 +540,9 @@ D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION d3d12_video_encoder_get_current_codec_co
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_codec_config_desc", "Unsupported codec", codec);
+      } break;
    }
 }
 
@@ -544,7 +560,9 @@ D3D12_VIDEO_ENCODER_PROFILE_DESC d3d12_video_encoder_get_current_profile_desc(st
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_profile_desc", "Unsupported codec", codec);
+      } break;
    }
 }
 
@@ -562,7 +580,9 @@ D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT d3d12_video_encoder_get_curren
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_picture_control_capabilities_desc", "Unsupported codec", codec);
+      } break;
    }
 }
 
@@ -580,7 +600,9 @@ UINT d3d12_video_encoder_get_current_max_dpb_capacity(struct d3d12_video_encoder
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_max_dpb_capacity", "Unsupported codec", codec);
+      } break;
    }
 }
 
@@ -595,7 +617,9 @@ void d3d12_video_encoder_update_current_encoder_config_state(struct d3d12_video_
       } break;
       
       default:
-         assert(0);
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_update_current_encoder_config_state", "Unsupported codec", codec);
+      } break;
    }   
 }
 
@@ -831,7 +855,7 @@ UINT d3d12_video_encoder_calculate_max_slices_count_in_output(
     UINT pic_height_in_subregion_units = static_cast<UINT>(std::ceil(sequenceTargetResolution.Height / static_cast<double>(SubregionBlockPixelsSize)));
     UINT total_picture_subregion_units =  pic_width_in_subregion_units * pic_height_in_subregion_units;
     UINT maxSlices = 0u;
-    switch(slicesMode)
+    switch (slicesMode)
     {
         case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_FULL_FRAME:
         {

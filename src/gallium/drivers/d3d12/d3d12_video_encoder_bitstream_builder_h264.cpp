@@ -25,7 +25,7 @@
 
 inline H264_SPEC_PROFILES Convert12ToSpecH264Profiles(D3D12_VIDEO_ENCODER_PROFILE_H264 profile12)
 {
-    switch(profile12)
+    switch (profile12)
     {
         case D3D12_VIDEO_ENCODER_PROFILE_H264_MAIN:
         {

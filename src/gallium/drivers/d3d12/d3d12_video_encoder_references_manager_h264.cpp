@@ -357,8 +357,8 @@ void D3D12VideoEncoderReferencesManagerH264::PrepareCurrentFrameL0L1Lists()
 void D3D12VideoEncoderReferencesManagerH264::PrintL0L1()
 {
     if( D3D12_LOG_DBG_ON &&
-        (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME)
-        || (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME)
+        ((m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME)
+        || (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME))
     )
     {
         std::string list0ContentsString;

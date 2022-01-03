@@ -404,7 +404,7 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
    d3d12InputArguments.CompressedBitstream.pBuffer = pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get();
    d3d12InputArguments.CompressedBitstream.Offset = 0u;
    const uint64_t d3d12BitstreamOffsetAlignment = 128u; // specified in https://docs.microsoft.com/en-us/windows/win32/api/d3d12video/ne-d3d12video-d3d12_video_decode_tier
-   assert((d3d12InputArguments.CompressedBitstream.Offset == 0) || (d3d12InputArguments.CompressedBitstream.Offset % d3d12BitstreamOffsetAlignment));
+   VERIFY_IS_TRUE((d3d12InputArguments.CompressedBitstream.Offset == 0) || ((d3d12InputArguments.CompressedBitstream.Offset % d3d12BitstreamOffsetAlignment) == 0) );
    d3d12InputArguments.CompressedBitstream.Size = pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize;
 
    d3d12_record_state_transition(
@@ -975,8 +975,9 @@ void d3d12_video_decoder_prepare_for_decode_frame(
       } break;
 
       default:
-         assert(0);
-         break;
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_prepare_for_decode_frame", "Unsupported profile", pD3D12Dec->m_d3d12DecProfileType);
+      } break;
    }
 }
 
@@ -1086,8 +1087,9 @@ void d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decode
       break;
 
       default:
-         assert(0);
-         break;
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_refresh_dpb_active_references", "Unsupported profile", pD3D12Dec->m_d3d12DecProfileType);
+      } break;
    }
 
    // Releases the underlying reference picture texture objects of all references that were not marked as used in this method.
@@ -1108,9 +1110,10 @@ void d3d12_video_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, U
       }
       break;
 
-   default:
-      assert(0);
-      break;
+      default:
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_get_frame_info", "Unsupported profile", pD3D12Dec->m_d3d12DecProfileType);
+      } break;
    }
 
    if (pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ALIGNMENT_HEIGHT)
@@ -1182,8 +1185,9 @@ void d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input (
       }
       break;
       default:
-         assert(0);
-         break;
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input", "Unsupported profile", profileType);
+      } break;
    }
 }
 
@@ -1209,8 +1213,9 @@ void d3d12_video_decoder_prepare_dxva_slices_control (
       }
       break;
       default:
-         assert(0);
-         break;
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_prepare_dxva_slices_control", "Unsupported profile", profileType);
+      } break;
    }
 }
 
@@ -1278,8 +1283,10 @@ D3D12_VIDEO_DECODE_PROFILE_TYPE d3d12_video_decoder_convert_pipe_video_profile_t
         case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10:
             return D3D12_VIDEO_DECODE_PROFILE_TYPE_H264;
         default:
-            assert(0);
+        {
+            D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_convert_pipe_video_profile_to_profile_type", "Unsupported profile", profile);
             return D3D12_VIDEO_DECODE_PROFILE_TYPE_NONE;
+        } break;
    }
 }
 
@@ -1308,10 +1315,11 @@ GUID d3d12_video_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profile
         case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
             return D3D12_VIDEO_DECODE_PROFILE_H264;
             break;
-        default:
-            assert(0);
-            return { };
-            break;
+      default:
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_resolve_profile", "Unsupported profile", profileType);
+         return { };
+      } break;
     }
 }
 
@@ -1335,10 +1343,12 @@ VIDEO_DECODE_PROFILE_BIT_DEPTH d3d12_video_decoder_get_format_bitdepth(DXGI_FORM
         case DXGI_FORMAT_Y416:
         case DXGI_FORMAT_Y216:
             return VIDEO_DECODE_PROFILE_BIT_DEPTH_16_BIT;
-    }
-
-    assert(false);
-    return VIDEO_DECODE_PROFILE_BIT_DEPTH_NONE;
+         default:
+         {
+            D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_get_format_bitdepth", "Unsupported DXGI_FORMAT", Format);
+            return VIDEO_DECODE_PROFILE_BIT_DEPTH_NONE;
+         } break;
+    }    
 }
 
 #pragma GCC diagnostic pop

@@ -173,7 +173,7 @@ D3D12_VIDEO_ENCODER_MOTION_ESTIMATION_PRECISION_MODE d3d12_video_encoder_convert
 
 D3D12_VIDEO_ENCODER_LEVELS_H264 d3d12_video_encoder_convert_level_h264(UINT h264SpecLevel)
 {
-   switch(h264SpecLevel)
+   switch (h264SpecLevel)
    {
       case 10:
       {
@@ -263,7 +263,7 @@ void d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVEL
     specLevel = 0;
     constraint_set3_flag = 0;
 
-    switch(level12)
+    switch (level12)
     {
         case D3D12_VIDEO_ENCODER_LEVELS_H264_1:
         {

@@ -22,6 +22,7 @@
  */
 
 #include "d3d12_format_utils.h"
+#include "d3d12_video_types.h"
 #include "assert.h"
 #include "util/macros.h"
 
@@ -69,11 +70,12 @@ namespace D3D12VideoFormatHelper
             case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
                 return DXGI_FORMAT_NV12;
             case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10:
-                assert(0); // Unusupported for now.
                 return DXGI_FORMAT_P010;
             default:
-                assert(0);
+            {
+                D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_convert_pipe_video_profile_to_dxgi_format", "Unsupported profile", profile);
                 return DXGI_FORMAT_UNKNOWN;
+            } break;
         }
     }
 }
