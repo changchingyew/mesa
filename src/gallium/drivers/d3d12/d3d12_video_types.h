@@ -46,12 +46,12 @@ using Microsoft::WRL::ComPtr;
 
 // The following defines can be tweaked for better code performance or debug verbosity
 #define D3D12_LOG_DBG_ON true
-#define D3D12_ASSERT_ON_ERROR true
+#define D3D12_EXIT_ON_ERROR true
 #define D3D12_VALIDATE_DEVICE_REMOVED true
 #define VERIFY_DEVICE_NOT_REMOVED(videoObj) { if(D3D12_VALIDATE_DEVICE_REMOVED){ HRESULT hr = videoObj->m_pD3D12Screen->dev->GetDeviceRemovedReason(); if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] D3D12 Device was removed with HR %x\n", hr); } } }
 
 #define D3D12_LOG_DBG(args...) if(D3D12_LOG_DBG_ON) fprintf(stderr, args);
-#define D3D12_LOG_ERROR(args...) { fprintf(stderr, args); if(D3D12_ASSERT_ON_ERROR) {assert(0);} }
+#define D3D12_LOG_ERROR(args...) { fprintf(stderr, args); if(D3D12_EXIT_ON_ERROR) {D3D12_LOG_DBG("[D3D12 Video Driver] - Stopping execution after error - exiting with error code %d]\n", EXIT_FAILURE); exit(EXIT_FAILURE);} }
 #define VERIFY_SUCCEEDED(x) { HRESULT hr = x; if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_SUCCEEDED(%s) failed with HR %x\n", #x, hr); } }
 #define VERIFY_IS_TRUE(x) { bool evaluationRes = (x); if(!evaluationRes) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_TRUE(%s) failed\n", #x); } }
 #define VERIFY_ARE_EQUAL(a, b) { if(a != b) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_ARE_EQUAL(%s, %s) failed\n", #a, #b); } }
