@@ -96,7 +96,14 @@ vl_dri3_screen_create(void *display, int screen) { return NULL; };
 struct vl_screen *
 vl_drm_screen_create(int fd);
 
+#ifdef USE_XSHM
 struct vl_screen *
-vl_swrast_screen_create(int fd);
+vl_xlib_swrast_screen_create(Display *display, int screen);
+#else
+vl_xlib_swrast_screen_create(Display *display, int screen) { return NULL; }
+#endif
+
+struct vl_screen *
+vl_null_swrast_screen_create(void);
 
 #endif

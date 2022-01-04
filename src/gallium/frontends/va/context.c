@@ -129,49 +129,22 @@ VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
       drv->vscreen = vl_dri3_screen_create(ctx->native_dpy, ctx->x11_screen);
       if (!drv->vscreen)
          drv->vscreen = vl_dri2_screen_create(ctx->native_dpy, ctx->x11_screen);
+      if (!drv->vscreen)
+         drv->vscreen = vl_xlib_swrast_screen_create(ctx->native_dpy, ctx->x11_screen); // Xlib SHM rendering
+      if(!drv->vscreen)
+         drv->vscreen = vl_null_swrast_screen_create(); // For VA off-screen video pipelines
       break;
    case VA_DISPLAY_WAYLAND:
    case VA_DISPLAY_DRM:
    case VA_DISPLAY_DRM_RENDERNODES: {
-      
-      VAStatus retValue = VA_STATUS_SUCCESS;
-      
-      // Try creating drm screen
       const struct drm_state *drm_info = (struct drm_state *) ctx->drm_state;
+
       if (!drm_info || drm_info->fd < 0) {
-         retValue = VA_STATUS_ERROR_INVALID_PARAMETER;
-      }
-      else
-      {
-         drv->vscreen = vl_drm_screen_create(drm_info->fd);
-         if(!drv->vscreen)
-         {
-            retValue = VA_STATUS_ERROR_OPERATION_FAILED;
-         }
-      }
-
-      // Fallback to sw screen if DRM path failed
-      bool createdSWScreen = false;
-      if (!drv->vscreen)
-      {
-         int fd = (drm_info != NULL) ? drm_info->fd : -1;
-         drv->vscreen = vl_swrast_screen_create(fd);
-         if(!drv->vscreen)
-         {
-            retValue = VA_STATUS_ERROR_OPERATION_FAILED;
-         }
-         else
-         {
-            createdSWScreen = true;
-         }
-      }
-
-      if((retValue == VA_STATUS_ERROR_INVALID_PARAMETER) && !createdSWScreen)
-      {
          FREE(drv);
-         return retValue;
+         return VA_STATUS_ERROR_INVALID_PARAMETER;
       }
-      
+
+      drv->vscreen = vl_drm_screen_create(drm_info->fd);
       break;
    }
    default:

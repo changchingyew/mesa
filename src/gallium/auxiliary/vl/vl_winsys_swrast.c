@@ -34,76 +34,231 @@
 #include "util/u_memory.h"
 #include "vl/vl_winsys.h"
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 
 #include "target-helpers/sw_helper_public.h"
-#include "gallium/winsys/sw/null/null_sw_winsys.h"
-#include "gallium/winsys/sw/kms-dri/kms_dri_sw_winsys.h"
+#include "gallium/winsys/sw/xlib/xlib_sw_winsys.h"
+#include "gallium/include/frontend/xlibsw_api.h"
+#include "vl/vl_compositor.h"
 
-static void
-vl_swrast_screen_destroy(struct vl_screen *vscreen);
-
-struct vl_screen *
-vl_swrast_screen_create(int fd)
+struct vl_xlib_screen
 {
-   struct vl_screen *vscreen;
+   struct vl_screen base;
+   struct pipe_context* pContext;
+   Display *display;
+   int screen;
+   struct u_rect dirty_area;
+   XVisualInfo xlib_drawable_visualInfo;
+   struct xlib_drawable xlib_drawable_handle;
 
-   vscreen = CALLOC_STRUCT(vl_screen);
-   if (!vscreen)
-      return NULL;
+   struct pipe_resource* drawable_texture;
+};
+
+///
+/// Destroys vl_screen (base member of extended vl_XX_screen types)
+///
+static void
+vl_screen_destroy(struct vl_screen *vscreen)
+{
+   if(vscreen == NULL)
+      return;
+
+   if(vscreen->pscreen)
+      vscreen->pscreen->destroy(vscreen->pscreen);
    
-   // Create a pipe_screen
-   struct sw_winsys * winsysObj = NULL;
-   if(fd < 0)
-   {
-      fprintf(stderr, "[vl_swrast_screen_create] - Invalid FD %d for kms_dri_winsys, creating NULL winsys instead.\n", fd);
-      winsysObj = null_sw_create();
-   }
-   else
-   {         
-      winsysObj = kms_dri_create_winsys(fd);
-      if(winsysObj == NULL)
-      {
-         fprintf(stderr, "[vl_swrast_screen_create] Creating DRM winsys with fd %d failed!\n", fd);
-      }
-   }
-   
-   struct pipe_screen* pScreen = sw_screen_create(winsysObj);
-
-   if(!pScreen)
-   {
-      goto release_pipe;
-   }
-
-   // wrap it to create a software screen that can share resources
-    if (pipe_loader_sw_probe_wrapped(&vscreen->dev, pScreen))
-        vscreen->pscreen = pipe_loader_create_screen(vscreen->dev);
-
-   if (!vscreen->pscreen)
-      goto release_pipe;
-
-   vscreen->destroy = vl_swrast_screen_destroy;
-   vscreen->texture_from_drawable = NULL;
-   vscreen->get_dirty_area = NULL;
-   vscreen->get_timestamp = NULL;
-   vscreen->set_next_timestamp = NULL;
-   vscreen->get_private = NULL;
-   return vscreen;
-
-release_pipe:
-   if (vscreen->dev)
+   if(vscreen->dev)
       pipe_loader_release(&vscreen->dev, 1);
 
    FREE(vscreen);
+}
+
+struct pipe_resource *
+vl_swrast_texture_from_drawable(struct vl_screen *vscreen, void *drawable);
+
+struct u_rect *
+vl_swrast_get_dirty_area(struct vl_screen *vscreen);
+
+void *
+vl_swrast_get_private(struct vl_screen *vscreen);
+
+struct vl_screen *
+vl_null_swrast_screen_create(void)
+{
+   struct vl_screen *vscreen = NULL;
+
+   vscreen = CALLOC_STRUCT(vl_screen);
+   if (!vscreen)
+      goto handle_err_null_swrast_create;
+      
+   int num_sw_devices = pipe_loader_sw_probe(&vscreen->dev, 1);
+   if(num_sw_devices <= 0)
+      goto handle_err_null_swrast_create;
+
+   struct pipe_screen* pScreen = pipe_loader_create_screen(vscreen->dev);
+   if (!pScreen)
+      goto handle_err_null_swrast_create;
+
+   if(pipe_loader_sw_probe_wrapped(&vscreen->dev, pScreen))
+      vscreen->pscreen = pipe_loader_create_screen(vscreen->dev);
+
+   if (!vscreen->pscreen)
+      goto handle_err_null_swrast_create;
+
+   vscreen->destroy = vl_screen_destroy;
+
+   fprintf(stderr, "[vl_null_swrast_screen_create] - SUCCEEDED!\n");
+   return vscreen;
+
+handle_err_null_swrast_create:
+   fprintf(stderr, "[vl_null_swrast_screen_create] - FAILED!\n");
+   if (vscreen)
+      vl_screen_destroy(vscreen);
+
    return NULL;
 }
 
 static void
-vl_swrast_screen_destroy(struct vl_screen *vscreen)
+vl_xlib_screen_destroy(struct vl_screen *vscreen)
 {
-   assert(vscreen);
+   if(vscreen == NULL)
+   {
+      return;
+   }
 
-   vscreen->pscreen->destroy(vscreen->pscreen);
-   pipe_loader_release(&vscreen->dev, 1);
-   /* CHECK: The VAAPI loader/user preserves ownership of the original fd */
-   FREE(vscreen);
+   struct vl_xlib_screen *vXlibScreen = (struct vl_xlib_screen*) vscreen;   
+   assert(vXlibScreen);   
+
+   ///
+   /// Destroy the vl_xlib_screen members
+   ///
+   if(vXlibScreen->drawable_texture)
+      vscreen->pscreen->resource_destroy(vscreen->pscreen, vXlibScreen->drawable_texture);
+
+   if(vXlibScreen->pContext)
+      vXlibScreen->pContext->destroy(vXlibScreen->pContext);
+
+   ///
+   /// Destroy the base vl_screen (and free all the memory of vXlibScreen)
+   ///
+   vl_screen_destroy(&vXlibScreen->base);
+}
+
+struct vl_screen *
+vl_xlib_swrast_screen_create(Display *display, int screen)
+{
+   struct vl_xlib_screen *vscreen;
+
+   vscreen = CALLOC_STRUCT(vl_xlib_screen);
+   if (!vscreen)
+      goto handle_err_xlib_swrast_create;
+   
+   struct sw_winsys* xlibWinsys = xlib_create_sw_winsys( display );
+   if (xlibWinsys == NULL)
+      goto handle_err_xlib_swrast_create;
+   
+   vscreen->base.pscreen = sw_screen_create(xlibWinsys);
+
+   if(!vscreen->base.pscreen)
+      goto handle_err_xlib_swrast_create;
+
+   vscreen->base.get_private = vl_swrast_get_private;
+   vscreen->base.texture_from_drawable = vl_swrast_texture_from_drawable;
+   vscreen->base.get_dirty_area = vl_swrast_get_dirty_area;
+   vscreen->base.destroy = vl_xlib_screen_destroy;
+   vscreen->pContext = vscreen->base.pscreen->context_create(vscreen->base.pscreen, NULL, 0);
+
+   vl_compositor_reset_dirty_area(&vscreen->dirty_area);
+   vscreen->display = display;
+   vscreen->screen = screen;
+
+   fprintf(stderr, "[vl_xlib_swrast_screen_create] - SUCCEEDED!\n");
+   return &vscreen->base;
+
+handle_err_xlib_swrast_create:
+   fprintf(stderr, "[vl_xlib_swrast_screen_create] - FAILED!\n");
+   if (vscreen)
+      vl_xlib_screen_destroy(&vscreen->base);
+
+   return NULL;
+}
+
+void
+vl_swrast_fill_xlib_drawable_desc(struct vl_screen *vscreen, Window x11VideoTargetWindow, struct xlib_drawable* pDrawableDesc);
+
+void
+vl_swrast_fill_xlib_drawable_desc(struct vl_screen *vscreen, Window x11VideoTargetWindow, struct xlib_drawable* pDrawableDesc)
+{
+   struct vl_xlib_screen *scrn = (struct vl_xlib_screen *)vscreen;
+   assert(scrn);
+
+   XWindowAttributes targetWindowAttrs = { };
+   assert(XGetWindowAttributes(scrn->display, x11VideoTargetWindow, &targetWindowAttrs) != 0);
+   XMatchVisualInfo (scrn->display, scrn->screen, targetWindowAttrs.depth, TrueColor, &scrn->xlib_drawable_visualInfo);
+   scrn->xlib_drawable_handle.depth = targetWindowAttrs.depth;
+   scrn->xlib_drawable_handle.drawable = x11VideoTargetWindow;
+   scrn->xlib_drawable_handle.visual = scrn->xlib_drawable_visualInfo.visual;   
+}
+
+struct pipe_resource *
+vl_swrast_texture_from_drawable(struct vl_screen *vscreen, void *drawable)
+{
+   struct vl_xlib_screen *scrn = (struct vl_xlib_screen *)vscreen;
+   assert(scrn);
+   Window x11VideoTargetWindow = (Window) drawable;
+   vl_swrast_fill_xlib_drawable_desc(vscreen, x11VideoTargetWindow, &scrn->xlib_drawable_handle);
+
+   XWindowAttributes winAttrs = { };
+   assert(XGetWindowAttributes(scrn->display, x11VideoTargetWindow, &winAttrs) > 0);
+
+   bool bAllocateBackBuffer = true;
+   // bool bAllocateBackBuffer = 
+   // (
+      // !scrn->drawable_texture
+      // || scrn->drawable_texture->width0 < winAttrs.width
+      // || scrn->drawable_texture->height0 < winAttrs.height
+      // || scrn->drawable_texture->format != vl_dri2_format_for_depth(&scrn->base, winAttrs.depth)
+   // );
+
+   if(bAllocateBackBuffer)
+   {
+      if(scrn->drawable_texture)
+      {
+         // TODO: Destroy the previous backbuffer if need a new one and use bAllocateBackBuffer to decide. - Probably need to sync/lock because doing this causes race condition like issues.
+         // vscreen->pscreen->resource_destroy(vscreen->pscreen, scrn->drawable_texture);
+      }      
+
+      struct pipe_resource templat;
+      memset(&templat, 0, sizeof(templat));
+      templat.target = PIPE_TEXTURE_2D;
+      templat.format = vl_dri2_format_for_depth(&scrn->base, winAttrs.depth);
+      templat.width0 = winAttrs.width;
+      templat.height0 = winAttrs.height;
+      templat.depth0 = 1;
+      templat.array_size = 1;
+      templat.last_level = 0;
+      templat.bind = (PIPE_BIND_RENDER_TARGET |
+                        PIPE_BIND_DISPLAY_TARGET);
+
+      scrn->drawable_texture = vscreen->pscreen->resource_create(vscreen->pscreen, &templat);
+      assert(scrn->drawable_texture);
+   }
+
+   return scrn->drawable_texture;
+}
+
+void *
+vl_swrast_get_private(struct vl_screen *vscreen)
+{
+   struct vl_xlib_screen *scrn = (struct vl_xlib_screen *)vscreen;
+   assert(scrn);
+   return &scrn->xlib_drawable_handle;
+}
+
+struct u_rect *
+vl_swrast_get_dirty_area(struct vl_screen *vscreen)
+{
+   struct vl_xlib_screen *scrn = (struct vl_xlib_screen *)vscreen;
+   assert(scrn);
+   vl_compositor_reset_dirty_area(&scrn->dirty_area);
+   return &scrn->dirty_area;
 }
