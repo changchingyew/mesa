@@ -60,17 +60,19 @@ export LIBGL_ALWAYS_SOFTWARE=0
 
 mkdir build
 # to configure mesa for D3D12 Video development
-meson build/ -Dgallium-drivers=swrast,d3d12 -Dgallium-va=true -Dgallium-vdpau=true
+meson build/ -Dgallium-drivers=swrast,d3d12 -Dglx=xlib -Dgallium-va=true -Dgallium-vdpau=true
 pushd build/
 sudo ninja install
 popd
 
 # To test
 # playback to screen
-    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=INTERFRAMES_inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! vaapisink display=0
+    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! vaapisink display=0
 # On OpenGL output rendering display
-    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=INTERFRAMES_inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! glimagesink
+    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! glimagesink
 # transcode with HW d3d12 decoder and software x264 encoder 
-    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=INTERFRAMES_inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! x264enc qp-max=5 tune=zerolatency ! avimux ! filesink location=x264enc_output.mp4
+    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! x264enc qp-max=5 tune=zerolatency ! avimux ! filesink location=x264enc_output.mp4
 # On filesink
-    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=INTERFRAMES_inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! queue ! videoconvert ! pngenc ! multifilesink location="frame%d.png"
+    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! queue ! videoconvert ! pngenc ! multifilesink location="frame%d.png"
+# transcode on both d3d12 encoder/decoder
+    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_1920_1080.mp4 ! qtdemux ! h264parse ! vaapih264dec ! vaapih264enc ! avimux ! filesink location=x264enc_output.mp4
