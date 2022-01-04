@@ -51,7 +51,7 @@ using Microsoft::WRL::ComPtr;
 #define D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL(fnName, errMsg, unsupportedVal) { D3D12_LOG_ERROR("[D3D12 Video Driver] Function %s - %s with value: %d", fnName, errMsg, unsupportedVal); }
 
 #define D3D12_LOG_DBG(args...) if(D3D12_LOG_DBG_ON) fprintf(stderr, args);
-#define D3D12_LOG_ERROR(args...) { fprintf(stderr, args); {D3D12_LOG_DBG("[D3D12 Video Driver] - Stopping execution after error - exiting with error code %d]\n", EXIT_FAILURE); exit(EXIT_FAILURE);} }
+#define D3D12_LOG_ERROR(args...) { fprintf(stderr, args); {D3D12_LOG_DBG("[D3D12 Video Driver] - Stopping execution after error in %s:%d- exiting with error code %d]\n", __FILE__ , __LINE__, EXIT_FAILURE); exit(EXIT_FAILURE);} }
 #define VERIFY_SUCCEEDED(x) { HRESULT hr = (x); if(FAILED(hr)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_SUCCEEDED(%s) failed with HR %x\n", #x, hr); } }
 #define VERIFY_IS_TRUE(x) { bool evaluationRes = (x); if(!evaluationRes) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_TRUE(%s) failed\n", #x); } }
 #define VERIFY_ARE_EQUAL(a, b) { if((a) != (b)) { D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_ARE_EQUAL(%s, %s) failed\n", #a, #b); } }
