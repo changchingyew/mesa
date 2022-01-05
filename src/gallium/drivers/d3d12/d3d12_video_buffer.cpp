@@ -322,7 +322,9 @@ struct pipe_sampler_view ** d3d12_video_buffer_get_sampler_view_components(struc
          if (!pD3D12VideoBuffer->m_SurfaceComponentSamplerViews[component]) {
             memset(&samplerViewTemplate, 0, sizeof(samplerViewTemplate));
             u_sampler_view_default_template(&samplerViewTemplate, pCurPlaneResource, pCurPlaneResource->format);
-            
+            samplerViewTemplate.swizzle_r = samplerViewTemplate.swizzle_g = samplerViewTemplate.swizzle_b = PIPE_SWIZZLE_X + j;
+            samplerViewTemplate.swizzle_a = PIPE_SWIZZLE_1;
+
             pD3D12VideoBuffer->m_SurfaceComponentSamplerViews[component] = pipe->create_sampler_view(pipe, pCurPlaneResource, &samplerViewTemplate);
             if (!pD3D12VideoBuffer->m_SurfaceComponentSamplerViews[component])
             {
