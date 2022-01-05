@@ -65,15 +65,22 @@ pushd build/
 sudo ninja install
 popd
 
-# To test
-# play video with mpv (MPV only has support for sharing textures with DMABuf to present)
+##
+## Command line samples for testing
+##
+
+##
+## MPV (Only has support for sharing textures with DMABuf using EGL_EXT_image_dma_buf_import on MPV's backend)
+##
+# playback to screen
     # mpv videoinputs/inputtranscode_960_540.mp4 --gpu-context=x11egl --gpu-hwdec-interop=vaapi-egl --hwdec=vaapi --gpu-sw --v
 ##
 ## FFMpeg
 ##
 # transcode with HW d3d12 decoder and software x264 encoder 
     # ffmpeg -hwaccel vaapi -hwaccel_device $DISPLAY -i videoinputs/inputtranscode_960_540.mp4 -c:a copy -c:v h264 -b:v 5M output.mp4
-
+# transcode on both d3d12 encoder/decoder
+    # ffmpeg -hwaccel vaapi -hwaccel_output_format vaapi -hwaccel_device $DISPLAY -i videoinputs/inputtranscode_960_540.mp4 -c:v h264_vaapi output.mp4
 ##
 ## gstreamer
 ##
