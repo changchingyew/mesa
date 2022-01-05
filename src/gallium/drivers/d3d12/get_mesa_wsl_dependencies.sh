@@ -66,6 +66,8 @@ sudo ninja install
 popd
 
 # To test
+# play video with mpv
+    # mpv videoinputs/inputtranscode_960_540.mp4 --gpu-context=x11egl --gpu-hwdec-interop=vaapi-egl --hwdec=vaapi
 # playback to screen
     # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! vaapisink display=0
 # On OpenGL output rendering display
