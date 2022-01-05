@@ -66,15 +66,22 @@ sudo ninja install
 popd
 
 # To test
-# play video with mpv
-    # mpv videoinputs/inputtranscode_960_540.mp4 --gpu-context=x11egl --gpu-hwdec-interop=vaapi-egl --hwdec=vaapi
-# playback to screen
-    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! vaapisink display=0
-# On OpenGL output rendering display
-    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! glimagesink
+# play video with mpv (MPV only has support for sharing textures with DMABuf to present)
+    # mpv videoinputs/inputtranscode_960_540.mp4 --gpu-context=x11egl --gpu-hwdec-interop=vaapi-egl --hwdec=vaapi --gpu-sw --v
+##
+## FFMpeg
+##
 # transcode with HW d3d12 decoder and software x264 encoder 
-    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! x264enc qp-max=5 tune=zerolatency ! avimux ! filesink location=x264enc_output.mp4
-# On filesink
-    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! queue ! videoconvert ! pngenc ! multifilesink location="frame%d.png"
+    # ffmpeg -hwaccel vaapi -hwaccel_device $DISPLAY -i videoinputs/inputtranscode_960_540.mp4 -c:a copy -c:v h264 -b:v 5M output.mp4
+
+##
+## gstreamer
+##
+# playback to screen using X11
+    # gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! vaapisink display=0
+# HW D3D12 Decoder to SW x264 encoder 
+    # gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! x264enc qp-max=5 tune=zerolatency ! avimux ! filesink location=x264enc_output.mp4
+# HW D3D12 Decoder to filesink
+    # gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_960_540.mp4 ! qtdemux ! h264parse ! vaapih264dec ! queue ! videoconvert ! pngenc ! multifilesink location="frame%d.png"
 # transcode on both d3d12 encoder/decoder
-    # GST_GL_PLATFORM=egl GST_GL_API=gles2 GST_GL_WINDOW=x11 GST_DEBUG=3 gdbserver :1234 gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_1920_1080.mp4 ! qtdemux ! h264parse ! vaapih264dec ! vaapih264enc ! avimux ! filesink location=x264enc_output.mp4
+    # gst-launch-1.0 -v -m filesrc location=videoinputs/inputtranscode_1920_1080.mp4 ! qtdemux ! h264parse ! vaapih264dec ! vaapih264enc ! avimux ! filesink location=x264enc_output.mp4
