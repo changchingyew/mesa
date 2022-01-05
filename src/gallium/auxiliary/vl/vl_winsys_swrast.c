@@ -132,7 +132,9 @@ vl_xlib_screen_destroy(struct vl_screen *vscreen)
    /// Destroy the vl_xlib_screen members
    ///
    if(vXlibScreen->drawable_texture)
-      vscreen->pscreen->resource_destroy(vscreen->pscreen, vXlibScreen->drawable_texture);
+   {
+      pipe_resource_reference(&vXlibScreen->drawable_texture, NULL);
+   }
 
    if(vXlibScreen->pContext)
       vXlibScreen->pContext->destroy(vXlibScreen->pContext);
@@ -209,28 +211,30 @@ vl_swrast_texture_from_drawable(struct vl_screen *vscreen, void *drawable)
 
    XWindowAttributes winAttrs = { };
    assert(XGetWindowAttributes(scrn->display, x11VideoTargetWindow, &winAttrs) > 0);
+   enum pipe_format winFormat = vl_dri2_format_for_depth(&scrn->base, winAttrs.depth);
 
-   bool bAllocateBackBuffer = true;
-   // bool bAllocateBackBuffer = 
-   // (
-      // !scrn->drawable_texture
-      // || scrn->drawable_texture->width0 < winAttrs.width
-      // || scrn->drawable_texture->height0 < winAttrs.height
-      // || scrn->drawable_texture->format != vl_dri2_format_for_depth(&scrn->base, winAttrs.depth)
-   // );
+   bool bAllocateNewBackBuffer = true;
+   if(scrn->drawable_texture)
+   {
+      bAllocateNewBackBuffer = 
+         (
+            scrn->drawable_texture->width0 != winAttrs.width
+            || scrn->drawable_texture->height0 != winAttrs.height
+            || scrn->drawable_texture->format != winFormat
+         );            
+   }
 
-   if(bAllocateBackBuffer)
+   if(bAllocateNewBackBuffer)
    {
       if(scrn->drawable_texture)
       {
-         // TODO: Destroy the previous backbuffer if need a new one and use bAllocateBackBuffer to decide. - Probably need to sync/lock because doing this causes race condition like issues.
-         // vscreen->pscreen->resource_destroy(vscreen->pscreen, scrn->drawable_texture);
-      }      
+         pipe_resource_reference(&scrn->drawable_texture, NULL);
+      }
 
       struct pipe_resource templat;
       memset(&templat, 0, sizeof(templat));
       templat.target = PIPE_TEXTURE_2D;
-      templat.format = vl_dri2_format_for_depth(&scrn->base, winAttrs.depth);
+      templat.format = winFormat;
       templat.width0 = winAttrs.width;
       templat.height0 = winAttrs.height;
       templat.depth0 = 1;
@@ -240,7 +244,11 @@ vl_swrast_texture_from_drawable(struct vl_screen *vscreen, void *drawable)
                         PIPE_BIND_DISPLAY_TARGET);
 
       scrn->drawable_texture = vscreen->pscreen->resource_create(vscreen->pscreen, &templat);
-      assert(scrn->drawable_texture);
+   }
+   else
+   {
+      struct pipe_resource* pDrawableTex = NULL;
+      pipe_resource_reference(&pDrawableTex, scrn->drawable_texture);
    }
 
    return scrn->drawable_texture;
