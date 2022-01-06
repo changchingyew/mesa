@@ -60,7 +60,7 @@ export LIBGL_ALWAYS_SOFTWARE=0
 
 mkdir build
 # to configure mesa for D3D12 Video development
-meson build/ -Dgallium-drivers=swrast,d3d12 -Dglx=xlib -Dgallium-va=true -Dgallium-vdpau=true
+meson build/ -Dgallium-drivers=swrast,d3d12 -Dglx=xlib -Dgallium-va=true -Dgallium-vdpau=true -Dbuildtype=debug
 pushd build/
 sudo ninja install
 popd
