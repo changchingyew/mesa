@@ -251,7 +251,10 @@ struct pipe_sampler_view ** d3d12_video_buffer_get_sampler_view_planes(struct pi
    struct pipe_context *pipe = pD3D12VideoBuffer->base.context;      
    struct pipe_sampler_view samplerViewTemplate;   
 
-   pD3D12VideoBuffer->m_SurfacePlaneSamplerViews.resize(pD3D12VideoBuffer->m_NumPlanes, nullptr);
+   // Some video frameworks iterate over [0..VL_MAX_SURFACES) and ignore the nullptr entries
+   // So we have to null initialize the other surfaces not used from [m_NumPlanes..VL_MAX_SURFACES)
+   // Like in src/gallium/frontends/vdpau/surface.c
+   pD3D12VideoBuffer->m_SurfacePlaneSamplerViews.resize(VL_MAX_SURFACES, nullptr);
 
    // pCurPlaneResource refers to the planar resource, not the overall resource.
    // in d3d12_resource this is handled by having a linked list of planes with 

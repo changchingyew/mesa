@@ -53,6 +53,7 @@ export LIBGL_ALWAYS_SOFTWARE=0
 # The lines below need to be appended _only once_ to .bashrc
 # echo "export LIBVA_DRIVERS_PATH=/usr/local/lib/x86_64-linux-gnu/dri" >> ~/.bashrc
 # echo "export LIBVA_DRIVER_NAME=d3d12" >> ~/.bashrc
+# echo "export VDPAU_DRIVER_PATH=/usr/local/lib/x86_64-linux-gnu/vdpau"  >> ~/.bashrc
 # echo "export VDPAU_DRIVER=d3d12" >> ~/.bashrc
 # echo "export GST_VAAPI_ALL_DRIVERS=1" >> ~/.bashrc
 # echo "export D3D12_DEBUG="debuglayer res" >> ~/.bashrc
