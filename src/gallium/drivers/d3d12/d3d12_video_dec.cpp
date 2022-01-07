@@ -595,7 +595,7 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
       D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
       UINT64 totalPlaneBytes = 0;
       pD3D12Screen->dev->GetCopyableFootprints(&outputDesc, planeOutputSubresource, 1, 0, &layout, nullptr, nullptr, &totalPlaneBytes);
-      struct pipe_box box = {0, 0, 0, static_cast<int>(layout.Footprint.Width), static_cast<int16_t>(layout.Footprint.Height), 1};
+      struct pipe_box box = {0, 0, 0, static_cast<int>(pPipeDstViews[PlaneSlice]->texture->width0), static_cast<int16_t>(pPipeDstViews[PlaneSlice]->texture->height0), 1};
 
       pD3D12Dec->base.context->resource_copy_region(
          pD3D12Dec->base.context,
@@ -983,8 +983,8 @@ void d3d12_video_decoder_reconfigure_dpb(
       // Detect the combination of AOT/ReferenceOnly to configure the DPB manager
       UINT16 referenceCount = (conversionArguments.Enable) ? (UINT16) conversionArguments.ReferenceFrameCount + 1 /*extra slot for current picture*/: maxDPB;
       D3D12DPBDescriptor dpbDesc = { };
-      dpbDesc.Width = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Width : outputResourceDesc.Width;
-      dpbDesc.Height = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Height : outputResourceDesc.Height;
+      dpbDesc.Width = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Width : width;
+      dpbDesc.Height = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Height : height;
       dpbDesc.Format = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Format.Format : outputResourceDesc.Format;
       dpbDesc.fArrayOfTexture = ((pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ARRAY_OF_TEXTURES) != 0);
       dpbDesc.dpbSize = referenceCount;
@@ -1003,9 +1003,9 @@ void d3d12_video_decoder_reconfigure_dpb(
       D3D12_VIDEO_DECODER_HEAP_DESC decoderHeapDesc = { };
       decoderHeapDesc.NodeMask = pD3D12Dec->m_NodeMask;
       decoderHeapDesc.Configuration = pD3D12Dec->m_decoderDesc.Configuration;
-      decoderHeapDesc.DecodeWidth = width;
-      decoderHeapDesc.DecodeHeight = height;
-      decoderHeapDesc.Format = outputResourceDesc.Format;
+      decoderHeapDesc.DecodeWidth = dpbDesc.Width;
+      decoderHeapDesc.DecodeHeight = dpbDesc.Height;
+      decoderHeapDesc.Format = dpbDesc.Format;
       decoderHeapDesc.MaxDecodePictureBufferCount = maxDPB;
       pD3D12Dec->m_spVideoDecoderHeap.Reset();
       HRESULT hr = pD3D12Dec->m_spD3D12VideoDevice->CreateVideoDecoderHeap(&decoderHeapDesc, IID_PPV_ARGS(pD3D12Dec->m_spVideoDecoderHeap.GetAddressOf()));

@@ -151,7 +151,7 @@ DXVA_PicParams_H264 d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264 
    	uint width_in_mb = decodeWidth / D3D12_VIDEO_H264_MB_IN_PIXELS;
 	dxvaStructure.wFrameWidthInMbsMinus1 = width_in_mb - 1;
 	// USHORT  wFrameHeightInMbsMinus1;
-	uint height_in_mb = align(decodeHeight / D3D12_VIDEO_H264_MB_IN_PIXELS, 2);
+	uint height_in_mb = static_cast<uint>(std::ceil(decodeHeight / D3D12_VIDEO_H264_MB_IN_PIXELS));
 	dxvaStructure.wFrameHeightInMbsMinus1 = height_in_mb - 1;	
 	// CurrPic.Index7Bits
 	dxvaStructure.CurrPic.Index7Bits = pPipeDesc->frame_num;
