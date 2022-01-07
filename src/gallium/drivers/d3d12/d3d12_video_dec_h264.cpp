@@ -94,7 +94,7 @@ void d3d12_video_decoder_prepare_dxva_slices_control_h264 (
       pOutSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
       bool sliceFound = d3d12_video_decoder_get_slice_size_and_offset_h264(sliceIdx, numSlices, pD3D12Dec->m_stagingDecodeBitstream, processedBitstreamBytes, pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
       VERIFY_IS_TRUE(sliceFound);
-      D3D12_LOG_DBG("[d3d12_video_decoder_h264] Detected slice index %ld with size %d and offset %d for frame with fenceValue: %d\n", sliceIdx, pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation, pD3D12Dec->m_fenceValue);
+      D3D12_LOG_INFO("[d3d12_video_decoder_h264] Detected slice index %ld with size %d and offset %d for frame with fenceValue: %d\n", sliceIdx, pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer, pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation, pD3D12Dec->m_fenceValue);
       
       processedBitstreamBytes += pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer;
    }

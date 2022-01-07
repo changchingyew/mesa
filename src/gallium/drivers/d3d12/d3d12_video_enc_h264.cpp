@@ -406,7 +406,7 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
       {
          if(picture->pic_order_cnt_type != 2u)
          {
-            D3D12_LOG_DBG("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video expects pic_order_cnt_type = 2 - Overriding to picture->pic_order_cnt_type = 2\n", picture->pic_order_cnt_type);
+            D3D12_LOG_INFO("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video expects pic_order_cnt_type = 2 - Overriding to picture->pic_order_cnt_type = 2\n", picture->pic_order_cnt_type);
             picture->pic_order_cnt_type = 2u;
          }
          // I Frame only
@@ -415,7 +415,7 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
          // I and P only
          if(picture->pic_order_cnt_type != 2u)
          {
-            D3D12_LOG_DBG("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video expects pic_order_cnt_type = 2 - Overriding to picture->pic_order_cnt_type = 2\n", picture->pic_order_cnt_type);
+            D3D12_LOG_INFO("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video expects pic_order_cnt_type = 2 - Overriding to picture->pic_order_cnt_type = 2\n", picture->pic_order_cnt_type);
             picture->pic_order_cnt_type = 2u;
          }
       } else
@@ -423,7 +423,7 @@ void d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encode
          // I, P and B frames
          if(picture->pic_order_cnt_type != 0u)
          {
-            D3D12_LOG_DBG("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video expects pic_order_cnt_type = 0 - Overriding to picture->pic_order_cnt_type = 0\n", picture->pic_order_cnt_type);
+            D3D12_LOG_INFO("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video expects pic_order_cnt_type = 0 - Overriding to picture->pic_order_cnt_type = 0\n", picture->pic_order_cnt_type);
             picture->pic_order_cnt_type = 0u;
          }
       }      
@@ -681,42 +681,42 @@ void d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_v
    {
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested codec is not supported\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested codec is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RESOLUTION_NOT_SUPPORTED_IN_LIST) != 0)
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested resolution is not supported\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested resolution is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_CONFIGURATION_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested bitrate or rc config is not supported\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested bitrate or rc config is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_CONFIGURATION_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested codec config is not supported\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested codec config is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_MODE_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested rate control mode is not supported\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested rate control mode is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INTRA_REFRESH_MODE_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested intra refresh config is not supported\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested intra refresh config is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_SUBREGION_LAYOUT_MODE_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested subregion layout mode is not supported\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested subregion layout mode is not supported\n");
       }
          
       if((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INPUT_FORMAT_NOT_SUPPORTED) != 0)
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder_h264] Requested input dxgi format is not supported\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested input dxgi format is not supported\n");
       }
 
       D3D12_LOG_ERROR("[d3d12_video_encoder_h264] D3D12_FEATURE_VIDEO_ENCODER_SUPPORT arguments are not supported - ValidationFlags: 0x%x - SupportFlags: 0x%x\n",

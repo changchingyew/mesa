@@ -109,7 +109,7 @@ void d3d12_video_encoder_flush(struct pipe_video_codec *codec)
          D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - D3D12Device was removed AFTER commandlist execution with HR %x, but wasn't before.\n", hr);
       }
       
-      D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
+      D3D12_LOG_INFO("[d3d12_video_encoder] d3d12_video_encoder_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Enc->m_fenceValue);
       
       pD3D12Enc->m_fenceValue++;
       pD3D12Enc->m_needsGPUFlush = false;
@@ -194,7 +194,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       }
       else
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating Reference Pictures Manager\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating Reference Pictures Manager\n");
       }
 
       D3D12_RESOURCE_FLAGS resourceAllocFlags = D3D12_RESOURCE_FLAG_VIDEO_ENCODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
@@ -251,7 +251,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       }
       else
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating D3D12VideoEncoder\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating D3D12VideoEncoder\n");
          reCreatedEncoder = true;
       }
       
@@ -296,7 +296,7 @@ void d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder*
       }      
       else
       {
-         D3D12_LOG_DBG("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating D3D12VideoEncoderHeap\n");
+         D3D12_LOG_INFO("[d3d12_video_encoder] Reconfiguration triggered -> Re-creating D3D12VideoEncoderHeap\n");
          reCreatedEncoderHeap = true;
       }
 

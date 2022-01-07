@@ -242,7 +242,7 @@ void d3d12_video_decoder_decode_bitstream(struct pipe_video_codec *codec,
       // To handle the case where VDPAU send all the slices at once in a single decode_bitstream call, let's pretend it was a series of different calls
 
       // group by start codes and buffers and perform calls for the number of slices so m_numConsecutiveDecodeFrame matches that number.
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream multiple slices on same call detected for fenceValue: %d, breaking down the calls into one per slice\n", pD3D12Dec->m_fenceValue);
+      D3D12_LOG_INFO("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream multiple slices on same call detected for fenceValue: %d, breaking down the calls into one per slice\n", pD3D12Dec->m_fenceValue);
 
       size_t curBufferIdx = 0;
 
@@ -679,7 +679,7 @@ void d3d12_video_decoder_flush(struct pipe_video_codec *codec)
          D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_flush - D3D12Device was removed AFTER commandlist execution with HR %x, but wasn't before.\n", hr);
       }
       
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
+      D3D12_LOG_INFO("[d3d12_video_decoder] d3d12_video_decoder_flush - GPU signaled execution finalized for fenceValue: %d\n", pD3D12Dec->m_fenceValue);
       
       pD3D12Dec->m_fenceValue++;
       pD3D12Dec->m_needsGPUFlush = false;
