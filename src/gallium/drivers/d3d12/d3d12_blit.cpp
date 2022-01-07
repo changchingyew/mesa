@@ -344,9 +344,9 @@ copy_subregion_no_barriers(struct d3d12_context *ctx,
       } else {
          D3D12_BOX src_box;
          src_box.left = psrc_box->x;
-         src_box.right = MIN2(psrc_box->x + psrc_box->width, (int)u_minify(src->base.b.width0, src_level));
+         src_box.right = MIN2(psrc_box->x + psrc_box->width, (util_format_is_yuv(src->overall_format) ? src->base.b.width0 : (int)u_minify(src->base.b.width0, src_level)));
          src_box.top = psrc_box->y;
-         src_box.bottom = MIN2(psrc_box->y + psrc_box->height, (int)u_minify(src->base.b.height0, src_level));
+         src_box.bottom = MIN2(psrc_box->y + psrc_box->height, (util_format_is_yuv(src->overall_format) ? src->base.b.height0 : (int)u_minify(src->base.b.height0, src_level)));
          src_box.front = src_z;
          src_box.back = src_z + psrc_box->depth;
 
