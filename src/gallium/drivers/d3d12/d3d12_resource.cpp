@@ -812,7 +812,7 @@ transfer_image_part_to_buf(struct d3d12_context *ctx,
    if (util_format_has_depth(util_format_description(res->base.b.format)) &&
        screen->opts2.ProgrammableSamplePositionsTier == D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_NOT_SUPPORTED)
       whole_resource = true;
-   if (!whole_resource) {
+   if ((!whole_resource) || util_format_is_yuv(res->overall_format)) {
       src_box.left = box->x;
       src_box.right = box->x + box->width;
       src_box.top = box->y;

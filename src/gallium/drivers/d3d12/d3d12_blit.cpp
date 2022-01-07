@@ -326,8 +326,8 @@ copy_subregion_no_barriers(struct d3d12_context *ctx,
       dst_loc.pResource = d3d12_resource_resource(dst);
 
       if (psrc_box->x == 0 && psrc_box->y == 0 && psrc_box->z == 0 &&
-          psrc_box->width == (int)u_minify(src->base.b.width0, src_level) &&
-          psrc_box->height == (int)u_minify(src->base.b.height0, src_level) &&
+          psrc_box->width == (util_format_is_yuv(src->overall_format) ? src->base.b.width0 : (int)u_minify(src->base.b.width0, src_level)) &&
+          psrc_box->height == (util_format_is_yuv(src->overall_format) ? src->base.b.height0 : (int)u_minify(src->base.b.height0, src_level)) &&
           psrc_box->depth == (int)u_minify(src->base.b.depth0, src_level)) {
 
          assert((dstx == 0 && dsty == 0 && dstz == 0) ||
