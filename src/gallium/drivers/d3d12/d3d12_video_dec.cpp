@@ -578,9 +578,9 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
    /// When DPB allocations do not need D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY, need to keep the (tex, subres) allocation untouched in the DPB for texture usage on next frames as reference frame
    ///
    
-   /// TODO: Just writing into views[PlaneSlice]->texture is not populating the pixels downstream (ie. vaGetImage readback with texture_map returns all zeroes) even when calling pipe_context flush()
-   /// but changes are populated if we upload the pixels to views[PlaneSlice]->texture using texture_map using the plane's sampler views and then flushing the pipe_context
-   // When GPU write to views[PlaneSlice]->texture works, only perform this copy for !fReferenceOnly and perform the copy in GPU removing the code below that does the pixel readback/upload to/from CPU.
+   /// TODO: Just writing into views[PlaneSlice]->texture is not populating the pixels downstream (ie. vaGetImage readback with texture_map returns all zeroes)
+   /// but changes are populated if we upload the pixels to into views[PlaneSlice]->texture using the plane's sampler views and then flushing the pipe_context
+   /// After fixing this only perform this copy for !fReferenceOnly
    // if (!fReferenceOnly)
    {
       ///
@@ -610,44 +610,15 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
          // Beware that copy commands are not executed until there's context flush() like pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
          pD3D12Dec->base.context->resource_copy_region(
             pD3D12Dec->base.context,
-            pPipeDstViews[PlaneSlice]->texture, 0, 0, 0, 0,
-            pPipeSrc,
-            planeOutputSubresource,
+            pPipeDstViews[PlaneSlice]->texture, // dst
+            PlaneSlice, // dst subres
+            0, // dstX
+            0, // dstY
+            0, // dstZ
+            (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next, // src
+            planeOutputSubresource, // src subresource
             &box
          );
-
-         ///
-         /// Readback decode output to CPU, then upload pixels to GPU in pPipeDstViews[PlaneSlice]
-         ///         
-         
-         // Need this extra copy because d3d12OutputArguments.pOutputTexture2D doesn't have D3D12_HEAP_TYPE_READBACK to copy directly from the mapped area
-         std::vector<uint8_t> pTmp(totalPlaneBytes);
-         uint8_t* pSrcData = pTmp.data();
-         pD3D12Dec->m_D3D12ResourceCopyHelper->ReadbackData(
-            pSrcData,
-            layout.Footprint.RowPitch,
-            layout.Footprint.RowPitch * layout.Footprint.Height,
-            d3d12OutputArguments.pOutputTexture2D,
-            planeOutputSubresource,
-            D3D12_RESOURCE_STATE_COMMON
-         );     
-
-         // Upload pSrc into target using texture_map         
-         struct pipe_transfer *transfer;
-         uint8_t* pDstData = (uint8_t*) pD3D12Dec->base.context->texture_map(
-               pD3D12Dec->base.context,
-               pPipeDstViews[PlaneSlice]->texture,
-               0,
-               PIPE_MAP_WRITE,
-               &box,
-               &transfer);
-
-         util_copy_rect(pDstData,
-            pPipeDstViews[PlaneSlice]->texture->format,
-            transfer->stride, 0, 0,
-            box.width, box.height, pSrcData, layout.Footprint.RowPitch, 0, 0);
-
-         pipe_texture_unmap(pD3D12Dec->base.context, transfer);
       }      
 
       // Flush changes to pD3D12VideoBuffer (pipe_video_codec target destination texture). 
