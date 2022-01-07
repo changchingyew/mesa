@@ -573,58 +573,45 @@ void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
    d3d12_video_decoder_flush(codec);
 
    ///
-   /// Due to DPB allocations tracking/management reasons, in some cases we need to deep copy the texture output into pD3D12VideoBuffer target
-   /// When reference_only is used, we directly use (pPipeD3D12DstResource, 0) as the destination output decode texture
-   /// When DPB allocations do not need D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY, need to keep the (tex, subres) allocation untouched in the DPB for texture usage on next frames as reference frame
+   /// To keep the decoded frame allocation lifetime available as a reference in the DPB
+   /// Do GPU->GPU texture copy from decode output to pipe target decode texture sampler view planes
    ///
-   
-   /// TODO: Just writing into views[PlaneSlice]->texture is not populating the pixels downstream (ie. vaGetImage readback with texture_map returns all zeroes)
-   /// but changes are populated if we upload the pixels to into views[PlaneSlice]->texture using the plane's sampler views and then flushing the pipe_context
-   /// After fixing this only perform this copy for !fReferenceOnly
-   // if (!fReferenceOnly)
+
+   // Get destination resource
+   struct pipe_sampler_view **pPipeDstViews = target->get_sampler_view_planes(target);
+
+   // Get source pipe_resource
+   pipe_resource* pPipeSrc = d3d12_resource_from_resource(&pD3D12Screen->base, d3d12OutputArguments.pOutputTexture2D);
+   assert(pPipeSrc);
+
+   UINT outputMipLevel, outputPlaneSlice, outputArraySlice;
+   D3D12DecomposeSubresource(d3d12OutputArguments.OutputSubresource, outputDesc.MipLevels, outputDesc.ArraySize(), outputMipLevel, outputArraySlice, outputPlaneSlice);
+
+   // Copy all format subresources/texture planes
+
+   for(PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++)
    {
-      ///
-      /// GPU Copy from decode output to pipe target decode texture
-      ///
+      uint planeOutputSubresource = outputDesc.CalcSubresource(outputMipLevel, outputArraySlice, PlaneSlice);
+      D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
+      UINT64 totalPlaneBytes = 0;
+      pD3D12Screen->dev->GetCopyableFootprints(&outputDesc, planeOutputSubresource, 1, 0, &layout, nullptr, nullptr, &totalPlaneBytes);
+      struct pipe_box box = {0, 0, 0, static_cast<int>(layout.Footprint.Width), static_cast<int16_t>(layout.Footprint.Height), 1};
 
-      // Get destination resource
-      struct pipe_sampler_view **pPipeDstViews = target->get_sampler_view_planes(target);
+      pD3D12Dec->base.context->resource_copy_region(
+         pD3D12Dec->base.context,
+         pPipeDstViews[PlaneSlice]->texture, // dst
+         PlaneSlice, // dst subres
+         0, // dstX
+         0, // dstY
+         0, // dstZ
+         (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next, // src
+         planeOutputSubresource, // src subresource
+         &box
+      );
+   }      
+   // Flush resource_copy_region batch
+   pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
 
-      // Get source pipe_resource
-      pipe_resource* pPipeSrc = d3d12_resource_from_resource(&pD3D12Screen->base, d3d12OutputArguments.pOutputTexture2D);
-      assert(pPipeSrc);
-
-      UINT outputMipLevel, outputPlaneSlice, outputArraySlice;
-      D3D12DecomposeSubresource(d3d12OutputArguments.OutputSubresource, outputDesc.MipLevels, outputDesc.ArraySize(), outputMipLevel, outputArraySlice, outputPlaneSlice);
-
-      // Copy all format subresources/texture planes
-
-      for(PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++)
-      {
-         uint planeOutputSubresource = outputDesc.CalcSubresource(outputMipLevel, outputArraySlice, PlaneSlice);
-         D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
-         UINT64 totalPlaneBytes = 0;
-         pD3D12Screen->dev->GetCopyableFootprints(&outputDesc, planeOutputSubresource, 1, 0, &layout, nullptr, nullptr, &totalPlaneBytes);
-         struct pipe_box box = {0, 0, 0, static_cast<int>(layout.Footprint.Width), static_cast<int16_t>(layout.Footprint.Height), 1};
-
-         // Beware that copy commands are not executed until there's context flush() like pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
-         pD3D12Dec->base.context->resource_copy_region(
-            pD3D12Dec->base.context,
-            pPipeDstViews[PlaneSlice]->texture, // dst
-            PlaneSlice, // dst subres
-            0, // dstX
-            0, // dstY
-            0, // dstZ
-            (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next, // src
-            planeOutputSubresource, // src subresource
-            &box
-         );
-      }      
-
-      // Flush changes to pD3D12VideoBuffer (pipe_video_codec target destination texture). 
-      // Not doing this causes readbacks to that texture to be all zeroes (ie. in vaGetImage) because the copies aren't flushed in the context
-      pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
-   }
    VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
 }
 
@@ -1003,15 +990,6 @@ void d3d12_video_decoder_reconfigure_dpb(
       dpbDesc.dpbSize = referenceCount;
       dpbDesc.m_NodeMask = pD3D12Dec->m_NodeMask;
       dpbDesc.fReferenceOnly = ((pD3D12Dec->m_ConfigDecoderSpecificFlags & D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0);
-      dpbDesc.m_pfnGetCurrentFrameDecodeOutputTexture = nullptr;
-      if(dpbDesc.fReferenceOnly)
-      {
-         dpbDesc.m_pfnGetCurrentFrameDecodeOutputTexture = [pPipeD3D12DstResource](ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex)
-         {
-           *ppOutTexture2D = pPipeD3D12DstResource;
-           pOutSubresourceIndex = 0;
-         };
-      }
 
       // Create DPB manager
       if(pD3D12Dec->m_spDPBManager == nullptr)

@@ -86,13 +86,6 @@ private:
     // Holds the mapping between DXVA PicParams indices and the D3D12 indices
     std::vector<ReferenceData> m_referenceDXVAIndices;
 
-    // When using clear DPB references (not ReferenceOnly) the decode output allocations come from m_upD3D12TexturesStorageManager as decode output == reconpic decode output
-    // Otherwise, when ReferenceOnly is true, both the reference frames in the DPB and the current frame reconpic output must be REFERENCE_ONLY, all the allocations are stored in m_upD3D12TexturesStorageManager
-    // but we need a +1 allocation without the REFERENCE_FRAME to use as clear decoded output.
-    // In this case we provide two options:
-    // 1. Class client passes D3D12DPBDescriptor.m_pfnGetCurrentFrameDecodeOutputTexture to handle the situation
-    // 2. D3D12DPBDescriptor.m_pfnGetCurrentFrameDecodeOutputTexture is nullptr and D3D12VideoDecoderReferencesManager allocates and provides m_pClearDecodedOutputTexture   
-    // Please note that m_pClearDecodedOutputTexture needs to be copied/read by the client before calling end_frame again, as the allocation will be reused for the next frame.
     ComPtr<ID3D12Resource> m_pClearDecodedOutputTexture;
 
     const struct d3d12_screen* m_pD3D12Screen;

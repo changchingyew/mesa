@@ -50,47 +50,37 @@ void D3D12VideoDecoderReferencesManager::GetCurrentFrameDecodeOutputTexture(ID3D
 {
     if(IsReferenceOnly())
     {
-        // The DPB Storage only has REFERENCE_ONLY allocations, cannot use those for clear decoded texture allocations
-
-        // When using ReferenceOnly, the reference frames in the DPB and the current frame output must be REFERENCE_ONLY and are stored in m_upD3D12TexturesStorageManager
-        // but we need a +1 allocation without the REFERENCE_FRAME to use as clear decoded output. 
-        // Otherwise, this is not used and the decode output allocations come from m_upD3D12TexturesStorageManager as decode output == reconpic decode output
-        // As this texture does not need to be stored in the DPB after the decode operation finished for the current frame
-        // and the decode output is deep copied into the target pipe_video_buffer ID3D12Resource,
-        // we can just simply reuse/not preserve m_pClearDecodedOutputTexture between DecodeFrame calls
+        // When using clear DPB references (not ReferenceOnly) the decode output allocations come from m_upD3D12TexturesStorageManager as decode output == reconpic decode output
+        // Otherwise, when ReferenceOnly is true, both the reference frames in the DPB and the current frame reconpic output must be REFERENCE_ONLY, all the allocations are stored in m_upD3D12TexturesStorageManager
+        // but we need a +1 allocation without the REFERENCE_FRAME to use as clear decoded output.
+        // In this case D3D12VideoDecoderReferencesManager allocates and provides m_pClearDecodedOutputTexture   
+        // Please note that m_pClearDecodedOutputTexture needs to be copied/read by the client before calling end_frame again, as the allocation will be reused for the next frame.
         
-        if(m_dpbDescriptor.m_pfnGetCurrentFrameDecodeOutputTexture == nullptr)
-        {
-            if(m_pClearDecodedOutputTexture == nullptr)
-            {       
-                D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_dpbDescriptor.m_NodeMask, m_dpbDescriptor.m_NodeMask);
-                CD3DX12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-                    m_dpbDescriptor.Format,
-                    m_dpbDescriptor.Width,
-                    m_dpbDescriptor.Height,
-                    1,
-                    1,
-                    1,
-                    0,
-                    D3D12_RESOURCE_FLAG_NONE
-                );
+        if(m_pClearDecodedOutputTexture == nullptr)
+        {       
+            D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_dpbDescriptor.m_NodeMask, m_dpbDescriptor.m_NodeMask);
+            CD3DX12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+                m_dpbDescriptor.Format,
+                m_dpbDescriptor.Width,
+                m_dpbDescriptor.Height,
+                1,
+                1,
+                1,
+                0,
+                D3D12_RESOURCE_FLAG_NONE
+            );
 
-                VERIFY_SUCCEEDED(m_pD3D12Screen->dev->CreateCommittedResource(
-                    &Properties,
-                    D3D12_HEAP_FLAG_NONE,
-                    &resDesc,
-                    D3D12_RESOURCE_STATE_COMMON,
-                    nullptr,
-                    IID_PPV_ARGS(m_pClearDecodedOutputTexture.GetAddressOf())));
-            }
+            VERIFY_SUCCEEDED(m_pD3D12Screen->dev->CreateCommittedResource(
+                &Properties,
+                D3D12_HEAP_FLAG_NONE,
+                &resDesc,
+                D3D12_RESOURCE_STATE_COMMON,
+                nullptr,
+                IID_PPV_ARGS(m_pClearDecodedOutputTexture.GetAddressOf())));
+        }
 
-            *ppOutTexture2D = m_pClearDecodedOutputTexture.Get();
-            *pOutSubresourceIndex = 0;
-        }
-        else
-        {
-            m_dpbDescriptor.m_pfnGetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
-        }
+        *ppOutTexture2D = m_pClearDecodedOutputTexture.Get();
+        *pOutSubresourceIndex = 0;
     }
     else
     {
