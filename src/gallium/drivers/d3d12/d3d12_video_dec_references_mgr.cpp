@@ -208,7 +208,7 @@ UINT16 D3D12VideoDecoderReferencesManager::UpdateEntry(
         if (   remappedIndex == m_invalidIndex
             || remappedIndex == m_currentOutputIndex)
         {
-            fprintf(stderr, "[D3D12VideoDecoderReferencesManager] Decode - Invalid Reference Index\n");
+            D3D12_LOG_ERROR("[D3D12VideoDecoderReferencesManager] UpdateEntry - Invalid Reference Index\n");
 
             remappedIndex = m_currentOutputIndex;
             outNeedsTransitionToDecodeRead = false;
