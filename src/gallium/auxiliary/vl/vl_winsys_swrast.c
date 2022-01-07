@@ -81,42 +81,6 @@ vl_swrast_get_dirty_area(struct vl_screen *vscreen);
 void *
 vl_swrast_get_private(struct vl_screen *vscreen);
 
-struct vl_screen *
-vl_null_swrast_screen_create(void)
-{
-   struct vl_screen *vscreen = NULL;
-
-   vscreen = CALLOC_STRUCT(vl_screen);
-   if (!vscreen)
-      goto handle_err_null_swrast_create;
-      
-   int num_sw_devices = pipe_loader_sw_probe(&vscreen->dev, 1);
-   if(num_sw_devices <= 0)
-      goto handle_err_null_swrast_create;
-
-   struct pipe_screen* pScreen = pipe_loader_create_screen(vscreen->dev);
-   if (!pScreen)
-      goto handle_err_null_swrast_create;
-
-   if(pipe_loader_sw_probe_wrapped(&vscreen->dev, pScreen))
-      vscreen->pscreen = pipe_loader_create_screen(vscreen->dev);
-
-   if (!vscreen->pscreen)
-      goto handle_err_null_swrast_create;
-
-   vscreen->destroy = vl_screen_destroy;
-
-   fprintf(stderr, "[vl_null_swrast_screen_create] - SUCCEEDED!\n");
-   return vscreen;
-
-handle_err_null_swrast_create:
-   fprintf(stderr, "[vl_null_swrast_screen_create] - FAILED!\n");
-   if (vscreen)
-      vl_screen_destroy(vscreen);
-
-   return NULL;
-}
-
 static void
 vl_xlib_screen_destroy(struct vl_screen *vscreen)
 {
@@ -173,11 +137,11 @@ vl_xlib_swrast_screen_create(Display *display, int screen)
    vscreen->display = display;
    vscreen->screen = screen;
 
-   fprintf(stderr, "[vl_xlib_swrast_screen_create] - SUCCEEDED!\n");
+   debug_printf("[vl_xlib_swrast_screen_create] - SUCCEEDED!\n");
    return &vscreen->base;
 
 handle_err_xlib_swrast_create:
-   fprintf(stderr, "[vl_xlib_swrast_screen_create] - FAILED!\n");
+   debug_printf("[vl_xlib_swrast_screen_create] - FAILED!\n");
    if (vscreen)
       vl_xlib_screen_destroy(&vscreen->base);
 

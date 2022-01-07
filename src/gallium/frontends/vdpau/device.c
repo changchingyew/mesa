@@ -67,9 +67,7 @@ vdp_imp_device_create_x11(Display *display, int screen, VdpDevice *device,
    if (!dev->vscreen)
       dev->vscreen = vl_dri2_screen_create(display, screen);
    if (!dev->vscreen)
-      dev->vscreen = vl_xlib_swrast_screen_create(display, screen); // Xlib SHM rendering
-   if(!dev->vscreen)
-      dev->vscreen = vl_null_swrast_screen_create(); // For VA off-screen video pipelines
+      dev->vscreen = vl_xlib_swrast_screen_create(display, screen);
    if (!dev->vscreen) {
       ret = VDP_STATUS_RESOURCES;
       goto no_vscreen;

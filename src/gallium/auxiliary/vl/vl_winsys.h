@@ -103,7 +103,4 @@ vl_xlib_swrast_screen_create(Display *display, int screen);
 vl_xlib_swrast_screen_create(Display *display, int screen) { return NULL; }
 #endif
 
-struct vl_screen *
-vl_null_swrast_screen_create(void);
-
 #endif
