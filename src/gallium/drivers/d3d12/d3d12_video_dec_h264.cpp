@@ -30,7 +30,7 @@ void d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_d
 	pD3D12Dec->m_spDPBManager->MarkReferencesInUse(d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList);
 }
 
-void d3d12_video_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB)
+void d3d12_video_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB, bool& isInterlaced)
 {
 	auto pPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
 	// wFrameWidthInMbsMinus1 Width of the frame containing this picture, in units of macroblocks, minus 1. (The width in macroblocks is wFrameWidthInMbsMinus1 plus 1.)
@@ -42,6 +42,7 @@ void d3d12_video_decoder_get_frame_info_h264(struct d3d12_video_decoder *pD3D12D
 	*pHeight = (2 - pPicParams->frame_mbs_only_flag) * *pHeight;
 	*pHeight = *pHeight * 16;
 	*pMaxDPB = pPicParams->num_ref_frames + 1;
+	isInterlaced = !pPicParams->frame_mbs_only_flag;
 }
 
 ///

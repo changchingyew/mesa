@@ -759,7 +759,7 @@ bool d3d12_video_decoder_check_caps_and_create_decoder(const struct d3d12_screen
    { 
       pD3D12Dec->m_d3d12DecProfile, 
       D3D12_BITSTREAM_ENCRYPTION_TYPE_NONE,
-      D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE // Assume progressive for now, can adjust in d3d12_video_decoder_reconfigure_dpb with pipe_video_buffer input argument target.interlaced;
+      D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE
    };
 
    D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport = {};
@@ -948,13 +948,15 @@ void d3d12_video_decoder_reconfigure_dpb(
    UINT width;
    UINT height;
    UINT16 maxDPB;
-   d3d12_video_decoder_get_frame_info(pD3D12Dec, &width, &height, &maxDPB);   
+   bool isInterlaced;
+   d3d12_video_decoder_get_frame_info(pD3D12Dec, &width, &height, &maxDPB, isInterlaced);   
 
    ID3D12Resource* pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
    D3D12_RESOURCE_DESC outputResourceDesc = pPipeD3D12DstResource->GetDesc();
    VIDEO_DECODE_PROFILE_BIT_DEPTH resourceBitDepth = d3d12_video_decoder_get_format_bitdepth(outputResourceDesc.Format);
 
-   D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE interlaceTypeRequested = pD3D12VideoBuffer->base.interlaced ? D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_FIELD_BASED : D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; 
+   pD3D12VideoBuffer->base.interlaced = isInterlaced;
+   D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE interlaceTypeRequested = isInterlaced ? D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_FIELD_BASED : D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE; 
    if ((pD3D12Dec->m_decodeFormat != outputResourceDesc.Format)
       || (pD3D12Dec->m_decoderDesc.Configuration.InterlaceType != interlaceTypeRequested))
    {
@@ -1045,22 +1047,23 @@ void d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decode
    pD3D12Dec->m_spDPBManager->ReleaseUnusedReferencesTexturesMemory();
 }
 
-void d3d12_video_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB)
+void d3d12_video_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB, bool& isInterlaced)
 {
    *pWidth = 0;
    *pHeight = 0;
    *pMaxDPB = 0;
+   isInterlaced = false;
 
    switch (pD3D12Dec->m_d3d12DecProfileType)
    {
       case D3D12_VIDEO_DECODE_PROFILE_TYPE_H264:
       {         
-         d3d12_video_decoder_get_frame_info_h264(pD3D12Dec, pWidth, pHeight, pMaxDPB);
+         d3d12_video_decoder_get_frame_info_h264(pD3D12Dec, pWidth, pHeight, pMaxDPB, isInterlaced);
       }
       break;
 
       default:
-      {
+      {         
          D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_get_frame_info", "Unsupported profile", pD3D12Dec->m_d3d12DecProfileType);
       } break;
    }
