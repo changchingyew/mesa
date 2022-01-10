@@ -46,7 +46,7 @@ using Microsoft::WRL::ComPtr;
 
 // The following defines can be tweaked for better code performance or debug verbosity
 
-#define D3D12_VIDEO_ENHANCED_DEBUGGING false
+#define D3D12_VIDEO_ENHANCED_DEBUGGING true
 
 #if D3D12_VIDEO_ENHANCED_DEBUGGING
     #define D3D12_LOG_DBG_ON true
@@ -56,7 +56,6 @@ using Microsoft::WRL::ComPtr;
     #define D3D12_VALIDATE_DEVICE_REMOVED false
 #endif
 
-#define D3D12_VALIDATE_DEVICE_REMOVED true
 #define VERIFY_DEVICE_NOT_REMOVED(videoObj) { if(D3D12_VALIDATE_DEVICE_REMOVED){ HRESULT hr = videoObj->m_pD3D12Screen->dev->GetDeviceRemovedReason(); if(FAILED(hr)) { D3D12_LOG_ERROR("D3D12 Device was removed with HR %x\n", hr); } } }
 #define D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL(fnName, errMsg, unsupportedVal) { D3D12_LOG_ERROR("[D3D12 Video Driver] Function %s - %s with value: %d", fnName, errMsg, unsupportedVal); }
 
