@@ -62,6 +62,15 @@ else
     GST_ENCODER_NAME="x264enc" 
 fi
 
+# Argument 5: Also plays with vaapisink
+ENABLE_VAAPISINK_DISPLAY_MODE=0 # Default disabled
+if test -n "$5"
+then
+    if [ "$5" == "vaapisink" ]; then
+        ENABLE_VAAPISINK_DISPLAY_MODE=1        
+    fi
+fi
+
 NUM_INPUT_FILES=$(ls $INPUT_FILES | wc -l)
 
 OUTPUT_FILES_PATH="$INPUT_FILES_PATH/output/"
@@ -79,6 +88,12 @@ do
     echo -e "$TextColor_Blue[Test case $CURRENT_TEST_NUMBER / $NUM_INPUT_FILES]\n\t InputFile: $fInput \n\t OutputFile: $fOutput \n\t LogFile: $fLogOutput"
     echo "Using gstreamer Decoder: $GST_DECODER_NAME"
     echo "Using gstreamer Encoder: $GST_ENCODER_NAME"
+
+    if [ $ENABLE_VAAPISINK_DISPLAY_MODE -eq 1 ];
+    then
+        echo -e "$TextColor_Blue[Test case $CURRENT_TEST_NUMBER / $NUM_INPUT_FILES] launching gstreamer with vaapisink display=0 for INPUT: $fInput"
+        (gst-launch-1.0 -v -m filesrc location="$fInput" ! qtdemux ! h264parse ! vaapih264dec ! vaapisink display=0) > /dev/null 2>&1
+    fi    
 
     if [ "$GST_ENCODER_NAME" == "x264enc" ]; then
         (gst-launch-1.0 -v -m filesrc location="$fInput" ! qtdemux ! h264parse ! $GST_DECODER_NAME ! $GST_ENCODER_NAME qp-max=5 tune=zerolatency ! avimux ! filesink location="$fOutput") > "$fLogOutput" 2>&1    
@@ -161,7 +176,14 @@ do
         if test -n "$warnLog"
         then
             echo -e "$TextColor_Yellow See execution log grep -i 'warn' below:\n $warnLog"
-        fi        
+        fi
+    
+    if [ $ENABLE_VAAPISINK_DISPLAY_MODE -eq 1 ];
+    then
+        echo -e "$TextColor_Blue[Test case $CURRENT_TEST_NUMBER / $NUM_INPUT_FILES] launching gstreamer with vaapisink display=0 for OUTPUT: $fOutput"
+        (gst-launch-1.0 -v -m filesrc location="$fOutput" ! qtdemux ! h264parse ! vaapih264dec ! vaapisink display=0) > /dev/null 2>&1
+    fi
+
     else
         echo -e "$TextColor_Red[Error] $fOutput does not exist. Please check $fLogOutput"
     fi
