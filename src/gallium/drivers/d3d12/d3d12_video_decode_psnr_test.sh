@@ -96,9 +96,21 @@ do
     fi    
 
     if [ "$GST_ENCODER_NAME" == "x264enc" ]; then
-        (gst-launch-1.0 -v -m filesrc location="$fInput" ! qtdemux ! h264parse ! $GST_DECODER_NAME ! $GST_ENCODER_NAME qp-max=5 tune=zerolatency ! avimux ! filesink location="$fOutput") > "$fLogOutput" 2>&1    
+        if [ "$D3D12_TEST_USE_GDBSERVER" == "yes" ];       
+        then
+            echo "Using gdbserver for gstreamer, please connect to port 1234 from gdb..."
+            (gdbserver :1234 gst-launch-1.0 -v -m filesrc location="$fInput" ! qtdemux ! h264parse ! $GST_DECODER_NAME ! $GST_ENCODER_NAME qp-max=5 tune=zerolatency ! avimux ! filesink location="$fOutput") > "$fLogOutput" 2>&1    
+        else
+            (gst-launch-1.0 -v -m filesrc location="$fInput" ! qtdemux ! h264parse ! $GST_DECODER_NAME ! $GST_ENCODER_NAME qp-max=5 tune=zerolatency ! avimux ! filesink location="$fOutput") > "$fLogOutput" 2>&1    
+        fi        
     else
-        (gst-launch-1.0 -v -m filesrc location="$fInput" ! qtdemux ! h264parse ! $GST_DECODER_NAME ! $GST_ENCODER_NAME ! avimux ! filesink location="$fOutput") > "$fLogOutput" 2>&1    
+        if [ "$D3D12_TEST_USE_GDBSERVER" == "yes" ];       
+        then
+            echo "Using gdbserver for gstreamer, please connect to port 1234 from gdb..."
+            (gdbserver :1234 gst-launch-1.0 -v -m filesrc location="$fInput" ! qtdemux ! h264parse ! $GST_DECODER_NAME ! $GST_ENCODER_NAME ! avimux ! filesink location="$fOutput") > "$fLogOutput" 2>&1    
+        else
+            (gst-launch-1.0 -v -m filesrc location="$fInput" ! qtdemux ! h264parse ! $GST_DECODER_NAME ! $GST_ENCODER_NAME ! avimux ! filesink location="$fOutput") > "$fLogOutput" 2>&1    
+        fi        
     fi
     
     if [ -f "$fOutput" ]; then
