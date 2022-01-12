@@ -426,3 +426,28 @@ d3d12_get_format_num_planes(enum pipe_format fmt)
    return util_format_is_depth_or_stencil(fmt) ?
       util_bitcount(util_format_get_mask(fmt)) : 1;
 }
+
+unsigned
+d3d12_get_plane_slice_from_plane_format(enum pipe_format overallFormat, enum pipe_format planeFormat)
+{
+   if(util_format_is_yuv(overallFormat))
+   {
+      unsigned int nPlanes = util_format_get_num_planes(overallFormat);
+      for (unsigned int planeIdx = 0; planeIdx < nPlanes; planeIdx++)
+      {
+         enum pipe_format planeFmt = util_format_get_plane_format(overallFormat, planeIdx);
+         if(planeFmt == planeFormat)
+         {
+            return planeIdx;
+            break;
+         }
+      }
+      debug_printf("D3D12 Error: d3d12_get_plane_slice_from_plane_format did not find any plane with format %d in overall_format %d", planeFormat, overallFormat);
+      return 0;  
+   }
+   else
+   {
+      debug_printf("D3D12 Error: Call to d3d12_get_plane_slice_from_plane_format with a non-planar format");
+      return 0;  
+   }   
+}
