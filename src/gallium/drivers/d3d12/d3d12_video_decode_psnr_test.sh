@@ -1,6 +1,10 @@
 #!/bin/bash
 reset
 
+# Set the following regex to filter out printing some errors in output logs
+c_GrepErrorExclusions="QueryAdapterInfoCb2|QueryClockCalibration|SetQueuedLimit|D3D12SDKPath"
+c_GrepWarningExclusions=""
+
 TextColor_Red='\e[1;31m'
 TextColor_Green='\e[1;32m'
 TextColor_Blue='\e[1;34m'
@@ -177,17 +181,17 @@ do
         else
             echo -e "$TextColor_Red \n\t[Test case $CURRENT_TEST_NUMBER] FAILED.\n\n"
         fi
-
-        errLog=$(cat $fLogOutput | grep -i 'error' | grep -vEwi 'QueryAdapterInfoCb2|QueryClockCalibration|SetQueuedLimit')
+        
+        errLog=$(cat $fLogOutput | grep -i 'error' | grep -vEwi "$c_GrepErrorExclusions")
         if test -n "$errLog"
         then
-            echo -e "$TextColor_Red See execution log grep -i 'error' below:\n $errLog"
+            echo -e "$TextColor_Red""See execution log grep -i 'error' | grep -vEwi '$c_GrepErrorExclusions' below:\n$errLog"
         fi
 
-        warnLog=$(cat $fLogOutput | grep -i 'warn')
+        warnLog=$(cat $fLogOutput | grep -i 'warn' | grep -vEwi "$c_GrepWarningExclusions")
         if test -n "$warnLog"
         then
-            echo -e "$TextColor_Yellow See execution log grep -i 'warn' below:\n $warnLog"
+            echo -e "$TextColor_Yellow""See execution log grep -i 'warn' | grep -vEwi '$c_GrepWarningExclusions' below:\n$warnLog"
         fi
     
     if [ $ENABLE_VAAPISINK_DISPLAY_MODE -eq 1 ];
