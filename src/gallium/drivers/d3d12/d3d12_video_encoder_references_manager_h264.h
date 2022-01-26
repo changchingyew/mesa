@@ -30,58 +30,55 @@
 
 class D3D12VideoEncoderReferencesManagerH264 : public ID3D12VideoEncodeReferencePicManager
 {
-public:
-    
-    void EndFrame();
-    void BeginFrame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curFrameData);
-    D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE GetCurrentFrameReconPicOutputAllocation();
-    void GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA& codecAllocation);
-    bool IsCurrentFrameUsedAsReference();
-    D3D12_VIDEO_ENCODE_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();    
+ public:
+   void                                      EndFrame();
+   void                                      BeginFrame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curFrameData);
+   D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE GetCurrentFrameReconPicOutputAllocation();
+   void GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &codecAllocation);
+   bool IsCurrentFrameUsedAsReference();
+   D3D12_VIDEO_ENCODE_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();
 
-    D3D12VideoEncoderReferencesManagerH264(
-        bool gopHasInterCodedFrames,
-        ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap>& rDpbStorageManager,
-        UINT MaxL0ReferencesForP,
-        UINT MaxL0ReferencesForB,
-        UINT MaxL1ReferencesForB,        
-        UINT MaxDPBCapacity
-        );   
+   D3D12VideoEncoderReferencesManagerH264(bool                                                  gopHasInterCodedFrames,
+                                          ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap> &rDpbStorageManager,
+                                          UINT                                                  MaxL0ReferencesForP,
+                                          UINT                                                  MaxL0ReferencesForB,
+                                          UINT                                                  MaxL1ReferencesForB,
+                                          UINT                                                  MaxDPBCapacity);
 
-    ~D3D12VideoEncoderReferencesManagerH264() { }
+   ~D3D12VideoEncoderReferencesManagerH264()
+   { }
 
-private:
+ private:
+   // Class helpers
+   void PrepareCurrentFrameReconPicAllocation();
+   void ResetGOPTrackingAndDPB();
+   void UpdateFIFODPB_PushFrontCurReconPicture();
+   void PrepareCurrentFrameL0L1Lists();
+   void PrintDPB();
+   void PrintL0L1();
 
-// Class helpers
-    void PrepareCurrentFrameReconPicAllocation();
-    void ResetGOPTrackingAndDPB();    
-    void UpdateFIFODPB_PushFrontCurReconPicture();
-    void PrepareCurrentFrameL0L1Lists();
-    void PrintDPB();
-    void PrintL0L1();
+   // Class members
 
-// Class members
+   UINT m_MaxL0ReferencesForP = 0;
+   UINT m_MaxL0ReferencesForB = 0;
+   UINT m_MaxL1ReferencesForB = 0;
+   UINT m_MaxDPBCapacity      = 0;
 
-    UINT m_MaxL0ReferencesForP = 0;
-    UINT m_MaxL0ReferencesForB = 0;
-    UINT m_MaxL1ReferencesForB = 0;
-    UINT m_MaxDPBCapacity = 0;
+   typedef struct CurrentFrameReferencesData
+   {
+      std::vector<UINT>                                                  pList0ReferenceFrames;
+      std::vector<UINT>                                                  pList1ReferenceFrames;
+      std::vector<D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pReferenceFramesReconPictureDescriptors;
+      D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE                          ReconstructedPicTexture;
+   } CurrentFrameReferencesData;
 
-    typedef struct CurrentFrameReferencesData
-    {        
-        std::vector<UINT> pList0ReferenceFrames;
-        std::vector<UINT> pList1ReferenceFrames;
-        std::vector<D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pReferenceFramesReconPictureDescriptors;
-        D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE ReconstructedPicTexture;
-    } CurrentFrameReferencesData;
+   ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap> &m_rDPBStorageManager;
 
-    ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap>& m_rDPBStorageManager;
+   CurrentFrameReferencesData m_CurrentFrameReferencesData;
 
-    CurrentFrameReferencesData m_CurrentFrameReferencesData;
+   bool m_gopHasInterFrames = false;
 
-    bool m_gopHasInterFrames = false;
-
-    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 m_curFrameState = { };
+   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 m_curFrameState = {};
 };
 
 #endif
