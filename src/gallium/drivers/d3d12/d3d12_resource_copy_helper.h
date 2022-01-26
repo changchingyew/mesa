@@ -31,36 +31,32 @@
 // Note that all copy operations are synchronous (they imply a wait for idle)
 class D3D12ResourceCopyHelper
 {
-public:
-    D3D12ResourceCopyHelper(ID3D12CommandQueue* pCommandQueue);
+ public:
+   D3D12ResourceCopyHelper(ID3D12CommandQueue *pCommandQueue);
 
-    void UploadData(
-        ID3D12Resource* pResource,
-        UINT Subresource,
-        D3D12_RESOURCE_STATES ResourceState,
-        const void* pData,
-        UINT RowPitch,
-        UINT SlicePitch
-        );
+   void UploadData(ID3D12Resource *      pResource,
+                   UINT                  Subresource,
+                   D3D12_RESOURCE_STATES ResourceState,
+                   const void *          pData,
+                   UINT                  RowPitch,
+                   UINT                  SlicePitch);
 
-    void ReadbackData(
-        void* pData,
-        UINT RowPitch,
-        UINT SlicePitch,
-        ID3D12Resource* pResource,
-        UINT Subresource,
-        D3D12_RESOURCE_STATES ResourceState
-        );
+   void ReadbackData(void *                pData,
+                     UINT                  RowPitch,
+                     UINT                  SlicePitch,
+                     ID3D12Resource *      pResource,
+                     UINT                  Subresource,
+                     D3D12_RESOURCE_STATES ResourceState);
 
-private:
-    void Epilog();
+ private:
+   void Epilog();
 
-    ComPtr<ID3D12Device> m_pDevice;
-    ComPtr<ID3D12CommandQueue> m_pCommandQueue;
-    ComPtr<ID3D12CommandAllocator> m_pCommandAllocator;
-    ComPtr<ID3D12GraphicsCommandList> m_pCommandList;
+   ComPtr<ID3D12Device>              m_pDevice;
+   ComPtr<ID3D12CommandQueue>        m_pCommandQueue;
+   ComPtr<ID3D12CommandAllocator>    m_pCommandAllocator;
+   ComPtr<ID3D12GraphicsCommandList> m_pCommandList;
 
-    UINT m_NodeMask;
+   UINT m_NodeMask;
 };
 
 #endif
