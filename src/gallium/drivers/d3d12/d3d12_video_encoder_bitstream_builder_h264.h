@@ -30,51 +30,55 @@
 class D3D12VideoBitstreamBuilderH264 : public ID3D12VideoBitstreamBuilder
 {
 
-public:
-    D3D12VideoBitstreamBuilderH264() { };
-    ~D3D12VideoBitstreamBuilderH264() { };
+ public:
+   D3D12VideoBitstreamBuilderH264() {};
+   ~D3D12VideoBitstreamBuilderH264() {};
 
-    void BuildSPS
-    (
-        const D3D12_VIDEO_ENCODER_PROFILE_H264& profile,
-        const D3D12_VIDEO_ENCODER_LEVELS_H264& level,
-        const DXGI_FORMAT& inputFmt,
-        const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264& codecConfig,
-        const D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264& gopConfig,
-        UINT seq_parameter_set_id,
-        UINT max_num_ref_frames,
-        D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC sequenceTargetResolution,
-        std::vector<BYTE> &headerBitstream,
-        std::vector<BYTE>::iterator placingPositionStart,
-        size_t &writtenBytes
-    );
+   void BuildSPS(const D3D12_VIDEO_ENCODER_PROFILE_H264 &               profile,
+                 const D3D12_VIDEO_ENCODER_LEVELS_H264 &                level,
+                 const DXGI_FORMAT &                                    inputFmt,
+                 const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &   codecConfig,
+                 const D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 &gopConfig,
+                 UINT                                                   seq_parameter_set_id,
+                 UINT                                                   max_num_ref_frames,
+                 D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC            sequenceTargetResolution,
+                 std::vector<BYTE> &                                    headerBitstream,
+                 std::vector<BYTE>::iterator                            placingPositionStart,
+                 size_t &                                               writtenBytes);
 
-    void BuildPPS
-    (
-        const D3D12_VIDEO_ENCODER_PROFILE_H264& profile,
-        const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264& codecConfig,
-        const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264& pictureControl,
-        UINT pic_parameter_set_id,
-        UINT seq_parameter_set_id,
-        std::vector<BYTE> &headerBitstream,
-        std::vector<BYTE>::iterator placingPositionStart,
-        size_t &writtenBytes
-    );   
+   void BuildPPS(const D3D12_VIDEO_ENCODER_PROFILE_H264 &                   profile,
+                 const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &       codecConfig,
+                 const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 &pictureControl,
+                 UINT                                                       pic_parameter_set_id,
+                 UINT                                                       seq_parameter_set_id,
+                 std::vector<BYTE> &                                        headerBitstream,
+                 std::vector<BYTE>::iterator                                placingPositionStart,
+                 size_t &                                                   writtenBytes);
 
-    void WriteEndOfStreamNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t &writtenBytes);
-    void WriteEndOfSequenceNALU(std::vector<BYTE> &headerBitstream, std::vector<BYTE>::iterator placingPositionStart, size_t &writtenBytes);
+   void WriteEndOfStreamNALU(std::vector<BYTE> &         headerBitstream,
+                             std::vector<BYTE>::iterator placingPositionStart,
+                             size_t &                    writtenBytes);
+   void WriteEndOfSequenceNALU(std::vector<BYTE> &         headerBitstream,
+                               std::vector<BYTE>::iterator placingPositionStart,
+                               size_t &                    writtenBytes);
 
-    void PrintPPS(const H264_PPS& pps);
-    void PrintSPS(const H264_SPS& sps);
+   void PrintPPS(const H264_PPS &pps);
+   void PrintSPS(const H264_SPS &sps);
 
-    UINT m_writtenSPSCount = 0;
-    UINT m_writtenPPSCount = 0;
+   UINT m_writtenSPSCount = 0;
+   UINT m_writtenPPSCount = 0;
 
-    UINT GetSPSCount() { return m_writtenSPSCount; };
-    UINT GetPPSCount() { return m_writtenPPSCount; };
+   UINT GetSPSCount()
+   {
+      return m_writtenSPSCount;
+   };
+   UINT GetPPSCount()
+   {
+      return m_writtenPPSCount;
+   };
 
-private:
-    D3D12VideoNaluWriterH264 m_h264Encoder;
+ private:
+   D3D12VideoNaluWriterH264 m_h264Encoder;
 };
 
 #endif
