@@ -30,121 +30,142 @@
 
 struct D3D12VideoDecoderReferencesManager
 {
-    D3D12VideoDecoderReferencesManager(
-        const struct d3d12_screen* pD3D12Screen,
-        UINT NodeMask,
-        D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
-        D3D12DPBDescriptor dpbDescriptor);
+   D3D12VideoDecoderReferencesManager(const struct d3d12_screen *     pD3D12Screen,
+                                      UINT                            NodeMask,
+                                      D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
+                                      D3D12DPBDescriptor              dpbDescriptor);
 
-    bool IsReferenceOnly() { return m_dpbDescriptor.fReferenceOnly; }
-    bool IsArrayOfTextures() { return m_dpbDescriptor.fArrayOfTexture; }
-    
-    void MarkAllReferencesAsUnused();
-    void ReleaseUnusedReferencesTexturesMemory();
+   bool IsReferenceOnly()
+   {
+      return m_dpbDescriptor.fReferenceOnly;
+   }
+   bool IsArrayOfTextures()
+   {
+      return m_dpbDescriptor.fArrayOfTexture;
+   }
 
-    template<typename T, size_t size> 
-    void MarkReferencesInUse(const T (&picEntries)[size]);
-    void MarkReferenceInUse(UINT16 index);
-    
-    UINT16 StoreFutureReference(UINT16 index, _In_ ComPtr<ID3D12VideoDecoderHeap> & decoderHeap, ID3D12Resource* pTexture2D, UINT subresourceIndex);
-    
-    // Will clear() argument outNeededTransitions and fill it with the necessary transitions to perform by the caller after the method returns
-    template<typename T, size_t size> 
-    void UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> & outNeededTransitions);
+   void MarkAllReferencesAsUnused();
+   void ReleaseUnusedReferencesTexturesMemory();
 
-    void GetReferenceOnlyOutput(
-        ID3D12Resource** ppOutputReference, // out -> new reference slot assigned or nullptr
-        UINT* pOutputSubresource, // out -> new reference slot assigned or nullptr
-        bool& outNeedsTransitionToDecodeWrite // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE by the caller
-    );
+   template <typename T, size_t size>
+   void MarkReferencesInUse(const T (&picEntries)[size]);
+   void MarkReferenceInUse(UINT16 index);
 
-    // Gets the output texture for the current frame to be decoded
-    void GetCurrentFrameDecodeOutputTexture(ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex);
+   UINT16 StoreFutureReference(UINT16 index,
+                               _In_ ComPtr<ID3D12VideoDecoderHeap> &decoderHeap,
+                               ID3D12Resource *                     pTexture2D,
+                               UINT                                 subresourceIndex);
 
-    D3D12_VIDEO_DECODE_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();
+   // Will clear() argument outNeededTransitions and fill it with the necessary transitions to perform by the caller
+   // after the method returns
+   template <typename T, size_t size>
+   void UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> &outNeededTransitions);
 
-private:
+   void GetReferenceOnlyOutput(
+      ID3D12Resource **ppOutputReference,     // out -> new reference slot assigned or nullptr
+      UINT *           pOutputSubresource,    // out -> new reference slot assigned or nullptr
+      bool &outNeedsTransitionToDecodeWrite   // out -> indicates if output resource argument has to be transitioned to
+                                              // D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE by the caller
+   );
 
-    UINT16 UpdateEntry(
-                UINT16 index, // in
-                ID3D12Resource*& pOutputReference, // out -> new reference slot assigned or nullptr
-                UINT& OutputSubresource, // out -> new reference slot assigned or 0
-                bool& outNeedsTransitionToDecodeRead // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
-            );
+   // Gets the output texture for the current frame to be decoded
+   void GetCurrentFrameDecodeOutputTexture(ID3D12Resource **ppOutTexture2D, UINT *pOutSubresourceIndex);
 
-    UINT16 FindRemappedIndex(UINT16 originalIndex);
-    
-    struct ReferenceData
-    {
-        UINT16 originalIndex;
-        bool fUsed;
-    };
+   D3D12_VIDEO_DECODE_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();
 
-    // Holds the DPB textures
-    std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoDecoderHeap> > m_upD3D12TexturesStorageManager;
+ private:
+   UINT16 UpdateEntry(
+      UINT16           index,                // in
+      ID3D12Resource *&pOutputReference,     // out -> new reference slot assigned or nullptr
+      UINT &           OutputSubresource,    // out -> new reference slot assigned or 0
+      bool &outNeedsTransitionToDecodeRead   // out -> indicates if output resource argument has to be transitioned to
+                                             // D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
+   );
 
-    // Holds the mapping between DXVA PicParams indices and the D3D12 indices
-    std::vector<ReferenceData> m_referenceDXVAIndices;
+   UINT16 FindRemappedIndex(UINT16 originalIndex);
 
-    ComPtr<ID3D12Resource> m_pClearDecodedOutputTexture;
+   struct ReferenceData
+   {
+      UINT16 originalIndex;
+      bool   fUsed;
+   };
 
-    const struct d3d12_screen* m_pD3D12Screen;
-    UINT                       m_NodeMask;
-    UINT16                     m_invalidIndex;
-    D3D12DPBDescriptor         m_dpbDescriptor = { };
-    UINT16                     m_currentOutputIndex = 0;    
-    D3D12_FEATURE_DATA_FORMAT_INFO m_formatInfo = { m_dpbDescriptor.Format };    
+   // Holds the DPB textures
+   std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoDecoderHeap>> m_upD3D12TexturesStorageManager;
+
+   // Holds the mapping between DXVA PicParams indices and the D3D12 indices
+   std::vector<ReferenceData> m_referenceDXVAIndices;
+
+   ComPtr<ID3D12Resource> m_pClearDecodedOutputTexture;
+
+   const struct d3d12_screen *    m_pD3D12Screen;
+   UINT                           m_NodeMask;
+   UINT16                         m_invalidIndex;
+   D3D12DPBDescriptor             m_dpbDescriptor      = {};
+   UINT16                         m_currentOutputIndex = 0;
+   D3D12_FEATURE_DATA_FORMAT_INFO m_formatInfo         = { m_dpbDescriptor.Format };
 };
 
 
 //----------------------------------------------------------------------------------------------------------------------------------
-template<typename T, size_t size>
-void D3D12VideoDecoderReferencesManager::UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> & outNeededTransitions)
+template <typename T, size_t size>
+void
+D3D12VideoDecoderReferencesManager::UpdateEntries(T (&picEntries)[size],
+                                                  std::vector<D3D12_RESOURCE_BARRIER> &outNeededTransitions)
 {
-    outNeededTransitions.clear();
+   outNeededTransitions.clear();
 
-    for (auto& picEntry : picEntries)
-    {
-            // UINT16 UpdateEntry(
-            //     UINT16 index, // in
-            //     ID3D12Resource*& pOutputReference, // out -> new reference slot assigned or nullptr
-            //     UINT& OutputSubresource, // out -> new reference slot assigned or 0
-            //     bool& outNeedsTransitionToDecodeRead // out -> indicates if output resource argument has to be transitioned to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
-            // );
+   for (auto &picEntry : picEntries) {
+      // UINT16 UpdateEntry(
+      //     UINT16 index, // in
+      //     ID3D12Resource*& pOutputReference, // out -> new reference slot assigned or nullptr
+      //     UINT& OutputSubresource, // out -> new reference slot assigned or 0
+      //     bool& outNeedsTransitionToDecodeRead // out -> indicates if output resource argument has to be transitioned
+      //     to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
+      // );
 
-        ID3D12Resource* pOutputReference = { };
-        UINT OutputSubresource = 0u;
-        bool outNeedsTransitionToDecodeRead = false;
+      ID3D12Resource *pOutputReference               = {};
+      UINT            OutputSubresource              = 0u;
+      bool            outNeedsTransitionToDecodeRead = false;
 
-        picEntry.Index7Bits = UpdateEntry(picEntry.Index7Bits, pOutputReference, OutputSubresource, outNeedsTransitionToDecodeRead);
+      picEntry.Index7Bits =
+         UpdateEntry(picEntry.Index7Bits, pOutputReference, OutputSubresource, outNeedsTransitionToDecodeRead);
 
-        if(outNeedsTransitionToDecodeRead)
-        {
-            ///
-            /// The subresource indexing in D3D12 Video within the DPB doesn't take into account the Y, UV planes (ie. subresource 0, 1, 2, 3..., N are different full NV12 references in the DPB)
-            /// but when using the subresources in other areas of D3D12 we need to convert it to the D3D12CalcSubresource format, explained in https://docs.microsoft.com/en-us/windows/win32/direct3d12/subresources 
-            ///
-            CD3DX12_RESOURCE_DESC refDesc(pOutputReference->GetDesc());
-            UINT MipLevel, PlaneSlice, ArraySlice;
-            D3D12DecomposeSubresource(OutputSubresource, refDesc.MipLevels, refDesc.ArraySize(), MipLevel, ArraySlice, PlaneSlice);
+      if (outNeedsTransitionToDecodeRead) {
+         ///
+         /// The subresource indexing in D3D12 Video within the DPB doesn't take into account the Y, UV planes (ie.
+         /// subresource 0, 1, 2, 3..., N are different full NV12 references in the DPB) but when using the subresources
+         /// in other areas of D3D12 we need to convert it to the D3D12CalcSubresource format, explained in
+         /// https://docs.microsoft.com/en-us/windows/win32/direct3d12/subresources
+         ///
+         CD3DX12_RESOURCE_DESC refDesc(pOutputReference->GetDesc());
+         UINT                  MipLevel, PlaneSlice, ArraySlice;
+         D3D12DecomposeSubresource(OutputSubresource,
+                                   refDesc.MipLevels,
+                                   refDesc.ArraySize(),
+                                   MipLevel,
+                                   ArraySlice,
+                                   PlaneSlice);
 
-            for(PlaneSlice = 0; PlaneSlice < m_formatInfo.PlaneCount; PlaneSlice++)
-            {
-                uint planeOutputSubresource = refDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
-                outNeededTransitions.push_back(CD3DX12_RESOURCE_BARRIER::Transition(pOutputReference, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_DECODE_READ, planeOutputSubresource));
-            }        
-        }        
-    }
+         for (PlaneSlice = 0; PlaneSlice < m_formatInfo.PlaneCount; PlaneSlice++) {
+            uint planeOutputSubresource = refDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
+            outNeededTransitions.push_back(CD3DX12_RESOURCE_BARRIER::Transition(pOutputReference,
+                                                                                D3D12_RESOURCE_STATE_COMMON,
+                                                                                D3D12_RESOURCE_STATE_VIDEO_DECODE_READ,
+                                                                                planeOutputSubresource));
+         }
+      }
+   }
 }
 
-//----------------------------------------------------------------------------------------------------------------------------------    
-template<typename T, size_t size> 
-void D3D12VideoDecoderReferencesManager::MarkReferencesInUse(const T (&picEntries)[size])
+//----------------------------------------------------------------------------------------------------------------------------------
+template <typename T, size_t size>
+void
+D3D12VideoDecoderReferencesManager::MarkReferencesInUse(const T (&picEntries)[size])
 {
-    for (auto& picEntry : picEntries)
-    {
-        MarkReferenceInUse(picEntry.Index7Bits);
-    }
+   for (auto &picEntry : picEntries) {
+      MarkReferenceInUse(picEntry.Index7Bits);
+   }
 }
 
 #endif
