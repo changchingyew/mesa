@@ -29,79 +29,63 @@
 template <class TCommandList>
 class D3D12ScopedStateTransition
 {
-public:
-    D3D12ScopedStateTransition() :
-        m_List(NULL),
-        m_Resource(NULL),
-        m_OriginalUsage(D3D12_RESOURCE_STATE_COMMON)
-    {
+ public:
+   D3D12ScopedStateTransition() : m_List(NULL), m_Resource(NULL), m_OriginalUsage(D3D12_RESOURCE_STATE_COMMON)
+   { }
 
-    }
-
-    D3D12ScopedStateTransition(
-        TCommandList *List,
-        ID3D12Resource *Resource,
-        D3D12_RESOURCE_STATES DestinationUsage,
-        D3D12_RESOURCE_STATES OriginalUsage,
-        UINT Subresource = 0
-        ) :
-        m_List(List),
+   D3D12ScopedStateTransition(TCommandList *        List,
+                              ID3D12Resource *      Resource,
+                              D3D12_RESOURCE_STATES DestinationUsage,
+                              D3D12_RESOURCE_STATES OriginalUsage,
+                              UINT                  Subresource = 0)
+      : m_List(List),
         m_Resource(Resource),
         m_OriginalUsage(OriginalUsage),
         m_DestUsage(DestinationUsage),
         m_Subresource(Subresource)
-    {
-        if (m_OriginalUsage != m_DestUsage)
-        {
-            ResourceBarrierHelper(m_List, m_Resource, m_OriginalUsage, m_DestUsage, m_Subresource);
-        }
-    }
+   {
+      if (m_OriginalUsage != m_DestUsage) {
+         ResourceBarrierHelper(m_List, m_Resource, m_OriginalUsage, m_DestUsage, m_Subresource);
+      }
+   }
 
-    ~D3D12ScopedStateTransition()
-    {
-        if (m_List && (m_OriginalUsage != m_DestUsage))
-        {
-            ResourceBarrierHelper(m_List, m_Resource, m_DestUsage, m_OriginalUsage, m_Subresource);
-        }
-    }
+   ~D3D12ScopedStateTransition()
+   {
+      if (m_List && (m_OriginalUsage != m_DestUsage)) {
+         ResourceBarrierHelper(m_List, m_Resource, m_DestUsage, m_OriginalUsage, m_Subresource);
+      }
+   }
 
-private:
-    TCommandList *m_List;
-    ID3D12Resource* m_Resource;
-    D3D12_RESOURCE_STATES m_OriginalUsage;
-    D3D12_RESOURCE_STATES m_DestUsage;
-    UINT m_Subresource;
+ private:
+   TCommandList *        m_List;
+   ID3D12Resource *      m_Resource;
+   D3D12_RESOURCE_STATES m_OriginalUsage;
+   D3D12_RESOURCE_STATES m_DestUsage;
+   UINT                  m_Subresource;
 
-    void
-    ResourceBarrierHelper (
-        TCommandList *List,
-        ID3D12Resource *Resource,
-        UINT StateBefore,
-        UINT StateAfter,
-        UINT Subresource
-        )
-    {
-        D3D12_RESOURCE_BARRIER Barrier = { };
-        Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        Barrier.Transition.pResource = Resource;
-        Barrier.Transition.Subresource = Subresource;
-        Barrier.Transition.StateBefore = D3D12_RESOURCE_STATES( StateBefore );
-        Barrier.Transition.StateAfter = D3D12_RESOURCE_STATES( StateAfter );
-        List->ResourceBarrier(1, &Barrier);
-    }
+   void ResourceBarrierHelper(
+      TCommandList *List, ID3D12Resource *Resource, UINT StateBefore, UINT StateAfter, UINT Subresource)
+   {
+      D3D12_RESOURCE_BARRIER Barrier = {};
+      Barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+      Barrier.Transition.pResource   = Resource;
+      Barrier.Transition.Subresource = Subresource;
+      Barrier.Transition.StateBefore = D3D12_RESOURCE_STATES(StateBefore);
+      Barrier.Transition.StateAfter  = D3D12_RESOURCE_STATES(StateAfter);
+      List->ResourceBarrier(1, &Barrier);
+   }
 };
 
 template <class TCommandList>
-void d3d12_record_state_transition(
-    ComPtr<TCommandList> & spCommandList,
-    _In_ ID3D12Resource* pResource,
-    D3D12_RESOURCE_STATES stateBefore,
-    D3D12_RESOURCE_STATES stateAfter,
-    UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-    D3D12_RESOURCE_BARRIER_FLAGS flags = D3D12_RESOURCE_BARRIER_FLAG_NONE )
+void
+d3d12_record_state_transition(ComPtr<TCommandList> &spCommandList,
+                              _In_ ID3D12Resource *        pResource,
+                              D3D12_RESOURCE_STATES        stateBefore,
+                              D3D12_RESOURCE_STATES        stateAfter,
+                              UINT                         subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                              D3D12_RESOURCE_BARRIER_FLAGS flags       = D3D12_RESOURCE_BARRIER_FLAG_NONE)
 {
-    D3D12_RESOURCE_BARRIER rgBarrierDescs[1] = 
-   {
+   D3D12_RESOURCE_BARRIER rgBarrierDescs[1] = {
       CD3DX12_RESOURCE_BARRIER::Transition(pResource, stateBefore, stateAfter, subresource, flags),
    };
    spCommandList->ResourceBarrier(1u, rgBarrierDescs);
