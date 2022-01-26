@@ -35,43 +35,48 @@
 /**
  * creates a video decoder
  */
-struct pipe_video_codec *d3d12_video_create_decoder(struct pipe_context *context,
-                                               const struct pipe_video_codec *templ);
+struct pipe_video_codec *
+d3d12_video_create_decoder(struct pipe_context *context, const struct pipe_video_codec *templ);
 
 /**
  * destroy this video decoder
  */
-void d3d12_video_decoder_destroy(struct pipe_video_codec *codec);
+void
+d3d12_video_decoder_destroy(struct pipe_video_codec *codec);
 
 /**
  * start decoding of a new frame
  */
-void d3d12_video_decoder_begin_frame(struct pipe_video_codec *codec,
-                     struct pipe_video_buffer *target,
-                     struct pipe_picture_desc *picture);
+void
+d3d12_video_decoder_begin_frame(struct pipe_video_codec * codec,
+                                struct pipe_video_buffer *target,
+                                struct pipe_picture_desc *picture);
 
 /**
  * decode a bitstream
  */
-void d3d12_video_decoder_decode_bitstream(struct pipe_video_codec *codec,
-                           struct pipe_video_buffer *target,
-                           struct pipe_picture_desc *picture,
-                           unsigned num_buffers,
-                           const void * const *buffers,
-                           const unsigned *sizes);
+void
+d3d12_video_decoder_decode_bitstream(struct pipe_video_codec * codec,
+                                     struct pipe_video_buffer *target,
+                                     struct pipe_picture_desc *picture,
+                                     unsigned                  num_buffers,
+                                     const void *const *       buffers,
+                                     const unsigned *          sizes);
 
 /**
  * end decoding of the current frame
  */
-void d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
-                  struct pipe_video_buffer *target,
-                  struct pipe_picture_desc *picture);
+void
+d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
+                              struct pipe_video_buffer *target,
+                              struct pipe_picture_desc *picture);
 
 /**
  * flush any outstanding command buffers to the hardware
  * should be called before a video_buffer is acessed by the gallium frontend again
  */
-void d3d12_video_decoder_flush(struct pipe_video_codec *codec);
+void
+d3d12_video_decoder_flush(struct pipe_video_codec *codec);
 
 ///
 /// Pipe video interface ends
@@ -83,103 +88,159 @@ void d3d12_video_decoder_flush(struct pipe_video_codec *codec);
 
 struct d3d12_video_decoder
 {
-    struct pipe_video_codec base;
-    struct pipe_screen* m_screen;
-    struct d3d12_screen* m_pD3D12Screen;
+   struct pipe_video_codec base;
+   struct pipe_screen *    m_screen;
+   struct d3d12_screen *   m_pD3D12Screen;
 
-    ///
-    /// D3D12 objects and context info
-    ///
+   ///
+   /// D3D12 objects and context info
+   ///
 
-    const uint m_NodeMask = 0u;
-    const uint m_NodeIndex = 0u;
+   const uint m_NodeMask  = 0u;
+   const uint m_NodeIndex = 0u;
 
-    ComPtr<ID3D12Fence> m_spFence;
-    uint m_fenceValue = 1u;
+   ComPtr<ID3D12Fence> m_spFence;
+   uint                m_fenceValue = 1u;
 
-    ComPtr<ID3D12VideoDevice> m_spD3D12VideoDevice;
-    ComPtr<ID3D12VideoDecoder> m_spVideoDecoder;
-    ComPtr<ID3D12VideoDecoderHeap> m_spVideoDecoderHeap;
-    ComPtr<ID3D12CommandQueue> m_spDecodeCommandQueue;
-    ComPtr<ID3D12CommandAllocator> m_spCommandAllocator;
-    ComPtr<ID3D12VideoDecodeCommandList1> m_spDecodeCommandList;
-    ComPtr<ID3D12CommandQueue> m_spCopyQueue;
-    std::unique_ptr<D3D12ResourceCopyHelper> m_D3D12ResourceCopyHelper;  
+   ComPtr<ID3D12VideoDevice>                m_spD3D12VideoDevice;
+   ComPtr<ID3D12VideoDecoder>               m_spVideoDecoder;
+   ComPtr<ID3D12VideoDecoderHeap>           m_spVideoDecoderHeap;
+   ComPtr<ID3D12CommandQueue>               m_spDecodeCommandQueue;
+   ComPtr<ID3D12CommandAllocator>           m_spCommandAllocator;
+   ComPtr<ID3D12VideoDecodeCommandList1>    m_spDecodeCommandList;
+   ComPtr<ID3D12CommandQueue>               m_spCopyQueue;
+   std::unique_ptr<D3D12ResourceCopyHelper> m_D3D12ResourceCopyHelper;
 
-    std::vector<D3D12_RESOURCE_BARRIER> m_transitionsBeforeCloseCmdList;
+   std::vector<D3D12_RESOURCE_BARRIER> m_transitionsBeforeCloseCmdList;
 
-    D3D12_VIDEO_DECODER_DESC               m_decoderDesc = {};
-    D3D12_VIDEO_DECODER_HEAP_DESC          m_decoderHeapDesc = {};
-    D3D12_VIDEO_DECODE_TIER                m_tier = D3D12_VIDEO_DECODE_TIER_NOT_SUPPORTED;
-    DXGI_FORMAT                            m_decodeFormat;
-    D3D12_FEATURE_DATA_FORMAT_INFO m_decodeFormatInfo = { m_decodeFormat };
-    D3D12_VIDEO_DECODE_CONFIGURATION_FLAGS m_configurationFlags = D3D12_VIDEO_DECODE_CONFIGURATION_FLAG_NONE;
-    GUID m_d3d12DecProfile = { };
-    D3D12_VIDEO_DECODE_PROFILE_TYPE m_d3d12DecProfileType = { };
-    uint m_ConfigDecoderSpecificFlags = 0u;
+   D3D12_VIDEO_DECODER_DESC               m_decoderDesc     = {};
+   D3D12_VIDEO_DECODER_HEAP_DESC          m_decoderHeapDesc = {};
+   D3D12_VIDEO_DECODE_TIER                m_tier            = D3D12_VIDEO_DECODE_TIER_NOT_SUPPORTED;
+   DXGI_FORMAT                            m_decodeFormat;
+   D3D12_FEATURE_DATA_FORMAT_INFO         m_decodeFormatInfo           = { m_decodeFormat };
+   D3D12_VIDEO_DECODE_CONFIGURATION_FLAGS m_configurationFlags         = D3D12_VIDEO_DECODE_CONFIGURATION_FLAG_NONE;
+   GUID                                   m_d3d12DecProfile            = {};
+   D3D12_VIDEO_DECODE_PROFILE_TYPE        m_d3d12DecProfileType        = {};
+   uint                                   m_ConfigDecoderSpecificFlags = 0u;
 
-    ///
-    /// Current frame tracked state
-    ///
+   ///
+   /// Current frame tracked state
+   ///
 
-    // Tracks DPB and reference picture textures
-    std::unique_ptr<D3D12VideoDecoderReferencesManager> m_spDPBManager;
-    
-    // Holds the input bitstream buffer while it's being constructed in decode_bitstream calls
-    std::vector<BYTE> m_stagingDecodeBitstream;
+   // Tracks DPB and reference picture textures
+   std::unique_ptr<D3D12VideoDecoderReferencesManager> m_spDPBManager;
 
-    // Holds the input bitstream buffer in GPU video memory
-    ComPtr<ID3D12Resource> m_curFrameCompressedBitstreamBuffer;
-    UINT64 m_curFrameCompressedBitstreamBufferAllocatedSize = m_InitialCompBitstreamGPUBufferSize; // Actual number of allocated bytes available in the buffer (after m_curFrameCompressedBitstreamBufferPayloadSize might be garbage)
-    UINT64 m_curFrameCompressedBitstreamBufferPayloadSize = 0u; // Actual number of bytes of valid data
+   // Holds the input bitstream buffer while it's being constructed in decode_bitstream calls
+   std::vector<BYTE> m_stagingDecodeBitstream;
 
-    // Holds a buffer for the DXVA struct layout of the picture params of the current frame
-    std::vector<BYTE> m_picParamsBuffer;   // size() has the byte size of the currently held picparams ; capacity() has the underlying container allocation size 
+   // Holds the input bitstream buffer in GPU video memory
+   ComPtr<ID3D12Resource> m_curFrameCompressedBitstreamBuffer;
+   UINT64                 m_curFrameCompressedBitstreamBufferAllocatedSize =
+      m_InitialCompBitstreamGPUBufferSize;   // Actual number of allocated bytes available in the buffer (after
+                                             // m_curFrameCompressedBitstreamBufferPayloadSize might be garbage)
+   UINT64 m_curFrameCompressedBitstreamBufferPayloadSize = 0u;   // Actual number of bytes of valid data
 
-    // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX of the current frame
-    // m_InverseQuantMatrixBuffer.size() == 0 means no quantization matrix buffer is set for current frame
-    std::vector<BYTE> m_InverseQuantMatrixBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX ; capacity() has the underlying container allocation size 
+   // Holds a buffer for the DXVA struct layout of the picture params of the current frame
+   std::vector<BYTE> m_picParamsBuffer;   // size() has the byte size of the currently held picparams ; capacity() has
+                                          // the underlying container allocation size
 
-    // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL of the current frame
-    // m_SliceControlBuffer.size() == 0 means no quantization matrix buffer is set for current frame
-    std::vector<BYTE> m_SliceControlBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL ; capacity() has the underlying container allocation size 
+   // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX of the
+   // current frame m_InverseQuantMatrixBuffer.size() == 0 means no quantization matrix buffer is set for current frame
+   std::vector<BYTE> m_InverseQuantMatrixBuffer;   // size() has the byte size of the currently held
+                                                   // VIDEO_DECODE_BUFFER_TYPE_INVERSE_QUANTIZATION_MATRIX ; capacity()
+                                                   // has the underlying container allocation size
 
-    // Number of consecutive decode_frame calls without end_frame call
-    UINT m_numConsecutiveDecodeFrame = 0;
+   // Holds a buffer for the DXVA struct layout of the VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL of the current frame
+   // m_SliceControlBuffer.size() == 0 means no quantization matrix buffer is set for current frame
+   std::vector<BYTE>
+      m_SliceControlBuffer;   // size() has the byte size of the currently held VIDEO_DECODE_BUFFER_TYPE_SLICE_CONTROL ;
+                              // capacity() has the underlying container allocation size
 
-    // Number of consecutive begin_frame calls without end_frame call
-    UINT m_numNestedBeginFrame = 0;
+   // Number of consecutive decode_frame calls without end_frame call
+   UINT m_numConsecutiveDecodeFrame = 0;
 
-    // Indicates if GPU commands have not been flushed and are pending.
-    bool m_needsGPUFlush = false;
+   // Number of consecutive begin_frame calls without end_frame call
+   UINT m_numNestedBeginFrame = 0;
 
-    ///
-    /// Config variables
-    ///
+   // Indicates if GPU commands have not been flushed and are pending.
+   bool m_needsGPUFlush = false;
 
-    const UINT64 m_InitialCompBitstreamGPUBufferSize  = (1024 /*1K*/ * 1024/*1MB*/) * 8/*8 MB*/; // 8MB 
+   ///
+   /// Config variables
+   ///
 
+   const UINT64 m_InitialCompBitstreamGPUBufferSize = (1024 /*1K*/ * 1024 /*1MB*/) * 8 /*8 MB*/;   // 8MB
 };
 
-bool d3d12_video_decoder_create_command_objects(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
-bool d3d12_video_decoder_check_caps_and_create_decoder(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
-bool d3d12_video_decoder_create_video_state_buffers(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec);
-bool d3d12_video_decoder_create_staging_bitstream_buffer(const struct d3d12_screen* pD3D12Screen, struct d3d12_video_decoder* pD3D12Dec, UINT64 bufSize);
-void d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12Dec, struct d3d12_video_buffer* pD3D12VideoBuffer, ID3D12Resource** ppOutTexture2D, UINT* pOutSubresourceIndex, ID3D12Resource** ppRefOnlyOutTexture2D, UINT* pRefOnlyOutSubresourceIndex, const D3D12VideoDecodeOutputConversionArguments& conversionArgs);
-void d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3D12Dec);
-void d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *pD3D12Dec, struct d3d12_video_buffer* pD3D12VideoBuffer, const D3D12VideoDecodeOutputConversionArguments& conversionArguments);
-void d3d12_video_decoder_get_frame_info(struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB, bool& isInterlaced);
-void d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input(struct d3d12_video_decoder *codec, struct pipe_picture_desc *picture, struct d3d12_video_buffer* pD3D12VideoBuffer);
-template <typename T> T * d3d12_video_decoder_get_current_dxva_picparams(struct d3d12_video_decoder *codec) { return reinterpret_cast<T*>(codec->m_picParamsBuffer.data()); }
-bool d3d12_video_decoder_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport, D3D12_VIDEO_DECODE_PROFILE_TYPE profileType);
-D3D12_VIDEO_DECODE_PROFILE_TYPE d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(enum pipe_video_profile profile);
-GUID d3d12_video_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profileType, UINT resourceBitDepth);
-VIDEO_DECODE_PROFILE_BIT_DEPTH d3d12_video_decoder_get_format_bitdepth(DXGI_FORMAT Format);
-void d3d12_video_decoder_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *codec, void* pDXVABuffer, UINT64 DXVABufferSize);
-void d3d12_video_decoder_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize);
-void d3d12_video_decoder_prepare_dxva_slices_control(struct d3d12_video_decoder *pD3D12Dec);
-void d3d12_video_decoder_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec, void* pDXVAStruct, UINT64 DXVAStructSize);
-int d3d12_video_decoder_get_next_startcode_offset(std::vector<BYTE> &buf, unsigned int bufferOffset, unsigned int targetCode, unsigned int targetCodeBitSize, unsigned int numBitsToSearchIntoBuffer);
+bool
+d3d12_video_decoder_create_command_objects(const struct d3d12_screen * pD3D12Screen,
+                                           struct d3d12_video_decoder *pD3D12Dec);
+bool
+d3d12_video_decoder_check_caps_and_create_decoder(const struct d3d12_screen * pD3D12Screen,
+                                                  struct d3d12_video_decoder *pD3D12Dec);
+bool
+d3d12_video_decoder_create_video_state_buffers(const struct d3d12_screen * pD3D12Screen,
+                                               struct d3d12_video_decoder *pD3D12Dec);
+bool
+d3d12_video_decoder_create_staging_bitstream_buffer(const struct d3d12_screen * pD3D12Screen,
+                                                    struct d3d12_video_decoder *pD3D12Dec,
+                                                    UINT64                      bufSize);
+void
+d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12Dec,
+                                             struct d3d12_video_buffer * pD3D12VideoBuffer,
+                                             ID3D12Resource **           ppOutTexture2D,
+                                             UINT *                      pOutSubresourceIndex,
+                                             ID3D12Resource **           ppRefOnlyOutTexture2D,
+                                             UINT *                      pRefOnlyOutSubresourceIndex,
+                                             const D3D12VideoDecodeOutputConversionArguments &conversionArgs);
+void
+d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3D12Dec);
+void
+d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *                     pD3D12Dec,
+                                    struct d3d12_video_buffer *                      pD3D12VideoBuffer,
+                                    const D3D12VideoDecodeOutputConversionArguments &conversionArguments);
+void
+d3d12_video_decoder_get_frame_info(
+   struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB, bool &isInterlaced);
+void
+d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input(struct d3d12_video_decoder *codec,
+                                                                   struct pipe_picture_desc *  picture,
+                                                                   struct d3d12_video_buffer * pD3D12VideoBuffer);
+template <typename T>
+T *
+d3d12_video_decoder_get_current_dxva_picparams(struct d3d12_video_decoder *codec)
+{
+   return reinterpret_cast<T *>(codec->m_picParamsBuffer.data());
+}
+bool
+d3d12_video_decoder_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport,
+                                     D3D12_VIDEO_DECODE_PROFILE_TYPE         profileType);
+D3D12_VIDEO_DECODE_PROFILE_TYPE
+d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(enum pipe_video_profile profile);
+GUID
+d3d12_video_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profileType, UINT resourceBitDepth);
+VIDEO_DECODE_PROFILE_BIT_DEPTH
+d3d12_video_decoder_get_format_bitdepth(DXGI_FORMAT Format);
+void
+d3d12_video_decoder_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *codec,
+                                                             void *                      pDXVABuffer,
+                                                             UINT64                      DXVABufferSize);
+void
+d3d12_video_decoder_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_decoder *pD3D12Dec,
+                                                         void *                      pDXVAStruct,
+                                                         UINT64                      DXVAStructSize);
+void
+d3d12_video_decoder_prepare_dxva_slices_control(struct d3d12_video_decoder *pD3D12Dec);
+void
+d3d12_video_decoder_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec,
+                                                                   void *                      pDXVAStruct,
+                                                                   UINT64                      DXVAStructSize);
+int
+d3d12_video_decoder_get_next_startcode_offset(std::vector<BYTE> &buf,
+                                              unsigned int       bufferOffset,
+                                              unsigned int       targetCode,
+                                              unsigned int       targetCodeBitSize,
+                                              unsigned int       numBitsToSearchIntoBuffer);
 
 ///
 /// d3d12_video_decoder functions ends
