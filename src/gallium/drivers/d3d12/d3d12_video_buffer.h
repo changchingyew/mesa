@@ -36,51 +36,57 @@
 /**
  * creates a video buffer
  */
-struct pipe_video_buffer *d3d12_video_buffer_create(struct pipe_context *pipe,
-                                                 const struct pipe_video_buffer *tmpl);
+struct pipe_video_buffer *
+d3d12_video_buffer_create(struct pipe_context *pipe, const struct pipe_video_buffer *tmpl);
 
 /**
-* destroy this video buffer
-*/
-void  d3d12_video_buffer_destroy(struct pipe_video_buffer *buffer);
+ * destroy this video buffer
+ */
+void
+d3d12_video_buffer_destroy(struct pipe_video_buffer *buffer);
 
 /**
-* get an individual sampler view for each plane
-*/
-struct pipe_sampler_view ** d3d12_video_buffer_get_sampler_view_planes(struct pipe_video_buffer *buffer);
+ * get an individual sampler view for each plane
+ */
+struct pipe_sampler_view **
+d3d12_video_buffer_get_sampler_view_planes(struct pipe_video_buffer *buffer);
 
 /**
-* get an individual sampler view for each component
-*/
-struct pipe_sampler_view ** d3d12_video_buffer_get_sampler_view_components(struct pipe_video_buffer *buffer);
+ * get an individual sampler view for each component
+ */
+struct pipe_sampler_view **
+d3d12_video_buffer_get_sampler_view_components(struct pipe_video_buffer *buffer);
 
 /**
-* get an individual surfaces for each plane
-*/
-struct pipe_surface ** d3d12_video_buffer_get_surfaces(struct pipe_video_buffer *buffer);
+ * get an individual surfaces for each plane
+ */
+struct pipe_surface **
+d3d12_video_buffer_get_surfaces(struct pipe_video_buffer *buffer);
 
 /*
-* destroy the associated data
-*/
-void  d3d12_video_buffer_destroy_associated_data(void *associated_data);
+ * destroy the associated data
+ */
+void
+d3d12_video_buffer_destroy_associated_data(void *associated_data);
 
 /**
  * output for decoding / input for displaying
  */
 struct d3d12_video_buffer
 {
-    pipe_video_buffer base;
-    struct d3d12_resource* m_pD3D12Resource;
-    uint m_NumPlanes;
-    struct std::vector<pipe_surface*> m_SurfacePlanes;
-    struct std::vector<pipe_sampler_view*> m_SurfacePlaneSamplerViews;   
-    struct std::vector<pipe_sampler_view*> m_SurfaceComponentSamplerViews;
+   pipe_video_buffer                       base;
+   struct d3d12_resource *                 m_pD3D12Resource;
+   uint                                    m_NumPlanes;
+   struct std::vector<pipe_surface *>      m_SurfacePlanes;
+   struct std::vector<pipe_sampler_view *> m_SurfacePlaneSamplerViews;
+   struct std::vector<pipe_sampler_view *> m_SurfaceComponentSamplerViews;
 };
 
-bool d3d12_video_buffer_is_format_supported(struct pipe_screen *screen,
-                                    enum pipe_format format,
-                                    enum pipe_video_profile profile,
-                                    enum pipe_video_entrypoint entrypoint);
+bool
+d3d12_video_buffer_is_format_supported(struct pipe_screen *       screen,
+                                       enum pipe_format           format,
+                                       enum pipe_video_profile    profile,
+                                       enum pipe_video_entrypoint entrypoint);
 
 ///
 /// Pipe video buffer interface ends
