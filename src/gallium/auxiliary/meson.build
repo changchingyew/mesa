@@ -472,7 +472,7 @@ if with_dri2 and with_platform_x11
   endif
 endif
 
-if with_swrast_vk
+if with_glx == 'xlib' or with_glx == 'gallium-xlib'
   files_libgalliumvlwinsys += files('vl/vl_winsys_swrast.c')
 endif
 
