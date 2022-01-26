@@ -45,13 +45,13 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.PeakBitRate = picture->rate_ctrl[0].peak_bitrate;
 
          {
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags | D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
+            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |= D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.VBVCapacity = picture->rate_ctrl[0].vbv_buffer_size;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.InitialVBVFullness = picture->rate_ctrl[0].vbv_buf_lv;
          }
 
          {
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags | D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
+            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |= D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.MaxFrameBitSize = picture->rate_ctrl[0].peak_bits_picture_integer;
             
             if(picture->rate_ctrl[0].peak_bits_picture_fraction > 0) // Round bit up as we don't have fractional bit parameter
@@ -67,13 +67,13 @@ void d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_enc
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.TargetBitRate = picture->rate_ctrl[0].target_bitrate;
 
          {
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags | D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
+            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |= D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.VBVCapacity = picture->rate_ctrl[0].vbv_buffer_size;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.InitialVBVFullness = picture->rate_ctrl[0].vbv_buf_lv;
          }
 
          {
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags | D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
+            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |= D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.MaxFrameBitSize = picture->rate_ctrl[0].peak_bits_picture_integer;
             
             if(picture->rate_ctrl[0].peak_bits_picture_fraction > 0) // Round bit up as we don't have fractional bit parameter
@@ -559,7 +559,7 @@ D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 d3d12_video_encoder_convert_h264_co
 
    if(picture->pic_ctrl.enc_cabac_enable)
    {
-      config.ConfigurationFlags | D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264_FLAG_ENABLE_CABAC_ENCODING;
+      config.ConfigurationFlags |= D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264_FLAG_ENABLE_CABAC_ENCODING;
    }
 
    return config;
