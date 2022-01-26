@@ -29,9 +29,9 @@
 
 class ID3D12VideoBitstreamBuilder
 {
-public:
-
-    virtual ~ID3D12VideoBitstreamBuilder() { }
+ public:
+   virtual ~ID3D12VideoBitstreamBuilder()
+   { }
 };
 
 #endif
