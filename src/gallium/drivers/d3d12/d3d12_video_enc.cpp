@@ -167,7 +167,7 @@ d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder *pD3D12
       } break;
    }
 
-   pD3D12Enc->m_upDPBManager->BeginFrame(currentPicParams);
+   pD3D12Enc->m_upDPBManager->begin_frame(currentPicParams);
 }
 
 void
@@ -379,7 +379,7 @@ d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_encoder 
              (pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.PPicturePeriod <
               pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures.GOPLength));
 
-         pD3D12Enc->m_upDPBManager = std::make_unique<D3D12VideoEncoderReferencesManagerH264>(
+         pD3D12Enc->m_upDPBManager = std::make_unique<d3d12_video_encoder_references_manager_h264>(
             gopHasPFrames,
             *pD3D12Enc->m_upDPBStorageManager,
             pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL0ReferencesForP,
@@ -1032,7 +1032,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
                                                      rgCurrentFrameStateTransitions.data());
 
    D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE reconPicOutputTextureDesc =
-      pD3D12Enc->m_upDPBManager->GetCurrentFrameReconPicOutputAllocation();
+      pD3D12Enc->m_upDPBManager->get_current_frame_recon_pic_output_allocation();
    D3D12_VIDEO_ENCODE_REFERENCE_FRAMES referenceFramesDescriptor =
       pD3D12Enc->m_upDPBManager->get_current_reference_frames();
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAGS picCtrlFlags = D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_NONE;
@@ -1043,7 +1043,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    // from d3d12_context?
    UINT                                maxReferences = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
    std::vector<D3D12_RESOURCE_BARRIER> rgReferenceTransitions(maxReferences);
-   if ((referenceFramesDescriptor.NumTexture2Ds > 0) || (pD3D12Enc->m_upDPBManager->IsCurrentFrameUsedAsReference())) {
+   if ((referenceFramesDescriptor.NumTexture2Ds > 0) || (pD3D12Enc->m_upDPBManager->is_current_frame_used_as_reference())) {
       rgReferenceTransitions.clear();
       rgReferenceTransitions.reserve(maxReferences);
       // Check if array of textures vs texture array
@@ -1083,7 +1083,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    // Update current frame pic params state after reconfiguring above.
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams =
       d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
-   pD3D12Enc->m_upDPBManager->GetCurrentFramePictureControlData(currentPicParams);
+   pD3D12Enc->m_upDPBManager->get_current_frame_picture_control_data(currentPicParams);
 
    UINT prefixGeneratedHeadersByteSize = d3d12_video_encoder_build_codec_headers(pD3D12Enc);
 
@@ -1174,7 +1174,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    pD3D12Enc->m_spEncodeCommandList->ResolveEncoderOutputMetadata(&inputMetadataCmd, &outputMetadataCmd);
 
    // Transition DPB reference pictures back to COMMON
-   if ((referenceFramesDescriptor.NumTexture2Ds > 0) || (pD3D12Enc->m_upDPBManager->IsCurrentFrameUsedAsReference())) {
+   if ((referenceFramesDescriptor.NumTexture2Ds > 0) || (pD3D12Enc->m_upDPBManager->is_current_frame_used_as_reference())) {
       for (auto &BarrierDesc : rgReferenceTransitions) {
          std::swap(BarrierDesc.Transition.StateBefore, BarrierDesc.Transition.StateAfter);
       }
@@ -1293,7 +1293,7 @@ d3d12_video_encoder_end_frame(struct pipe_video_codec * codec,
    VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
 
    // Signal finish of current frame encoding to the picture management tracker
-   pD3D12Enc->m_upDPBManager->EndFrame();
+   pD3D12Enc->m_upDPBManager->end_frame();
 
    // Reset encode_frame counter at end_frame call
    pD3D12Enc->m_numConsecutiveEncodeFrame = 0;

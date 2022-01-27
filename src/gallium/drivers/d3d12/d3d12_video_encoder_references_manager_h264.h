@@ -28,34 +28,34 @@
 #include "d3d12_video_encoder_references_manager.h"
 #include "d3d12_video_dpb_storage_manager.h"
 
-class D3D12VideoEncoderReferencesManagerH264 : public ID3D12VideoEncodeReferencePicManager
+class d3d12_video_encoder_references_manager_h264 : public d3d12_video_encoder_references_manager_interface
 {
  public:
-   void                                      EndFrame();
-   void                                      BeginFrame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curFrameData);
-   D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE GetCurrentFrameReconPicOutputAllocation();
-   void GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &codecAllocation);
-   bool IsCurrentFrameUsedAsReference();
+   void                                      end_frame();
+   void                                      begin_frame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curFrameData);
+   D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE get_current_frame_recon_pic_output_allocation();
+   void get_current_frame_picture_control_data(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &codecAllocation);
+   bool is_current_frame_used_as_reference();
    D3D12_VIDEO_ENCODE_REFERENCE_FRAMES get_current_reference_frames();
 
-   D3D12VideoEncoderReferencesManagerH264(bool                          gopHasInterCodedFrames,
-                                          d3d12_video_dpb_storage_manager_interface &rDpbStorageManager,
-                                          UINT                          MaxL0ReferencesForP,
-                                          UINT                          MaxL0ReferencesForB,
-                                          UINT                          MaxL1ReferencesForB,
-                                          UINT                          MaxDPBCapacity);
+   d3d12_video_encoder_references_manager_h264(bool                                       gopHasInterCodedFrames,
+                                               d3d12_video_dpb_storage_manager_interface &rDpbStorageManager,
+                                               UINT                                       MaxL0ReferencesForP,
+                                               UINT                                       MaxL0ReferencesForB,
+                                               UINT                                       MaxL1ReferencesForB,
+                                               UINT                                       MaxDPBCapacity);
 
-   ~D3D12VideoEncoderReferencesManagerH264()
+   ~d3d12_video_encoder_references_manager_h264()
    { }
 
  private:
    // Class helpers
-   void PrepareCurrentFrameReconPicAllocation();
-   void ResetGOPTrackingAndDPB();
-   void UpdateFIFODPB_PushFrontCurReconPicture();
-   void PrepareCurrentFrameL0L1Lists();
-   void PrintDPB();
-   void PrintL0L1();
+   void prepare_current_frame_recon_pic_allocation();
+   void reset_gop_tracking_and_dpb();
+   void update_fifo_dpb_push_front_cur_recon_pic();
+   void prepare_current_frame_l0_l1_lists();
+   void print_dpb();
+   void print_l0_l1_lists();
 
    // Class members
 
@@ -64,17 +64,17 @@ class D3D12VideoEncoderReferencesManagerH264 : public ID3D12VideoEncodeReference
    UINT m_MaxL1ReferencesForB = 0;
    UINT m_MaxDPBCapacity      = 0;
 
-   typedef struct CurrentFrameReferencesData
+   typedef struct current_frame_references_data
    {
       std::vector<UINT>                                                  pList0ReferenceFrames;
       std::vector<UINT>                                                  pList1ReferenceFrames;
       std::vector<D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pReferenceFramesReconPictureDescriptors;
       D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE                          ReconstructedPicTexture;
-   } CurrentFrameReferencesData;
+   } current_frame_references_data;
 
    d3d12_video_dpb_storage_manager_interface &m_rDPBStorageManager;
 
-   CurrentFrameReferencesData m_CurrentFrameReferencesData;
+   current_frame_references_data m_CurrentFrameReferencesData;
 
    bool m_gopHasInterFrames = false;
 

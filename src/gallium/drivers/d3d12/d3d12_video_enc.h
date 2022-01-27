@@ -140,7 +140,7 @@ struct d3d12_video_encoder
    // Number of consecutive begin_frame calls without end_frame call
    UINT m_numNestedBeginFrame = 0;
 
-   std::unique_ptr<ID3D12VideoEncodeReferencePicManager> m_upDPBManager;
+   std::unique_ptr<d3d12_video_encoder_references_manager_interface> m_upDPBManager;
    std::unique_ptr<d3d12_video_dpb_storage_manager_interface>         m_upDPBStorageManager;
    std::unique_ptr<d3d12_video_bitstream_builder_interface>          m_upBitstreamBuilder;
 
