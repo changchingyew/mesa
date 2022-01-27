@@ -128,7 +128,7 @@ d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder 
    if (memcmp(&previousConfig,
               &pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc,
               sizeof(pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc)) != 0) {
-      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_RATE_CONTROL;
+      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_rate_control;
    }
 }
 
@@ -138,8 +138,8 @@ d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video
                                                               struct pipe_picture_desc *  picture,
                                                               D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &picParams)
 {
-   struct pipe_h264_enc_picture_desc *h264Pic = (struct pipe_h264_enc_picture_desc *) picture;
-   d3d12_video_bitstream_builder_h264 *   pH264BitstreamBuilder =
+   struct pipe_h264_enc_picture_desc * h264Pic = (struct pipe_h264_enc_picture_desc *) picture;
+   d3d12_video_bitstream_builder_h264 *pH264BitstreamBuilder =
       dynamic_cast<d3d12_video_bitstream_builder_h264 *>(pD3D12Enc->m_upBitstreamBuilder.get());
    VERIFY_IS_TRUE(pH264BitstreamBuilder != nullptr);
 
@@ -198,7 +198,7 @@ d3d12_video_encoder_update_current_h264_slices_configuration(struct d3d12_video_
           pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigDesc.m_SlicesPartition_H264,
           defaultSlicesMode,
           defaultSlicesConfig)) {
-      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_SLICES;
+      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_slices;
    }
 
    pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigDesc.m_SlicesPartition_H264                        = {};
@@ -506,7 +506,7 @@ d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD
       if (memcmp(&previousGOPConfig,
                  &pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures,
                  sizeof(D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264)) != 0) {
-         pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_GOP;
+         pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_gop;
       }
 
       ///
@@ -543,7 +543,7 @@ d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD
       if (memcmp(&previousDPBConfig,
                  &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl,
                  sizeof(D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_H264)) != 0) {
-         pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_GOP;
+         pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_gop;
       }
 
       auto &h264PicCtrlData = pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
@@ -635,21 +635,20 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
    struct pipe_h264_enc_picture_desc *h264Pic = (struct pipe_h264_enc_picture_desc *) picture;
 
    // Reset reconfig dirty flags
-   pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags = D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_NONE;
+   pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags = d3d12_video_encoder_config_dirty_flag_none;
    // Reset sequence changes flags
    pD3D12Enc->m_currentEncodeConfig.m_seqFlags = D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_NONE;
 
    // Set codec
    if (pD3D12Enc->m_currentEncodeConfig.m_encoderCodecDesc != D3D12_VIDEO_ENCODER_CODEC_H264) {
-      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_CODEC;
+      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_codec;
    }
    pD3D12Enc->m_currentEncodeConfig.m_encoderCodecDesc = D3D12_VIDEO_ENCODER_CODEC_H264;
 
    // Set input format
-   DXGI_FORMAT targetFmt =
-      d3d12_convert_pipe_video_profile_to_dxgi_format(pD3D12Enc->base.profile);
+   DXGI_FORMAT targetFmt = d3d12_convert_pipe_video_profile_to_dxgi_format(pD3D12Enc->base.profile);
    if (pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format != targetFmt) {
-      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_INPUT_FORMAT;
+      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_input_format;
    }
 
    pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo        = {};
@@ -662,7 +661,7 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
    // Set resolution
    if ((pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Width != srcTexture->width) ||
        (pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Height != srcTexture->height)) {
-      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_RESOLUTION;
+      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_resolution;
    }
    pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Width  = srcTexture->width;
    pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Height = srcTexture->height;
@@ -670,14 +669,14 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
    // Set profile
    auto targetProfile = d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(pD3D12Enc->base.profile);
    if (pD3D12Enc->m_currentEncodeConfig.m_encoderProfileDesc.m_H264Profile != targetProfile) {
-      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_PROFILE;
+      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_profile;
    }
    pD3D12Enc->m_currentEncodeConfig.m_encoderProfileDesc.m_H264Profile = targetProfile;
 
    // Set level
    auto targetLevel = d3d12_video_encoder_convert_level_h264(pD3D12Enc->base.level);
    if (pD3D12Enc->m_currentEncodeConfig.m_encoderLevelDesc.m_H264LevelSetting != targetLevel) {
-      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_LEVEL;
+      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_level;
    }
    pD3D12Enc->m_currentEncodeConfig.m_encoderLevelDesc.m_H264LevelSetting = targetLevel;
 
@@ -686,7 +685,7 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
    if (memcmp(&pD3D12Enc->m_currentEncodeConfig.m_encoderCodecSpecificConfigDesc.m_H264Config,
               &targetCodecConfig,
               sizeof(D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264)) != 0) {
-      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_CODEC_CONFIG;
+      pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_codec_config;
    }
    pD3D12Enc->m_currentEncodeConfig.m_encoderCodecSpecificConfigDesc.m_H264Config = targetCodecConfig;
 
@@ -706,7 +705,7 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
    auto targetMotionLimit = d3d12_video_encoder_convert_h264_motion_configuration(pD3D12Enc, h264Pic);
    if (pD3D12Enc->m_currentEncodeConfig.m_encoderMotionPrecisionLimit != targetMotionLimit) {
       pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |=
-         D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_MOTION_PRECISION_LIMIT;
+         d3d12_video_encoder_config_dirty_flag_motion_precision_limit;
    }
    pD3D12Enc->m_currentEncodeConfig.m_encoderMotionPrecisionLimit = targetMotionLimit;
 
@@ -927,27 +926,27 @@ d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder *pD3D12E
 
    if (writeNewSPS) {
       pH264BitstreamBuilder->build_sps(*profDesc.pH264Profile,
-                                      *levelDesc.pH264LevelSetting,
-                                      pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
-                                      *codecConfigDesc.pH264Config,
-                                      pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures,
-                                      active_seq_parameter_set_id,
-                                      MaxDPBCapacity,   // max_num_ref_frames
-                                      pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
-                                      pD3D12Enc->m_BitstreamHeadersBuffer,
-                                      pD3D12Enc->m_BitstreamHeadersBuffer.begin(),
-                                      writtenSPSBytesCount);
+                                       *levelDesc.pH264LevelSetting,
+                                       pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
+                                       *codecConfigDesc.pH264Config,
+                                       pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures,
+                                       active_seq_parameter_set_id,
+                                       MaxDPBCapacity,   // max_num_ref_frames
+                                       pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
+                                       pD3D12Enc->m_BitstreamHeadersBuffer,
+                                       pD3D12Enc->m_BitstreamHeadersBuffer.begin(),
+                                       writtenSPSBytesCount);
    }
 
    size_t writtenPPSBytesCount = 0;
    pH264BitstreamBuilder->build_pps(*profDesc.pH264Profile,
-                                   *codecConfigDesc.pH264Config,
-                                   *currentPicParams.pH264PicData,
-                                   currentPicParams.pH264PicData->pic_parameter_set_id,
-                                   active_seq_parameter_set_id,
-                                   pD3D12Enc->m_BitstreamHeadersBuffer,
-                                   pD3D12Enc->m_BitstreamHeadersBuffer.begin() + writtenSPSBytesCount,
-                                   writtenPPSBytesCount);
+                                    *codecConfigDesc.pH264Config,
+                                    *currentPicParams.pH264PicData,
+                                    currentPicParams.pH264PicData->pic_parameter_set_id,
+                                    active_seq_parameter_set_id,
+                                    pD3D12Enc->m_BitstreamHeadersBuffer,
+                                    pD3D12Enc->m_BitstreamHeadersBuffer.begin() + writtenSPSBytesCount,
+                                    writtenPPSBytesCount);
 
    // Shrink buffer to fit the headers
    if (pD3D12Enc->m_BitstreamHeadersBuffer.size() > (writtenPPSBytesCount + writtenSPSBytesCount)) {

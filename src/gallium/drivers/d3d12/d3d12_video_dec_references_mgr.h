@@ -32,7 +32,7 @@ struct d3d12_video_decoder_references_manager
 {
    d3d12_video_decoder_references_manager(const struct d3d12_screen *       pD3D12Screen,
                                           UINT                              NodeMask,
-                                          D3D12_VIDEO_DECODE_PROFILE_TYPE   DecodeProfileType,
+                                          d3d12_video_decode_profile_type   DecodeProfileType,
                                           d3d12_video_decode_dpb_descriptor dpbDescriptor);
 
    bool is_reference_only()

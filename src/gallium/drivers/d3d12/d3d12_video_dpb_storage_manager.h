@@ -31,7 +31,7 @@ struct d3d12_video_reconstructed_picture
 {
    ID3D12Resource *pReconstructedPicture;
    UINT            ReconstructedPictureSubresource;
-   IUnknown *pVideoHeap;
+   IUnknown *      pVideoHeap;
 };
 
 struct d3d12_video_reference_frames
@@ -39,7 +39,7 @@ struct d3d12_video_reference_frames
    UINT             NumTexture2Ds;
    ID3D12Resource **ppTexture2Ds;
    UINT *           pSubresources;
-   IUnknown **ppHeaps;
+   IUnknown **      ppHeaps;
 };
 
 // Defines interface for storing and retrieving the decoded picture buffer ID3D12Resources with

@@ -111,38 +111,38 @@ using Microsoft::WRL::ComPtr;
 
 typedef enum
 {
-   D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_NONE              = 0,
-   D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ALIGNMENT_HEIGHT  = 1 << 12,   // set by accelerator
-   D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_ARRAY_OF_TEXTURES = 1 << 14,   // set by accelerator
-   D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REUSE_DECODER =
+   d3d12_video_decode_config_specific_flag_none              = 0,
+   d3d12_video_decode_config_specific_flag_alignment_height  = 1 << 12,   // set by accelerator
+   d3d12_video_decode_config_specific_flag_array_of_textures = 1 << 14,   // set by accelerator
+   d3d12_video_decode_config_specific_flag_reuse_decoder =
       1 << 15,   // set by accelerator - This bit means that the decoder can be re-used with resolution change and bit
                  // depth change (including profile GUID change from 8bit to 10bit and vice versa).
-   D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED = 1 << 30,   // custom created for WSL
-} D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_FLAGS;
+   d3d12_video_decode_config_specific_flag_reference_only_textures_required = 1 << 30,   // custom created for WSL
+} d3d12_video_decode_config_specific_flags;
 
 typedef enum
 {
-   D3D12_VIDEO_DECODE_PROFILE_TYPE_NONE,
-   D3D12_VIDEO_DECODE_PROFILE_TYPE_H264,
-   D3D12_VIDEO_DECODE_PROFILE_TYPE_MAX_VALID
-} D3D12_VIDEO_DECODE_PROFILE_TYPE;
+   d3d12_video_decode_profile_type_none,
+   d3d12_video_decode_profile_type_h264,
+   d3d12_video_decode_profile_type_max_valid
+} d3d12_video_decode_profile_type;
 
 typedef enum
 {
-   VIDEO_DECODE_PROFILE_BIT_DEPTH_INDEX_8_BIT  = 0,
-   VIDEO_DECODE_PROFILE_BIT_DEPTH_INDEX_10_BIT = 1,
-   VIDEO_DECODE_PROFILE_BIT_DEPTH_INDEX_16_BIT = 2,
+   video_decode_profile_bit_depth_index_8_bit  = 0,
+   video_decode_profile_bit_depth_index_10_bit = 1,
+   video_decode_profile_bit_depth_index_16_bit = 2,
 
-   VIDEO_DECODE_PROFILE_BIT_DEPTH_INDEX_MAX,   // Keep at end to inform array size.
-} VIDEO_DECODE_PROFILE_BIT_DEPTH_INDEX;
+   video_decode_profile_bit_depth_index_max,   // Keep at end to inform array size.
+} video_decode_profile_bit_depth_index;
 
 typedef enum
 {
-   VIDEO_DECODE_PROFILE_BIT_DEPTH_NONE   = 0,
-   VIDEO_DECODE_PROFILE_BIT_DEPTH_8_BIT  = (1 << VIDEO_DECODE_PROFILE_BIT_DEPTH_INDEX_8_BIT),
-   VIDEO_DECODE_PROFILE_BIT_DEPTH_10_BIT = (1 << VIDEO_DECODE_PROFILE_BIT_DEPTH_INDEX_10_BIT),
-   VIDEO_DECODE_PROFILE_BIT_DEPTH_16_BIT = (1 << VIDEO_DECODE_PROFILE_BIT_DEPTH_INDEX_16_BIT),
-} VIDEO_DECODE_PROFILE_BIT_DEPTH;
+   video_decode_profile_bit_depth_none   = 0,
+   video_decode_profile_bit_depth_8_bit  = (1 << video_decode_profile_bit_depth_index_8_bit),
+   video_decode_profile_bit_depth_10_bit = (1 << video_decode_profile_bit_depth_index_10_bit),
+   video_decode_profile_bit_depth_16_bit = (1 << video_decode_profile_bit_depth_index_16_bit),
+} video_decode_profile_bit_depth;
 
 typedef struct d3d12_video_decode_dpb_descriptor
 {

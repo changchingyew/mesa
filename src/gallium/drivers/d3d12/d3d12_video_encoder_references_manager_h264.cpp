@@ -30,12 +30,12 @@
 using namespace std;
 
 d3d12_video_encoder_references_manager_h264::d3d12_video_encoder_references_manager_h264(
-   bool                          gopHasIorPFrames,
+   bool                                       gopHasIorPFrames,
    d3d12_video_dpb_storage_manager_interface &rDpbStorageManager,
-   UINT                          MaxL0ReferencesForP,
-   UINT                          MaxL0ReferencesForB,
-   UINT                          MaxL1ReferencesForB,
-   UINT                          MaxDPBCapacity)
+   UINT                                       MaxL0ReferencesForP,
+   UINT                                       MaxL0ReferencesForB,
+   UINT                                       MaxL1ReferencesForB,
+   UINT                                       MaxDPBCapacity)
    : m_MaxL0ReferencesForP(MaxL0ReferencesForP),
      m_MaxL0ReferencesForB(MaxL0ReferencesForB),
      m_MaxL1ReferencesForB(MaxL1ReferencesForB),
@@ -197,7 +197,7 @@ d3d12_video_encoder_references_manager_h264::update_fifo_dpb_push_front_cur_reco
       if (m_rDPBStorageManager.get_number_of_pics_in_dpb() == m_MaxDPBCapacity) {
          bool untrackedRes = false;
          m_rDPBStorageManager.remove_reference_frame(m_rDPBStorageManager.get_number_of_pics_in_dpb() - 1,
-                                                   &untrackedRes);   // Remove last entry
+                                                     &untrackedRes);   // Remove last entry
          // Verify that resource was untracked since this class is using the pool completely for allocations
          assert(untrackedRes);
          m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.pop_back();   // Remove last entry
@@ -472,8 +472,8 @@ d3d12_video_encoder_references_manager_h264::end_frame()
                  m_rDPBStorageManager.get_number_of_tracked_allocations(),
                  m_curFrameState.PictureOrderCountNumber);
 
-   // Adds last used (if not null) get_current_frame_recon_pic_output_allocation to DPB for next EncodeFrame if necessary
-   // updates pReferenceFramesReconPictureDescriptors and updates the dpb storage
+   // Adds last used (if not null) get_current_frame_recon_pic_output_allocation to DPB for next EncodeFrame if
+   // necessary updates pReferenceFramesReconPictureDescriptors and updates the dpb storage
 
    update_fifo_dpb_push_front_cur_recon_pic();
 }

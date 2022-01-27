@@ -178,25 +178,25 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
    VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
 
    bool codecChanged =
-      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_CODEC) != 0);
+      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & d3d12_video_encoder_config_dirty_flag_codec) != 0);
    bool profileChanged =
-      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_PROFILE) != 0);
+      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & d3d12_video_encoder_config_dirty_flag_profile) != 0);
    bool levelChanged =
-      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_LEVEL) != 0);
+      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & d3d12_video_encoder_config_dirty_flag_level) != 0);
    bool codecConfigChanged =
-      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_CODEC_CONFIG) != 0);
+      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & d3d12_video_encoder_config_dirty_flag_codec_config) != 0);
    bool inputFormatChanged =
-      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_INPUT_FORMAT) != 0);
+      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & d3d12_video_encoder_config_dirty_flag_input_format) != 0);
    bool resolutionChanged =
-      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_RESOLUTION) != 0);
+      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & d3d12_video_encoder_config_dirty_flag_resolution) != 0);
    bool rateControlChanged =
-      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_RATE_CONTROL) != 0);
+      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & d3d12_video_encoder_config_dirty_flag_rate_control) != 0);
    bool slicesChanged =
-      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_SLICES) != 0);
+      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & d3d12_video_encoder_config_dirty_flag_slices) != 0);
    bool gopChanged =
-      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_GOP) != 0);
+      ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags & d3d12_video_encoder_config_dirty_flag_gop) != 0);
    bool motionPrecisionLimitChanged = ((pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags &
-                                        D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_MOTION_PRECISION_LIMIT) != 0);
+                                        d3d12_video_encoder_config_dirty_flag_motion_precision_limit) != 0);
 
    // Events that that trigger a re-creation of the reference picture manager
    // Stores codec agnostic textures so only input format, resolution and gop (num dpb references) affects this
@@ -236,13 +236,13 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
             true,   // setNullSubresourcesOnAllZero - D3D12 Video Encode expects nullptr pSubresources if AoT,
             pD3D12Enc->m_NodeMask);
       } else {
-         pD3D12Enc->m_upDPBStorageManager =
-            std::make_unique<d3d12_texture_array_dpb_manager>(texturePoolSize,
-                                                           pD3D12Enc->m_pD3D12Screen->dev,
-                                                           pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
-                                                           pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
-                                                           resourceAllocFlags,
-                                                           pD3D12Enc->m_NodeMask);
+         pD3D12Enc->m_upDPBStorageManager = std::make_unique<d3d12_texture_array_dpb_manager>(
+            texturePoolSize,
+            pD3D12Enc->m_pD3D12Screen->dev,
+            pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
+            pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
+            resourceAllocFlags,
+            pD3D12Enc->m_NodeMask);
       }
       VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
       d3d12_video_encoder_create_reference_picture_manager(pD3D12Enc);
@@ -1043,7 +1043,8 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    // from d3d12_context?
    UINT                                maxReferences = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
    std::vector<D3D12_RESOURCE_BARRIER> rgReferenceTransitions(maxReferences);
-   if ((referenceFramesDescriptor.NumTexture2Ds > 0) || (pD3D12Enc->m_upDPBManager->is_current_frame_used_as_reference())) {
+   if ((referenceFramesDescriptor.NumTexture2Ds > 0) ||
+       (pD3D12Enc->m_upDPBManager->is_current_frame_used_as_reference())) {
       rgReferenceTransitions.clear();
       rgReferenceTransitions.reserve(maxReferences);
       // Check if array of textures vs texture array
@@ -1138,11 +1139,11 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    // prefixGeneratedHeadersByteSize)
    assert(prefixGeneratedHeadersByteSize == pD3D12Enc->m_BitstreamHeadersBuffer.size());
    pD3D12Enc->m_d3d12_resource_copy_helper->upload_data(pOutputBufferD3D12Res,
-                                                    0,
-                                                    D3D12_RESOURCE_STATE_COMMON,
-                                                    pD3D12Enc->m_BitstreamHeadersBuffer.data(),
-                                                    pD3D12Enc->m_BitstreamHeadersBuffer.size(),
-                                                    pD3D12Enc->m_BitstreamHeadersBuffer.size());
+                                                        0,
+                                                        D3D12_RESOURCE_STATE_COMMON,
+                                                        pD3D12Enc->m_BitstreamHeadersBuffer.data(),
+                                                        pD3D12Enc->m_BitstreamHeadersBuffer.size(),
+                                                        pD3D12Enc->m_BitstreamHeadersBuffer.size());
 
    D3D12_RESOURCE_BARRIER rgResolveMetadataStateTransitions[] = {
       CD3DX12_RESOURCE_BARRIER::Transition(pD3D12Enc->m_spResolvedMetadataBuffer.Get(),
@@ -1174,7 +1175,8 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    pD3D12Enc->m_spEncodeCommandList->ResolveEncoderOutputMetadata(&inputMetadataCmd, &outputMetadataCmd);
 
    // Transition DPB reference pictures back to COMMON
-   if ((referenceFramesDescriptor.NumTexture2Ds > 0) || (pD3D12Enc->m_upDPBManager->is_current_frame_used_as_reference())) {
+   if ((referenceFramesDescriptor.NumTexture2Ds > 0) ||
+       (pD3D12Enc->m_upDPBManager->is_current_frame_used_as_reference())) {
       for (auto &BarrierDesc : rgReferenceTransitions) {
          std::swap(BarrierDesc.Transition.StateBefore, BarrierDesc.Transition.StateAfter);
       }
@@ -1246,11 +1248,11 @@ d3d12_video_encoder_extract_encode_metadata(
    std::vector<uint8_t> pTmp(resourceMetadataSize);
    uint8_t *            pMetadataBufferSrc = pTmp.data();
    pD3D12Enc->m_d3d12_resource_copy_helper->readback_data(pMetadataBufferSrc,
-                                                      resourceMetadataSize,
-                                                      resourceMetadataSize,
-                                                      pResolvedMetadataBuffer,
-                                                      0,
-                                                      D3D12_RESOURCE_STATE_COMMON);
+                                                          resourceMetadataSize,
+                                                          resourceMetadataSize,
+                                                          pResolvedMetadataBuffer,
+                                                          0,
+                                                          D3D12_RESOURCE_STATE_COMMON);
 
    // Clear output
    memset(&parsedMetadata, 0, sizeof(D3D12_VIDEO_ENCODER_OUTPUT_METADATA));

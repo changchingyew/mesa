@@ -88,21 +88,21 @@ d3d12_video_encoder_flush(struct pipe_video_codec *codec);
 /// Pipe video interface ends
 ///
 
-typedef enum D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAGS
+typedef enum d3d12_video_encoder_config_dirty_flags
 {
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_NONE                   = 0x0,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_CODEC                  = 0x1,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_PROFILE                = 0x2,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_LEVEL                  = 0x4,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_CODEC_CONFIG           = 0x8,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_INPUT_FORMAT           = 0x10,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_RESOLUTION             = 0x20,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_RATE_CONTROL           = 0x40,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_SLICES                 = 0x80,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_GOP                    = 0x100,
-   D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_MOTION_PRECISION_LIMIT = 0x200,
-} D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAGS;
-DEFINE_ENUM_FLAG_OPERATORS(D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAGS);
+   d3d12_video_encoder_config_dirty_flag_none                   = 0x0,
+   d3d12_video_encoder_config_dirty_flag_codec                  = 0x1,
+   d3d12_video_encoder_config_dirty_flag_profile                = 0x2,
+   d3d12_video_encoder_config_dirty_flag_level                  = 0x4,
+   d3d12_video_encoder_config_dirty_flag_codec_config           = 0x8,
+   d3d12_video_encoder_config_dirty_flag_input_format           = 0x10,
+   d3d12_video_encoder_config_dirty_flag_resolution             = 0x20,
+   d3d12_video_encoder_config_dirty_flag_rate_control           = 0x40,
+   d3d12_video_encoder_config_dirty_flag_slices                 = 0x80,
+   d3d12_video_encoder_config_dirty_flag_gop                    = 0x100,
+   d3d12_video_encoder_config_dirty_flag_motion_precision_limit = 0x200,
+} d3d12_video_encoder_config_dirty_flags;
+DEFINE_ENUM_FLAG_OPERATORS(d3d12_video_encoder_config_dirty_flags);
 
 ///
 /// d3d12_video_encoder functions starts
@@ -124,15 +124,15 @@ struct d3d12_video_encoder
    ComPtr<ID3D12Fence> m_spFence;
    uint                m_fenceValue = 1u;
 
-   ComPtr<ID3D12VideoDevice3>               m_spD3D12VideoDevice;
-   ComPtr<ID3D12VideoEncoder>               m_spVideoEncoder;
-   ComPtr<ID3D12VideoEncoderHeap>           m_spVideoEncoderHeap;
-   ComPtr<ID3D12CommandQueue>               m_spEncodeCommandQueue;
-   ComPtr<ID3D12CommandAllocator>           m_spCommandAllocator;
-   ComPtr<ID3D12VideoEncodeCommandList2>    m_spEncodeCommandList;
-   ComPtr<ID3D12CommandQueue>               m_spCopyQueue;
+   ComPtr<ID3D12VideoDevice3>                  m_spD3D12VideoDevice;
+   ComPtr<ID3D12VideoEncoder>                  m_spVideoEncoder;
+   ComPtr<ID3D12VideoEncoderHeap>              m_spVideoEncoderHeap;
+   ComPtr<ID3D12CommandQueue>                  m_spEncodeCommandQueue;
+   ComPtr<ID3D12CommandAllocator>              m_spCommandAllocator;
+   ComPtr<ID3D12VideoEncodeCommandList2>       m_spEncodeCommandList;
+   ComPtr<ID3D12CommandQueue>                  m_spCopyQueue;
    std::unique_ptr<d3d12_resource_copy_helper> m_d3d12_resource_copy_helper;
-   std::vector<D3D12_RESOURCE_BARRIER>      m_transitionsBeforeCloseCmdList;
+   std::vector<D3D12_RESOURCE_BARRIER>         m_transitionsBeforeCloseCmdList;
 
    // Number of consecutive encode_frame calls without end_frame call
    UINT m_numConsecutiveEncodeFrame = 0;
@@ -141,7 +141,7 @@ struct d3d12_video_encoder
    UINT m_numNestedBeginFrame = 0;
 
    std::unique_ptr<d3d12_video_encoder_references_manager_interface> m_upDPBManager;
-   std::unique_ptr<d3d12_video_dpb_storage_manager_interface>         m_upDPBStorageManager;
+   std::unique_ptr<d3d12_video_dpb_storage_manager_interface>        m_upDPBStorageManager;
    std::unique_ptr<d3d12_video_bitstream_builder_interface>          m_upBitstreamBuilder;
 
    bool m_needsGPUFlush = false;
@@ -188,7 +188,7 @@ struct d3d12_video_encoder
 
    struct
    {
-      D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAGS m_ConfigDirtyFlags = D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_NONE;
+      d3d12_video_encoder_config_dirty_flags m_ConfigDirtyFlags = d3d12_video_encoder_config_dirty_flag_none;
 
       D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC m_currentResolution = {};
 

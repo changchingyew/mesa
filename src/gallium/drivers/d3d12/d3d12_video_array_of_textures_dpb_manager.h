@@ -99,7 +99,7 @@ class d3d12_array_of_textures_dpb_manager : public d3d12_video_dpb_storage_manag
    {
       std::vector<ID3D12Resource *> pResources;
       std::vector<UINT>             pSubresources;
-      std::vector<IUnknown *> pHeaps;
+      std::vector<IUnknown *>       pHeaps;
    } d3d12_video_dpb;
 
    d3d12_video_dpb m_D3D12DPB;

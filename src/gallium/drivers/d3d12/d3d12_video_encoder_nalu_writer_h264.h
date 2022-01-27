@@ -112,24 +112,24 @@ class d3d12_video_nalu_writer_h264
    // Writes the H264 SPS structure into a bitstream passed in headerBitstream
    // Function resizes bitstream accordingly and puts result in byte vector
    void sps_to_nalu_bytes(H264_SPS *                  pSPS,
-                       std::vector<BYTE> &         headerBitstream,
-                       std::vector<BYTE>::iterator placingPositionStart,
-                       size_t &                    writtenBytes);
+                          std::vector<BYTE> &         headerBitstream,
+                          std::vector<BYTE>::iterator placingPositionStart,
+                          size_t &                    writtenBytes);
 
    // Writes the H264 PPS structure into a bitstream passed in headerBitstream
    // Function resizes bitstream accordingly and puts result in byte vector
    void pps_to_nalu_bytes(H264_PPS *                  pPPS,
-                       std::vector<BYTE> &         headerBitstream,
-                       BOOL                        bIsFREXTProfile,
-                       std::vector<BYTE>::iterator placingPositionStart,
-                       size_t &                    writtenBytes);
+                          std::vector<BYTE> &         headerBitstream,
+                          BOOL                        bIsFREXTProfile,
+                          std::vector<BYTE>::iterator placingPositionStart,
+                          size_t &                    writtenBytes);
 
    void write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
-                             std::vector<BYTE>::iterator placingPositionStart,
-                             size_t &                    writtenBytes);
+                                 std::vector<BYTE>::iterator placingPositionStart,
+                                 size_t &                    writtenBytes);
    void write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
-                               std::vector<BYTE>::iterator placingPositionStart,
-                               size_t &                    writtenBytes);
+                                   std::vector<BYTE>::iterator placingPositionStart,
+                                   size_t &                    writtenBytes);
 
  private:
    // Writes from structure into bitstream with RBSP trailing but WITHOUT NAL unit wrap (eg. nal_idc_type, etc)
@@ -143,7 +143,10 @@ class d3d12_video_nalu_writer_h264
    // Helpers
    void   write_nalu_end(d3d12_video_encoder_bitstream *pNALU);
    void   rbsp_trailing(d3d12_video_encoder_bitstream *pBitstream);
-   UINT32 wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream *pNALU, d3d12_video_encoder_bitstream *pRBSP, UINT iNaluIdc, UINT iNaluType);
+   UINT32 wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream *pNALU,
+                              d3d12_video_encoder_bitstream *pRBSP,
+                              UINT                           iNaluIdc,
+                              UINT                           iNaluType);
 };
 
 #endif

@@ -97,7 +97,7 @@ class d3d12_texture_array_dpb_manager : public d3d12_video_dpb_storage_manager_i
    {
       std::vector<ID3D12Resource *> pResources;
       std::vector<UINT>             pSubresources;
-      std::vector<IUnknown *> pHeaps;
+      std::vector<IUnknown *>       pHeaps;
    } d3d12_video_dpb;
 
    d3d12_video_dpb m_D3D12DPB;
@@ -117,7 +117,7 @@ class d3d12_texture_array_dpb_manager : public d3d12_video_dpb_storage_manager_i
       bool                   isFree;
    } d3d12_reusable_resource;
 
-   ComPtr<ID3D12Resource>        m_baseTexArrayResource;
+   ComPtr<ID3D12Resource>               m_baseTexArrayResource;
    std::vector<d3d12_reusable_resource> m_ResourcesPool;
 
    UINT m_nodeMask = 0u;

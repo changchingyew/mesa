@@ -111,7 +111,9 @@ d3d12_video_nalu_writer_h264::write_sps_bytes(d3d12_video_encoder_bitstream *pBi
 }
 
 UINT32
-d3d12_video_nalu_writer_h264::write_pps_bytes(d3d12_video_encoder_bitstream *pBitstream, H264_PPS *pPPS, BOOL bIsHighProfile)
+d3d12_video_nalu_writer_h264::write_pps_bytes(d3d12_video_encoder_bitstream *pBitstream,
+                                              H264_PPS *                     pPPS,
+                                              BOOL                           bIsHighProfile)
 {
    INT32 iBytesWritten = pBitstream->get_byte_count();
 
@@ -127,23 +129,23 @@ d3d12_video_nalu_writer_h264::write_pps_bytes(d3d12_video_encoder_bitstream *pBi
    pBitstream->exp_Golomb_ue(pPPS->seq_parameter_set_id);
    pBitstream->put_bits(1, pPPS->entropy_coding_mode_flag);
    pBitstream->put_bits(1, pPPS->pic_order_present_flag);   // bottom_field_pic_order_in_frame_present_flag
-   pBitstream->exp_Golomb_ue(0);                           // num_slice_groups_minus1
+   pBitstream->exp_Golomb_ue(0);                            // num_slice_groups_minus1
 
 
    pBitstream->exp_Golomb_ue(pPPS->num_ref_idx_l0_active_minus1);
    pBitstream->exp_Golomb_ue(pPPS->num_ref_idx_l1_active_minus1);
-   pBitstream->put_bits(1, 0);      // weighted_pred_flag
-   pBitstream->put_bits(2, 0);      // weighted_bipred_idc
+   pBitstream->put_bits(1, 0);     // weighted_pred_flag
+   pBitstream->put_bits(2, 0);     // weighted_bipred_idc
    pBitstream->exp_Golomb_se(0);   // pic_init_qp_minus26
    pBitstream->exp_Golomb_se(0);   // pic_init_qs_minus26
    pBitstream->exp_Golomb_se(0);   // chroma_qp_index_offset
-   pBitstream->put_bits(1, 1);      // deblocking_filter_control_present_flag
+   pBitstream->put_bits(1, 1);     // deblocking_filter_control_present_flag
    pBitstream->put_bits(1, pPPS->constrained_intra_pred_flag);
    pBitstream->put_bits(1, 0);   // redundant_pic_cnt_present_flag
 
    if (bIsHighProfile) {
       pBitstream->put_bits(1, pPPS->transform_8x8_mode_flag);
-      pBitstream->put_bits(1, 0);      // pic_scaling_matrix_present_flag
+      pBitstream->put_bits(1, 0);     // pic_scaling_matrix_present_flag
       pBitstream->exp_Golomb_se(0);   // second_chroma_qp_index_offset
    }
 
@@ -181,9 +183,9 @@ d3d12_video_nalu_writer_h264::write_nalu_end(d3d12_video_encoder_bitstream *pNAL
 
 UINT32
 d3d12_video_nalu_writer_h264::wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream *pNALU,
-                                           d3d12_video_encoder_bitstream *pRBSP,
-                                           UINT                 iNaluIdc,
-                                           UINT                 iNaluType)
+                                                  d3d12_video_encoder_bitstream *pRBSP,
+                                                  UINT                           iNaluIdc,
+                                                  UINT                           iNaluType)
 {
    VERIFY_IS_TRUE(pRBSP->is_byte_aligned());
 
@@ -229,9 +231,9 @@ d3d12_video_nalu_writer_h264::wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream 
 
 void
 d3d12_video_nalu_writer_h264::sps_to_nalu_bytes(H264_SPS *                  pSPS,
-                                         std::vector<BYTE> &         headerBitstream,
-                                         std::vector<BYTE>::iterator placingPositionStart,
-                                         size_t &                    writtenBytes)
+                                                std::vector<BYTE> &         headerBitstream,
+                                                std::vector<BYTE>::iterator placingPositionStart,
+                                                size_t &                    writtenBytes)
 {
    // Wrap SPS into NALU and copy full NALU into output byte array
    d3d12_video_encoder_bitstream rbsp, nalu;
@@ -259,10 +261,10 @@ d3d12_video_nalu_writer_h264::sps_to_nalu_bytes(H264_SPS *                  pSPS
 
 void
 d3d12_video_nalu_writer_h264::pps_to_nalu_bytes(H264_PPS *                  pPPS,
-                                         std::vector<BYTE> &         headerBitstream,
-                                         BOOL                        bIsHighProfile,
-                                         std::vector<BYTE>::iterator placingPositionStart,
-                                         size_t &                    writtenBytes)
+                                                std::vector<BYTE> &         headerBitstream,
+                                                BOOL                        bIsHighProfile,
+                                                std::vector<BYTE>::iterator placingPositionStart,
+                                                size_t &                    writtenBytes)
 {
    // Wrap PPS into NALU and copy full NALU into output byte array
    d3d12_video_encoder_bitstream rbsp, nalu;
@@ -290,8 +292,8 @@ d3d12_video_nalu_writer_h264::pps_to_nalu_bytes(H264_PPS *                  pPPS
 
 void
 d3d12_video_nalu_writer_h264::write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
-                                               std::vector<BYTE>::iterator placingPositionStart,
-                                               size_t &                    writtenBytes)
+                                                       std::vector<BYTE>::iterator placingPositionStart,
+                                                       size_t &                    writtenBytes)
 {
    d3d12_video_encoder_bitstream rbsp, nalu;
    VERIFY_IS_TRUE(rbsp.create_bitstream(8));
@@ -317,8 +319,8 @@ d3d12_video_nalu_writer_h264::write_end_of_stream_nalu(std::vector<BYTE> &      
 
 void
 d3d12_video_nalu_writer_h264::write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
-                                                 std::vector<BYTE>::iterator placingPositionStart,
-                                                 size_t &                    writtenBytes)
+                                                         std::vector<BYTE>::iterator placingPositionStart,
+                                                         size_t &                    writtenBytes)
 {
    d3d12_video_encoder_bitstream rbsp, nalu;
    VERIFY_IS_TRUE(rbsp.create_bitstream(8));

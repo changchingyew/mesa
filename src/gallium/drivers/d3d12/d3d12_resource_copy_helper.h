@@ -35,21 +35,21 @@ class d3d12_resource_copy_helper
    d3d12_resource_copy_helper(ID3D12CommandQueue *pCommandQueue);
 
    void upload_data(ID3D12Resource *      pResource,
-                   UINT                  Subresource,
-                   D3D12_RESOURCE_STATES ResourceState,
-                   const void *          pData,
-                   UINT                  RowPitch,
-                   UINT                  SlicePitch);
+                    UINT                  Subresource,
+                    D3D12_RESOURCE_STATES ResourceState,
+                    const void *          pData,
+                    UINT                  RowPitch,
+                    UINT                  SlicePitch);
 
    void readback_data(void *                pData,
-                     UINT                  RowPitch,
-                     UINT                  SlicePitch,
-                     ID3D12Resource *      pResource,
-                     UINT                  Subresource,
-                     D3D12_RESOURCE_STATES ResourceState);
+                      UINT                  RowPitch,
+                      UINT                  SlicePitch,
+                      ID3D12Resource *      pResource,
+                      UINT                  Subresource,
+                      D3D12_RESOURCE_STATES ResourceState);
 
  private:
-   void Epilog();
+   void epilog();
 
    ComPtr<ID3D12Device>              m_pDevice;
    ComPtr<ID3D12CommandQueue>        m_pCommandQueue;

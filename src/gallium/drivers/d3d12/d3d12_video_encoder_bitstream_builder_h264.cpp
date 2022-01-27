@@ -49,16 +49,16 @@ Convert12ToSpecH264Profiles(D3D12_VIDEO_ENCODER_PROFILE_H264 profile12)
 
 void
 d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_H264 &               profile,
-                                         const D3D12_VIDEO_ENCODER_LEVELS_H264 &                level,
-                                         const DXGI_FORMAT &                                    inputFmt,
-                                         const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &   codecConfig,
-                                         const D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 &gopConfig,
-                                         UINT                                                   seq_parameter_set_id,
-                                         UINT                                                   max_num_ref_frames,
-                                         D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC sequenceTargetResolution,
-                                         std::vector<BYTE> &                         headerBitstream,
-                                         std::vector<BYTE>::iterator                 placingPositionStart,
-                                         size_t &                                    writtenBytes)
+                                              const D3D12_VIDEO_ENCODER_LEVELS_H264 &                level,
+                                              const DXGI_FORMAT &                                    inputFmt,
+                                              const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &   codecConfig,
+                                              const D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 &gopConfig,
+                                              UINT                                        seq_parameter_set_id,
+                                              UINT                                        max_num_ref_frames,
+                                              D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC sequenceTargetResolution,
+                                              std::vector<BYTE> &                         headerBitstream,
+                                              std::vector<BYTE>::iterator                 placingPositionStart,
+                                              size_t &                                    writtenBytes)
 {
    H264_SPEC_PROFILES profile_idc          = Convert12ToSpecH264Profiles(profile);
    UINT               constraint_set3_flag = 0;
@@ -133,7 +133,8 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
                              frame_cropping_rect_bottom_offset };
 
    // Print built PPS structure
-   D3D12_LOG_DBG("[D3D12 d3d12_video_bitstream_builder_h264] H264_SPS Structure generated before writing to bitstream:\n");
+   D3D12_LOG_DBG(
+      "[D3D12 d3d12_video_bitstream_builder_h264] H264_SPS Structure generated before writing to bitstream:\n");
    print_sps(spsStructure);
 
    // Convert the H264 SPS structure into bytes
@@ -143,29 +144,29 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
 
 void
 d3d12_video_bitstream_builder_h264::write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
-                                                     std::vector<BYTE>::iterator placingPositionStart,
-                                                     size_t &                    writtenBytes)
+                                                             std::vector<BYTE>::iterator placingPositionStart,
+                                                             size_t &                    writtenBytes)
 {
    m_h264Encoder.write_end_of_stream_nalu(headerBitstream, placingPositionStart, writtenBytes);
 }
 
 void
 d3d12_video_bitstream_builder_h264::write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
-                                                       std::vector<BYTE>::iterator placingPositionStart,
-                                                       size_t &                    writtenBytes)
+                                                               std::vector<BYTE>::iterator placingPositionStart,
+                                                               size_t &                    writtenBytes)
 {
    m_h264Encoder.write_end_of_sequence_nalu(headerBitstream, placingPositionStart, writtenBytes);
 }
 
 void
 d3d12_video_bitstream_builder_h264::build_pps(const D3D12_VIDEO_ENCODER_PROFILE_H264 &                   profile,
-                                         const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &       codecConfig,
-                                         const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 &pictureControl,
-                                         UINT                        pic_parameter_set_id,
-                                         UINT                        seq_parameter_set_id,
-                                         std::vector<BYTE> &         headerBitstream,
-                                         std::vector<BYTE>::iterator placingPositionStart,
-                                         size_t &                    writtenBytes)
+                                              const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &       codecConfig,
+                                              const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 &pictureControl,
+                                              UINT                        pic_parameter_set_id,
+                                              UINT                        seq_parameter_set_id,
+                                              std::vector<BYTE> &         headerBitstream,
+                                              std::vector<BYTE>::iterator placingPositionStart,
+                                              size_t &                    writtenBytes)
 {
    BOOL bIsHighProfile =
       ((profile == D3D12_VIDEO_ENCODER_PROFILE_H264_HIGH) || (profile == D3D12_VIDEO_ENCODER_PROFILE_H264_HIGH_10));
@@ -193,7 +194,8 @@ d3d12_video_bitstream_builder_h264::build_pps(const D3D12_VIDEO_ENCODER_PROFILE_
    };
 
    // Print built PPS structure
-   D3D12_LOG_DBG("[D3D12 d3d12_video_bitstream_builder_h264] H264_PPS Structure generated before writing to bitstream:\n");
+   D3D12_LOG_DBG(
+      "[D3D12 d3d12_video_bitstream_builder_h264] H264_PPS Structure generated before writing to bitstream:\n");
    print_pps(ppsStructure);
 
    // Convert the H264 SPS structure into bytes
@@ -229,8 +231,8 @@ d3d12_video_bitstream_builder_h264::print_pps(const H264_PPS &pps)
 void
 d3d12_video_bitstream_builder_h264::print_sps(const H264_SPS &sps)
 {
-   // Be careful when calling this method that build_sps also wraps some other NALU bytes in sps_to_nalu_bytes so bitstream
-   // returned by build_sps won't be exactly the bytes from the H264_SPS struct From definition in
+   // Be careful when calling this method that build_sps also wraps some other NALU bytes in sps_to_nalu_bytes so
+   // bitstream returned by build_sps won't be exactly the bytes from the H264_SPS struct From definition in
    // d3d12_video_encoder_bitstream_builder_h264.h
 
    static_assert(

@@ -42,11 +42,11 @@ d3d12_resource_copy_helper::d3d12_resource_copy_helper(ID3D12CommandQueue *pComm
 
 void
 d3d12_resource_copy_helper::upload_data(ID3D12Resource *      pResource,
-                                    UINT                  Subresource,
-                                    D3D12_RESOURCE_STATES ResourceState,
-                                    const void *          pData,
-                                    UINT                  RowPitch,
-                                    UINT                  SlicePitch)
+                                        UINT                  Subresource,
+                                        D3D12_RESOURCE_STATES ResourceState,
+                                        const void *          pData,
+                                        UINT                  RowPitch,
+                                        UINT                  SlicePitch)
 {
    // Determine the layout necessary for copying
    D3D12_RESOURCE_DESC ResourceDesc = pResource->GetDesc();
@@ -96,10 +96,10 @@ d3d12_resource_copy_helper::upload_data(ID3D12Resource *      pResource,
    // Record command to copy data from pTempResource to pResource
    {
       d3d12_scoped_state_transition<ID3D12GraphicsCommandList> ResourceTransition(m_pCommandList.Get(),
-                                                                               pResource,
-                                                                               D3D12_RESOURCE_STATE_COPY_DEST,
-                                                                               ResourceState,
-                                                                               Subresource);
+                                                                                  pResource,
+                                                                                  D3D12_RESOURCE_STATE_COPY_DEST,
+                                                                                  ResourceState,
+                                                                                  Subresource);
 
       if (ResourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER) {
          m_pCommandList->CopyBufferRegion(pResource, Layout.Offset, pTempResource.Get(), 0, ResourceDesc.Width);
@@ -116,16 +116,16 @@ d3d12_resource_copy_helper::upload_data(ID3D12Resource *      pResource,
       }
    }
 
-   Epilog();
+   epilog();
 }
 
 void
 d3d12_resource_copy_helper::readback_data(void *                pData,
-                                      UINT                  RowPitch,
-                                      UINT                  SlicePitch,
-                                      ID3D12Resource *      pResource,
-                                      UINT                  Subresource,
-                                      D3D12_RESOURCE_STATES ResourceState)
+                                          UINT                  RowPitch,
+                                          UINT                  SlicePitch,
+                                          ID3D12Resource *      pResource,
+                                          UINT                  Subresource,
+                                          D3D12_RESOURCE_STATES ResourceState)
 {
    // Determine the layout necessary for copying
    D3D12_RESOURCE_DESC ResourceDesc = pResource->GetDesc();
@@ -152,10 +152,10 @@ d3d12_resource_copy_helper::readback_data(void *                pData,
    {
       // Record command to copy data from pResource to pTempResource
       d3d12_scoped_state_transition<ID3D12GraphicsCommandList> ResourceTransition(m_pCommandList.Get(),
-                                                                               pResource,
-                                                                               D3D12_RESOURCE_STATE_COPY_SOURCE,
-                                                                               ResourceState,
-                                                                               Subresource);
+                                                                                  pResource,
+                                                                                  D3D12_RESOURCE_STATE_COPY_SOURCE,
+                                                                                  ResourceState,
+                                                                                  Subresource);
 
       if (ResourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER) {
          m_pCommandList->CopyBufferRegion(pTempResource.Get(), 0, pResource, Layout.Offset, ResourceDesc.Width);
@@ -173,7 +173,7 @@ d3d12_resource_copy_helper::readback_data(void *                pData,
    }
 
    // Execute the copy
-   Epilog();
+   epilog();
 
    // memcpy to the output pointer
    {
@@ -191,7 +191,7 @@ d3d12_resource_copy_helper::readback_data(void *                pData,
 }
 
 void
-d3d12_resource_copy_helper::Epilog()
+d3d12_resource_copy_helper::epilog()
 {
    // Execute the command list, wait for it to finish
    VERIFY_SUCCEEDED(m_pCommandList->Close());

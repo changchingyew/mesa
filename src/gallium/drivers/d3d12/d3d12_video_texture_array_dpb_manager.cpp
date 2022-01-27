@@ -40,7 +40,8 @@
 // Doesn't support extension (by reallocation and copy) of the pool
 
 void
-d3d12_texture_array_dpb_manager::create_reconstructed_picture_allocations(ID3D12Resource **ppResource, UINT16 texArraySize)
+d3d12_texture_array_dpb_manager::create_reconstructed_picture_allocations(ID3D12Resource **ppResource,
+                                                                          UINT16           texArraySize)
 {
    if (texArraySize > 0) {
       D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_nodeMask, m_nodeMask);
@@ -108,7 +109,8 @@ d3d12_texture_array_dpb_manager::clear_decode_picture_buffer()
       // Don't assert the untracking result here in case the DPB contains resources not adquired using the pool methods
       // in this interface
       untrackCount +=
-         untrack_reconstructed_picture_allocation({ m_D3D12DPB.pResources[idx], m_D3D12DPB.pSubresources[idx] }) ? 1 : 0;
+         untrack_reconstructed_picture_allocation({ m_D3D12DPB.pResources[idx], m_D3D12DPB.pSubresources[idx] }) ? 1 :
+                                                                                                                   0;
    }
 
    // Clear DPB
@@ -124,7 +126,8 @@ d3d12_texture_array_dpb_manager::clear_decode_picture_buffer()
 
 // Assigns a reference frame at a given position
 void
-d3d12_texture_array_dpb_manager::assign_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
+d3d12_texture_array_dpb_manager::assign_reference_frame(d3d12_video_reconstructed_picture pReconPicture,
+                                                        UINT                              dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -140,7 +143,8 @@ d3d12_texture_array_dpb_manager::assign_reference_frame(d3d12_video_reconstructe
 
 // Adds a new reference frame at a given position
 void
-d3d12_texture_array_dpb_manager::insert_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
+d3d12_texture_array_dpb_manager::insert_reference_frame(d3d12_video_reconstructed_picture pReconPicture,
+                                                        UINT                              dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());

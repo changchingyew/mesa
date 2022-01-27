@@ -114,7 +114,8 @@ d3d12_array_of_textures_dpb_manager::clear_decode_picture_buffer()
 
 // Assigns a reference frame at a given position
 void
-d3d12_array_of_textures_dpb_manager::assign_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
+d3d12_array_of_textures_dpb_manager::assign_reference_frame(d3d12_video_reconstructed_picture pReconPicture,
+                                                            UINT                              dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -130,7 +131,8 @@ d3d12_array_of_textures_dpb_manager::assign_reference_frame(d3d12_video_reconstr
 
 // Adds a new reference frame at a given position
 void
-d3d12_array_of_textures_dpb_manager::insert_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
+d3d12_array_of_textures_dpb_manager::insert_reference_frame(d3d12_video_reconstructed_picture pReconPicture,
+                                                            UINT                              dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -206,7 +208,8 @@ d3d12_array_of_textures_dpb_manager::is_tracked_allocation(d3d12_video_reconstru
 
 // Returns whether it found the tracked resource on this instance pool tracking and was able to free it
 bool
-d3d12_array_of_textures_dpb_manager::untrack_reconstructed_picture_allocation(d3d12_video_reconstructed_picture trackedItem)
+d3d12_array_of_textures_dpb_manager::untrack_reconstructed_picture_allocation(
+   d3d12_video_reconstructed_picture trackedItem)
 {
    for (auto &reusableRes : m_ResourcesPool) {
       if (trackedItem.pReconstructedPicture == reusableRes.pResource.Get()) {
@@ -241,11 +244,12 @@ d3d12_array_of_textures_dpb_manager::get_new_tracked_picture_allocation()
 
    if (!bAvailableResourceInPool) {
       // Expand resources pool by one
-      D3D12_LOG_DBG("[d3d12_array_of_textures_dpb_manager] ID3D12Resource Pool capacity (%ld) exceeded - extending capacity "
-                    "and appending new allocation at the end",
-                    m_ResourcesPool.size());
+      D3D12_LOG_DBG(
+         "[d3d12_array_of_textures_dpb_manager] ID3D12Resource Pool capacity (%ld) exceeded - extending capacity "
+         "and appending new allocation at the end",
+         m_ResourcesPool.size());
       d3d12_reusable_resource newPoolEntry = {};
-      newPoolEntry.isFree           = false;
+      newPoolEntry.isFree                  = false;
       create_reconstructed_picture_allocations(newPoolEntry.pResource.GetAddressOf());
       m_ResourcesPool.push_back(newPoolEntry);
 

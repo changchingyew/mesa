@@ -35,32 +35,32 @@ class d3d12_video_bitstream_builder_h264 : public d3d12_video_bitstream_builder_
    ~d3d12_video_bitstream_builder_h264() {};
 
    void build_sps(const D3D12_VIDEO_ENCODER_PROFILE_H264 &               profile,
-                 const D3D12_VIDEO_ENCODER_LEVELS_H264 &                level,
-                 const DXGI_FORMAT &                                    inputFmt,
-                 const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &   codecConfig,
-                 const D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 &gopConfig,
-                 UINT                                                   seq_parameter_set_id,
-                 UINT                                                   max_num_ref_frames,
-                 D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC            sequenceTargetResolution,
-                 std::vector<BYTE> &                                    headerBitstream,
-                 std::vector<BYTE>::iterator                            placingPositionStart,
-                 size_t &                                               writtenBytes);
+                  const D3D12_VIDEO_ENCODER_LEVELS_H264 &                level,
+                  const DXGI_FORMAT &                                    inputFmt,
+                  const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &   codecConfig,
+                  const D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 &gopConfig,
+                  UINT                                                   seq_parameter_set_id,
+                  UINT                                                   max_num_ref_frames,
+                  D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC            sequenceTargetResolution,
+                  std::vector<BYTE> &                                    headerBitstream,
+                  std::vector<BYTE>::iterator                            placingPositionStart,
+                  size_t &                                               writtenBytes);
 
    void build_pps(const D3D12_VIDEO_ENCODER_PROFILE_H264 &                   profile,
-                 const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &       codecConfig,
-                 const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 &pictureControl,
-                 UINT                                                       pic_parameter_set_id,
-                 UINT                                                       seq_parameter_set_id,
-                 std::vector<BYTE> &                                        headerBitstream,
-                 std::vector<BYTE>::iterator                                placingPositionStart,
-                 size_t &                                                   writtenBytes);
+                  const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &       codecConfig,
+                  const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 &pictureControl,
+                  UINT                                                       pic_parameter_set_id,
+                  UINT                                                       seq_parameter_set_id,
+                  std::vector<BYTE> &                                        headerBitstream,
+                  std::vector<BYTE>::iterator                                placingPositionStart,
+                  size_t &                                                   writtenBytes);
 
    void write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
-                             std::vector<BYTE>::iterator placingPositionStart,
-                             size_t &                    writtenBytes);
+                                 std::vector<BYTE>::iterator placingPositionStart,
+                                 size_t &                    writtenBytes);
    void write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
-                               std::vector<BYTE>::iterator placingPositionStart,
-                               size_t &                    writtenBytes);
+                                   std::vector<BYTE>::iterator placingPositionStart,
+                                   size_t &                    writtenBytes);
 
    void print_pps(const H264_PPS &pps);
    void print_sps(const H264_SPS &sps);

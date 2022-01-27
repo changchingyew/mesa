@@ -30,12 +30,13 @@
 class d3d12_video_encoder_references_manager_interface
 {
  public:
-   virtual void                                      begin_frame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA)    = 0;
-   virtual void                                      end_frame()                                                    = 0;
-   virtual D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE get_current_frame_recon_pic_output_allocation()                     = 0;
-   virtual void get_current_frame_picture_control_data(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &codecAllocation) = 0;
-   virtual bool is_current_frame_used_as_reference()                                                                    = 0;
-   virtual D3D12_VIDEO_ENCODE_REFERENCE_FRAMES get_current_reference_frames()                                      = 0;
+   virtual void                                      begin_frame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA) = 0;
+   virtual void                                      end_frame()                                                 = 0;
+   virtual D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE get_current_frame_recon_pic_output_allocation()             = 0;
+   virtual void
+                                               get_current_frame_picture_control_data(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &codecAllocation) = 0;
+   virtual bool                                is_current_frame_used_as_reference() = 0;
+   virtual D3D12_VIDEO_ENCODE_REFERENCE_FRAMES get_current_reference_frames()       = 0;
    virtual ~d3d12_video_encoder_references_manager_interface()
    { }
 };

@@ -61,15 +61,15 @@ d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_dec
 {
    DXVA_PicParams_H264 *pPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
    pPicParams->CurrPic.Index7Bits  = pD3D12Dec->m_spDPBManager->store_future_reference(pPicParams->CurrPic.Index7Bits,
-                                                                                    pD3D12Dec->m_spVideoDecoderHeap,
-                                                                                    pTexture2D,
-                                                                                    subresourceIndex);
+                                                                                      pD3D12Dec->m_spVideoDecoderHeap,
+                                                                                      pTexture2D,
+                                                                                      subresourceIndex);
 
    // From H264 DXVA spec:
    // Index7Bits
    //     An index that identifies an uncompressed surface for the CurrPic or RefFrameList member of the picture
-   //     parameters structure(section 4.0) or the RefPicList member of the slice control data structure(section 6.0) When
-   //     Index7Bits is used in the CurrPic and RefFrameList members of the picture parameters structure, the value
+   //     parameters structure(section 4.0) or the RefPicList member of the slice control data structure(section 6.0)
+   //     When Index7Bits is used in the CurrPic and RefFrameList members of the picture parameters structure, the value
    //     directly specifies the DXVA index of an uncompressed surface. When Index7Bits is used in the RefPicList member
    //     of the slice control data structure, the value identifies the surface indirectly, as an index into the
    //     RefFrameList array of the associated picture parameters structure.For more information, see section 6.2. In

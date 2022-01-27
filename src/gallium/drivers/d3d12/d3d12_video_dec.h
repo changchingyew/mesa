@@ -102,13 +102,13 @@ struct d3d12_video_decoder
    ComPtr<ID3D12Fence> m_spFence;
    uint                m_fenceValue = 1u;
 
-   ComPtr<ID3D12VideoDevice>                m_spD3D12VideoDevice;
-   ComPtr<ID3D12VideoDecoder>               m_spVideoDecoder;
-   ComPtr<ID3D12VideoDecoderHeap>           m_spVideoDecoderHeap;
-   ComPtr<ID3D12CommandQueue>               m_spDecodeCommandQueue;
-   ComPtr<ID3D12CommandAllocator>           m_spCommandAllocator;
-   ComPtr<ID3D12VideoDecodeCommandList1>    m_spDecodeCommandList;
-   ComPtr<ID3D12CommandQueue>               m_spCopyQueue;
+   ComPtr<ID3D12VideoDevice>                   m_spD3D12VideoDevice;
+   ComPtr<ID3D12VideoDecoder>                  m_spVideoDecoder;
+   ComPtr<ID3D12VideoDecoderHeap>              m_spVideoDecoderHeap;
+   ComPtr<ID3D12CommandQueue>                  m_spDecodeCommandQueue;
+   ComPtr<ID3D12CommandAllocator>              m_spCommandAllocator;
+   ComPtr<ID3D12VideoDecodeCommandList1>       m_spDecodeCommandList;
+   ComPtr<ID3D12CommandQueue>                  m_spCopyQueue;
    std::unique_ptr<d3d12_resource_copy_helper> m_d3d12_resource_copy_helper;
 
    std::vector<D3D12_RESOURCE_BARRIER> m_transitionsBeforeCloseCmdList;
@@ -120,7 +120,7 @@ struct d3d12_video_decoder
    D3D12_FEATURE_DATA_FORMAT_INFO         m_decodeFormatInfo           = { m_decodeFormat };
    D3D12_VIDEO_DECODE_CONFIGURATION_FLAGS m_configurationFlags         = D3D12_VIDEO_DECODE_CONFIGURATION_FLAG_NONE;
    GUID                                   m_d3d12DecProfile            = {};
-   D3D12_VIDEO_DECODE_PROFILE_TYPE        m_d3d12DecProfileType        = {};
+   d3d12_video_decode_profile_type        m_d3d12DecProfileType        = {};
    uint                                   m_ConfigDecoderSpecificFlags = 0u;
 
    ///
@@ -196,8 +196,8 @@ d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12D
 void
 d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3D12Dec);
 void
-d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *                     pD3D12Dec,
-                                    struct d3d12_video_buffer *                      pD3D12VideoBuffer,
+d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *                          pD3D12Dec,
+                                    struct d3d12_video_buffer *                           pD3D12VideoBuffer,
                                     const d3d12_video_decode_output_conversion_arguments &conversionArguments);
 void
 d3d12_video_decoder_get_frame_info(
@@ -214,12 +214,12 @@ d3d12_video_decoder_get_current_dxva_picparams(struct d3d12_video_decoder *codec
 }
 bool
 d3d12_video_decoder_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT decodeSupport,
-                                     D3D12_VIDEO_DECODE_PROFILE_TYPE         profileType);
-D3D12_VIDEO_DECODE_PROFILE_TYPE
+                                     d3d12_video_decode_profile_type         profileType);
+d3d12_video_decode_profile_type
 d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(enum pipe_video_profile profile);
 GUID
-d3d12_video_decoder_resolve_profile(D3D12_VIDEO_DECODE_PROFILE_TYPE profileType, UINT resourceBitDepth);
-VIDEO_DECODE_PROFILE_BIT_DEPTH
+d3d12_video_decoder_resolve_profile(d3d12_video_decode_profile_type profileType, UINT resourceBitDepth);
+video_decode_profile_bit_depth
 d3d12_video_decoder_get_format_bitdepth(DXGI_FORMAT Format);
 void
 d3d12_video_decoder_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *codec,
