@@ -894,7 +894,7 @@ typedef struct d3d12_video_resolution_to_level_mapping_entry
 
 
 inline d3d12_video_resolution_to_level_mapping_entry
-GetMaxLevelResolutionVideoDecodeSupport(D3D12_VIDEO_DECODE_CONFIGURATION         decoderConfig,
+get_max_level_resolution_video_decode_support(D3D12_VIDEO_DECODE_CONFIGURATION         decoderConfig,
                                         DXGI_FORMAT                              format,
                                         struct pipe_screen *                     pscreen,
                                         bool &                                   outSupportAny,
@@ -1145,7 +1145,7 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *       pscreen,
 
                DXGI_FORMAT                      format = DXGI_FORMAT_NV12;
                d3d12_video_resolution_to_level_mapping_entry bestSupportedConfig =
-                  GetMaxLevelResolutionVideoDecodeSupport(decoderConfig,
+                  get_max_level_resolution_video_decode_support(decoderConfig,
                                                           format,
                                                           pscreen,
                                                           supportAny,
