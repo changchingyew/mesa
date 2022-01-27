@@ -51,56 +51,56 @@ class d3d12_video_encoder_bitstream
    void exp_Golomb_ue(uint32_t uiVal);
    void exp_Golomb_se(int32_t iVal);
 
-   inline void Clear()
+   inline void clear()
    {
       m_iBitsToGo     = 32;
       m_uiOffset      = 0;
       m_uintEncBuffer = 0;
    };
 
-   void AppendByteStream(d3d12_video_encoder_bitstream *pStream);
+   void append_byte_stream(d3d12_video_encoder_bitstream *pStream);
 
-   void SetStartCodePrevention(bool bSCP)
+   void set_start_code_prevention(bool bSCP)
    {
       m_bPreventStartCode = bSCP;
    }
-   int32_t GetBitsCount()
+   int32_t get_bits_count()
    {
       return m_uiOffset * 8 + (32 - m_iBitsToGo);
    }
-   int32_t GetByteCount()
+   int32_t get_byte_count()
    {
       return m_uiOffset + ((32 - m_iBitsToGo) >> 3);
    }
-   uint8_t *GetBitstreamBuffer()
+   uint8_t *get_bitstream_buffer()
    {
       return m_pBitsBuffer;
    }
-   bool IsByteAligned()
+   bool is_byte_aligned()
    {
       if (m_bBufferOverflow) {
          m_iBitsToGo = 32;
       }
       return !(m_iBitsToGo & 7);
    }
-   int32_t GetNumBitsForByteAlign()
+   int32_t get_num_bits_for_byte_align()
    {
       return (m_iBitsToGo & 7);
    }
-   bool GetStartCodePreventionStatus()
+   bool get_start_code_prevention_status()
    {
       return m_bPreventStartCode;
    }
-   bool VerifyBuffer(uint32_t uiBytesToWrite);
+   bool verify_buffer(uint32_t uiBytesToWrite);
 
  public:
    bool m_bBufferOverflow;
    bool m_bAllowReallocate;
 
  private:
-   void    WriteByteStartCodePrevention(uint8_t u8Val);
-   bool    ReallocateBuffer();
-   int32_t GetExpGolomb0CodeLength(uint32_t uiVal);
+   void    write_byte_start_code_prevention(uint8_t u8Val);
+   bool    reallocate_buffer();
+   int32_t get_exp_golomb0_code_len(uint32_t uiVal);
 
    const uint8_t m_iLog_2_N[256] = {
       0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5,
