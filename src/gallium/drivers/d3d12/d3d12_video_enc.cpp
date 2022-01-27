@@ -227,7 +227,7 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
                                1u;   // adding an extra slot as we also need to count the current frame output recon
                                      // allocation along max reference frame allocations
       if (fArrayOfTextures) {
-         pD3D12Enc->m_upDPBStorageManager = std::make_unique<D3D12ArrayOfTexturesDPBManager>(
+         pD3D12Enc->m_upDPBStorageManager = std::make_unique<d3d12_array_of_textures_dpb_manager>(
             texturePoolSize,
             pD3D12Enc->m_pD3D12Screen->dev,
             pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,

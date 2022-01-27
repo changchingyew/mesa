@@ -28,7 +28,7 @@
 #include "d3d12_video_dpb_storage_manager.h"
 #include "d3d12_video_types.h"
 
-class D3D12ArrayOfTexturesDPBManager : public ID3D12VideoDPBStorageManager
+class d3d12_array_of_textures_dpb_manager : public ID3D12VideoDPBStorageManager
 {
    // ID3D12VideoDPBStorageManager
  public:
@@ -69,9 +69,9 @@ class D3D12ArrayOfTexturesDPBManager : public ID3D12VideoDPBStorageManager
 
    UINT GetNumberOfTrackedAllocations();
 
-   // D3D12ArrayOfTexturesDPBManager
+   // d3d12_array_of_textures_dpb_manager
  public:
-   D3D12ArrayOfTexturesDPBManager(
+   d3d12_array_of_textures_dpb_manager(
       UINT dpbInitialSize,   // Maximum in use resources for a DPB of size x should be x+1 for cases when a P frame is
                              // using the x references in the L0 list and also using an extra resource to output it's
                              // own recon pic.
@@ -81,10 +81,10 @@ class D3D12ArrayOfTexturesDPBManager : public ID3D12VideoDPBStorageManager
       D3D12_RESOURCE_FLAGS                        resourceAllocFlags           = D3D12_RESOURCE_FLAG_NONE,
       bool                                        setNullSubresourcesOnAllZero = false,
       UINT                                        nodeMask                     = 0);
-   ~D3D12ArrayOfTexturesDPBManager()
+   ~d3d12_array_of_textures_dpb_manager()
    { }
 
-   // D3D12ArrayOfTexturesDPBManager
+   // d3d12_array_of_textures_dpb_manager
  private:
    void CreateReconstructedPicAllocation(ID3D12Resource **ppResource);
 

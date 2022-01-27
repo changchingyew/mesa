@@ -165,7 +165,7 @@ d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(c
       // If all subresources are 0, the DPB is loaded with an array of individual textures, the D3D Encode API expects
       // pSubresources to be null in this case The D3D Decode API expects it to be non-null even with all zeroes.
       bool setNullSubresourcesOnAllZero = false;
-      m_upD3D12TexturesStorageManager   = std::make_unique<D3D12ArrayOfTexturesDPBManager>(m_dpbDescriptor.dpbSize,
+      m_upD3D12TexturesStorageManager   = std::make_unique<d3d12_array_of_textures_dpb_manager>(m_dpbDescriptor.dpbSize,
                                                                                          m_pD3D12Screen->dev,
                                                                                          m_dpbDescriptor.Format,
                                                                                          targetFrameResolution,
