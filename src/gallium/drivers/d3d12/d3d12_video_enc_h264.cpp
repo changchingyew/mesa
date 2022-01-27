@@ -25,6 +25,7 @@
 #include "d3d12_video_enc_h264.h"
 #include "util/u_video.h"
 #include "d3d12_screen.h"
+#include "d3d12_format.h"
 
 void
 d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder *pD3D12Enc,
@@ -646,7 +647,7 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
 
    // Set input format
    DXGI_FORMAT targetFmt =
-      D3D12VideoFormatHelper::d3d12_convert_pipe_video_profile_to_dxgi_format(pD3D12Enc->base.profile);
+      d3d12_convert_pipe_video_profile_to_dxgi_format(pD3D12Enc->base.profile);
    if (pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format != targetFmt) {
       pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= D3D12_VIDEO_ENCODER_CONFIG_DIRTY_FLAG_INPUT_FORMAT;
    }

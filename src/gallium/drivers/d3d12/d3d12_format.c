@@ -24,6 +24,7 @@
 #include "d3d12_format.h"
 
 #include "pipe/p_format.h"
+#include "pipe/p_video_enums.h"
 #include "util/format/u_format.h"
 #include "util/u_math.h"
 #include "util/compiler.h"
@@ -450,4 +451,59 @@ d3d12_get_plane_slice_from_plane_format(enum pipe_format overallFormat, enum pip
       debug_printf("D3D12 Error: Call to d3d12_get_plane_slice_from_plane_format with a non-planar format");
       return 0;  
    }   
+}
+
+
+DXGI_FORMAT
+d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile)
+{
+   switch (profile) {
+      case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
+      case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
+      case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
+      case PIPE_VIDEO_PROFILE_MPEG4_AVC_EXTENDED:
+      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
+      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422:
+      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
+         return DXGI_FORMAT_NV12;
+      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10:
+         return DXGI_FORMAT_P010;
+      default:
+      {
+         debug_printf("[D3D12 Video Driver] Function d3d12_convert_pipe_video_profile_to_dxgi_format - Unsupported profile with value: %d", profile);
+         assert(0);
+         return DXGI_FORMAT_UNKNOWN;
+      } break;
+   }
+}
+
+DXGI_COLOR_SPACE_TYPE
+d3d12_convert_from_legacy_color_space(bool RGB, uint32_t BitsPerElement, bool StudioRGB, bool P709, bool StudioYUV)
+{
+   if (RGB) {
+      if (BitsPerElement > 32) {
+         // All 16 bit color channel data is assumed to be linear rather than SRGB
+         return DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
+      } else {
+         if (StudioRGB) {
+            return DXGI_COLOR_SPACE_RGB_STUDIO_G22_NONE_P709;
+         } else {
+            return DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+         }
+      }
+   } else {
+      if (P709) {
+         if (StudioYUV) {
+            return DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709;
+         } else {
+            return DXGI_COLOR_SPACE_YCBCR_FULL_G22_LEFT_P709;
+         }
+      } else {
+         if (StudioYUV) {
+            return DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P601;
+         } else {
+            return DXGI_COLOR_SPACE_YCBCR_FULL_G22_LEFT_P601;
+         }
+      }
+   }
 }

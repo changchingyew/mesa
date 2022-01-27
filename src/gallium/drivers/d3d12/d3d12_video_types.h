@@ -37,8 +37,6 @@
 #include "pipe/p_video_codec.h"
 #include "d3d12_fence.h"
 
-#include "DXGIColorSpaceHelper.h"
-
 #include <dxguids/dxguids.h>
 
 #include <wrl/client.h>

@@ -24,7 +24,13 @@
 #ifndef D3D12_STATE_TRANSITION_HELPER_H
 #define D3D12_STATE_TRANSITION_HELPER_H
 
-#include "d3d12_format_utils.h"
+#ifndef _WIN32
+#include <wsl/winadapter.h>
+#endif
+
+#define D3D12_IGNORE_SDK_LAYERS
+#include <directx/d3d12.h>
+#include <d3dx12.h>
 
 template <class TCommandList>
 class D3D12ScopedStateTransition

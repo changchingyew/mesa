@@ -29,7 +29,6 @@
 #include "d3d12_video_encoder_references_manager.h"
 #include "d3d12_video_dpb_storage_manager.h"
 #include <d3dx12.h>
-#include "d3d12_format_utils.h"
 #include "d3d12_video_encoder_bitstream_builder_h264.h"
 
 ///

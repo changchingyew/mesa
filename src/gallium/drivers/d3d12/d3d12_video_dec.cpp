@@ -72,7 +72,7 @@ d3d12_video_create_decoder(struct pipe_context *context, const struct pipe_video
    pD3D12Dec->base.end_frame        = d3d12_video_decoder_end_frame;
    pD3D12Dec->base.flush            = d3d12_video_decoder_flush;
 
-   pD3D12Dec->m_decodeFormat = D3D12VideoFormatHelper::d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);
+   pD3D12Dec->m_decodeFormat = d3d12_convert_pipe_video_profile_to_dxgi_format(codec->profile);
    pD3D12Dec->m_d3d12DecProfileType = d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(codec->profile);
    pD3D12Dec->m_d3d12DecProfile     = d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(codec->profile);
 
@@ -510,17 +510,17 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
 
       const D3D12_RESOURCE_DESC &descReference =
          d3d12OutputArguments.ConversionArguments.pReferenceTexture2D->GetDesc();
-      d3d12OutputArguments.ConversionArguments.DecodeColorSpace = CDXGIColorSpaceHelper::ConvertFromLegacyColorSpace(
-         !D3D12VideoFormatHelper::YUV(descReference.Format),
-         D3D12VideoFormatHelper::GetBitsPerUnit(descReference.Format),
+      d3d12OutputArguments.ConversionArguments.DecodeColorSpace = d3d12_convert_from_legacy_color_space(
+         !util_format_is_yuv(d3d12_get_pipe_format(descReference.Format)),
+         util_format_get_blocksize(d3d12_get_pipe_format(descReference.Format)) * 8 /*bytes to bits conversion*/,
          /* StudioRGB= */ false,
          /* P709= */ true,
          /* StudioYUV= */ true);
 
       const D3D12_RESOURCE_DESC &descOutput = d3d12OutputArguments.pOutputTexture2D->GetDesc();
       d3d12OutputArguments.ConversionArguments.OutputColorSpace =
-         CDXGIColorSpaceHelper::ConvertFromLegacyColorSpace(!D3D12VideoFormatHelper::YUV(descOutput.Format),
-                                                            D3D12VideoFormatHelper::GetBitsPerUnit(descOutput.Format),
+         d3d12_convert_from_legacy_color_space(!util_format_is_yuv(d3d12_get_pipe_format(descOutput.Format)),                                                            
+                                                            util_format_get_blocksize(d3d12_get_pipe_format(descOutput.Format)) * 8 /*bytes to bits conversion*/,
                                                             /* StudioRGB= */ false,
                                                             /* P709= */ true,
                                                             /* StudioYUV= */ true);

@@ -25,9 +25,14 @@
 #define D3D12_FORMATS_H
 
 #include <directx/dxgiformat.h>
+#ifndef _WIN32
+#include <wsl/winadapter.h>
+#endif
+#include <directx/dxgicommon.h>
 
 #include "pipe/p_format.h"
 #include "pipe/p_defines.h"
+#include "pipe/p_video_enums.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,6 +79,12 @@ d3d12_get_format_num_planes(enum pipe_format fmt);
 
 unsigned
 d3d12_get_plane_slice_from_plane_format(enum pipe_format overallFormat, enum pipe_format planeFormat);
+
+DXGI_FORMAT
+d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile);
+
+DXGI_COLOR_SPACE_TYPE
+d3d12_convert_from_legacy_color_space(bool RGB, uint32_t BitsPerElement, bool StudioRGB, bool P709, bool StudioYUV);
 
 #ifdef __cplusplus
 }
