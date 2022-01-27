@@ -71,7 +71,7 @@ struct d3d12_video_decoder_references_manager
    // Gets the output texture for the current frame to be decoded
    void GetCurrentFrameDecodeOutputTexture(ID3D12Resource **ppOutTexture2D, UINT *pOutSubresourceIndex);
 
-   D3D12_VIDEO_DECODE_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();
+   D3D12_VIDEO_DECODE_REFERENCE_FRAMES get_current_reference_frames();
 
  private:
    UINT16 UpdateEntry(
@@ -91,10 +91,10 @@ struct d3d12_video_decoder_references_manager
    };
 
    // Holds the DPB textures
-   std::unique_ptr<ID3D12VideoDPBStorageManager> m_upD3D12TexturesStorageManager;
+   std::unique_ptr<d3d12_video_dpb_storage_manager_interface> m_upD3D12TexturesStorageManager;
    std::vector<ID3D12VideoDecoderHeap *>
       m_ppHeaps;   // Auxiliary allocation to QueryInterface the IUnknown's
-                   // m_upD3D12TexturesStorageManager->GetCurrentFrameReferenceFrames().ppHeaps
+                   // m_upD3D12TexturesStorageManager->get_current_reference_frames().ppHeaps
                    // containing the generic video encode/decode heap;
 
    // Holds the mapping between DXVA PicParams indices and the D3D12 indices

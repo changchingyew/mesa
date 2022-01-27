@@ -40,7 +40,7 @@
 // Doesn't support extension (by reallocation and copy) of the pool
 
 void
-d3d12_texture_array_dpb_manager::CreateReconstructedPicAllocations(ID3D12Resource **ppResource, UINT16 texArraySize)
+d3d12_texture_array_dpb_manager::create_reconstructed_picture_allocations(ID3D12Resource **ppResource, UINT16 texArraySize)
 {
    if (texArraySize > 0) {
       D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_nodeMask, m_nodeMask);
@@ -80,7 +80,7 @@ d3d12_texture_array_dpb_manager::d3d12_texture_array_dpb_manager(
      m_nodeMask(nodeMask)
 {
    // Initialize D3D12 DPB exposed in this class implemented CRUD interface for a DPB
-   VERIFY_IS_TRUE(0u == ClearDecodePictureBuffer());
+   VERIFY_IS_TRUE(0u == clear_decode_picture_buffer());
 
    // Implement a reusable pool of D3D12 Resources as an array of textures
    UINT16 poolFixedSize = m_dpbTextureArraySize;
@@ -88,7 +88,7 @@ d3d12_texture_array_dpb_manager::d3d12_texture_array_dpb_manager(
 
    // Build resource pool with commitedresources with a d3ddevice and the encoding session settings (eg. resolution) and
    // the reference_only flag
-   CreateReconstructedPicAllocations(m_baseTexArrayResource.GetAddressOf(), poolFixedSize);
+   create_reconstructed_picture_allocations(m_baseTexArrayResource.GetAddressOf(), poolFixedSize);
 
    for (UINT idxSubres = 0; idxSubres < poolFixedSize; idxSubres++) {
       m_ResourcesPool[idxSubres].pResource   = m_baseTexArrayResource;
@@ -98,7 +98,7 @@ d3d12_texture_array_dpb_manager::d3d12_texture_array_dpb_manager(
 }
 
 UINT
-d3d12_texture_array_dpb_manager::ClearDecodePictureBuffer()
+d3d12_texture_array_dpb_manager::clear_decode_picture_buffer()
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
 
@@ -108,7 +108,7 @@ d3d12_texture_array_dpb_manager::ClearDecodePictureBuffer()
       // Don't assert the untracking result here in case the DPB contains resources not adquired using the pool methods
       // in this interface
       untrackCount +=
-         UntrackReconstructedPictureAllocation({ m_D3D12DPB.pResources[idx], m_D3D12DPB.pSubresources[idx] }) ? 1 : 0;
+         untrack_reconstructed_picture_allocation({ m_D3D12DPB.pResources[idx], m_D3D12DPB.pSubresources[idx] }) ? 1 : 0;
    }
 
    // Clear DPB
@@ -124,13 +124,13 @@ d3d12_texture_array_dpb_manager::ClearDecodePictureBuffer()
 
 // Assigns a reference frame at a given position
 void
-d3d12_texture_array_dpb_manager::AssignReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
+d3d12_texture_array_dpb_manager::assign_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
 
    if (dpbPosition > m_D3D12DPB.pResources.size()) {
-      D3D12_LOG_ERROR("[d3d12_texture_array_dpb_manager] AssignReferenceFrame - dpbPosition out of bounds.\n");
+      D3D12_LOG_ERROR("[d3d12_texture_array_dpb_manager] assign_reference_frame - dpbPosition out of bounds.\n");
    }
 
    m_D3D12DPB.pResources[dpbPosition]    = pReconPicture.pReconstructedPicture;
@@ -140,7 +140,7 @@ d3d12_texture_array_dpb_manager::AssignReferenceFrame(d3d12_video_reconstructed_
 
 // Adds a new reference frame at a given position
 void
-d3d12_texture_array_dpb_manager::InsertReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
+d3d12_texture_array_dpb_manager::insert_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -160,10 +160,10 @@ d3d12_texture_array_dpb_manager::InsertReferenceFrame(d3d12_video_reconstructed_
 
 // Gets a reference frame at a given position
 d3d12_video_reconstructed_picture
-d3d12_texture_array_dpb_manager::GetReferenceFrame(UINT dpbPosition)
+d3d12_texture_array_dpb_manager::get_reference_frame(UINT dpbPosition)
 {
    if (dpbPosition >= m_D3D12DPB.pResources.size()) {
-      D3D12_LOG_ERROR("[d3d12_texture_array_dpb_manager] GetReferenceFrame - dpbPosition out of bounds.\n");
+      D3D12_LOG_ERROR("[d3d12_texture_array_dpb_manager] get_reference_frame - dpbPosition out of bounds.\n");
    }
 
    d3d12_video_reconstructed_picture retVal = { m_D3D12DPB.pResources[dpbPosition],
@@ -175,20 +175,20 @@ d3d12_texture_array_dpb_manager::GetReferenceFrame(UINT dpbPosition)
 
 // Removes a new reference frame at a given position and returns operation success
 bool
-d3d12_texture_array_dpb_manager::RemoveReferenceFrame(UINT dpbPosition, bool *pResourceUntracked)
+d3d12_texture_array_dpb_manager::remove_reference_frame(UINT dpbPosition, bool *pResourceUntracked)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
 
    if (dpbPosition >= m_D3D12DPB.pResources.size()) {
-      D3D12_LOG_ERROR("[d3d12_texture_array_dpb_manager] RemoveReferenceFrame - dpbPosition out of bounds.\n");
+      D3D12_LOG_ERROR("[d3d12_texture_array_dpb_manager] remove_reference_frame - dpbPosition out of bounds.\n");
    }
 
    // If removed resource came from resource pool, mark it as free
    // to free it for a new usage
    // Don't assert the untracking result here in case the DPB contains resources not adquired using the pool methods in
    // this interface
-   bool resUntracked = UntrackReconstructedPictureAllocation(
+   bool resUntracked = untrack_reconstructed_picture_allocation(
       { m_D3D12DPB.pResources[dpbPosition], m_D3D12DPB.pSubresources[dpbPosition] });
 
    if (pResourceUntracked != nullptr) {
@@ -205,7 +205,7 @@ d3d12_texture_array_dpb_manager::RemoveReferenceFrame(UINT dpbPosition, bool *pR
 
 // Returns true if the trackedItem was allocated (and is being tracked) by this class
 bool
-d3d12_texture_array_dpb_manager::IsTrackedAllocation(d3d12_video_reconstructed_picture trackedItem)
+d3d12_texture_array_dpb_manager::is_tracked_allocation(d3d12_video_reconstructed_picture trackedItem)
 {
    for (auto &reusableRes : m_ResourcesPool) {
       if ((trackedItem.pReconstructedPicture == reusableRes.pResource.Get()) &&
@@ -218,7 +218,7 @@ d3d12_texture_array_dpb_manager::IsTrackedAllocation(d3d12_video_reconstructed_p
 
 // Returns whether it found the tracked resource on this instance pool tracking and was able to free it
 bool
-d3d12_texture_array_dpb_manager::UntrackReconstructedPictureAllocation(d3d12_video_reconstructed_picture trackedItem)
+d3d12_texture_array_dpb_manager::untrack_reconstructed_picture_allocation(d3d12_video_reconstructed_picture trackedItem)
 {
    for (auto &reusableRes : m_ResourcesPool) {
       if ((trackedItem.pReconstructedPicture == reusableRes.pResource.Get()) &&
@@ -233,7 +233,7 @@ d3d12_texture_array_dpb_manager::UntrackReconstructedPictureAllocation(d3d12_vid
 // Returns a fresh resource for a NEW picture to be written to
 // this class implements the dpb allocations as an array of textures
 d3d12_video_reconstructed_picture
-d3d12_texture_array_dpb_manager::GetNewTrackedPictureAllocation()
+d3d12_texture_array_dpb_manager::get_new_tracked_picture_allocation()
 {
    d3d12_video_reconstructed_picture freshAllocation = { // pResource
                                                          nullptr,
@@ -262,7 +262,7 @@ d3d12_texture_array_dpb_manager::GetNewTrackedPictureAllocation()
 }
 
 UINT
-d3d12_texture_array_dpb_manager::GetNumberOfPicsInDPB()
+d3d12_texture_array_dpb_manager::get_number_of_pics_in_dpb()
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -271,10 +271,10 @@ d3d12_texture_array_dpb_manager::GetNumberOfPicsInDPB()
 }
 
 d3d12_video_reference_frames
-d3d12_texture_array_dpb_manager::GetCurrentFrameReferenceFrames()
+d3d12_texture_array_dpb_manager::get_current_reference_frames()
 {
    d3d12_video_reference_frames retVal = {
-      GetNumberOfPicsInDPB(),
+      get_number_of_pics_in_dpb(),
       m_D3D12DPB.pResources.data(),
       m_D3D12DPB.pSubresources.data(),
       m_D3D12DPB.pHeaps.data(),
@@ -285,7 +285,7 @@ d3d12_texture_array_dpb_manager::GetCurrentFrameReferenceFrames()
 
 // number of resources in the pool that are marked as in use
 UINT
-d3d12_texture_array_dpb_manager::GetNumberOfInUseAllocations()
+d3d12_texture_array_dpb_manager::get_number_of_in_use_allocations()
 {
    UINT countOfInUseResourcesInPool = 0;
    for (auto &reusableRes : m_ResourcesPool) {
@@ -298,7 +298,7 @@ d3d12_texture_array_dpb_manager::GetNumberOfInUseAllocations()
 
 // Returns the number of pictures currently stored in the DPB
 UINT
-d3d12_texture_array_dpb_manager::GetNumberOfTrackedAllocations()
+d3d12_texture_array_dpb_manager::get_number_of_tracked_allocations()
 {
    assert(m_ResourcesPool.size() < UINT_MAX);
    return static_cast<UINT>(m_ResourcesPool.size());

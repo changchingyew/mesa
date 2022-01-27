@@ -485,7 +485,7 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
       };
    }
 
-   d3d12InputArguments.ReferenceFrames = pD3D12Dec->m_spDPBManager->GetCurrentFrameReferenceFrames();
+   d3d12InputArguments.ReferenceFrames = pD3D12Dec->m_spDPBManager->get_current_reference_frames();
 
    d3d12InputArguments.pHeap = pD3D12Dec->m_spVideoDecoderHeap.Get();
 

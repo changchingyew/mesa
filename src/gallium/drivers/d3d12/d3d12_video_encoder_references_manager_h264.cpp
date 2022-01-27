@@ -31,7 +31,7 @@ using namespace std;
 
 D3D12VideoEncoderReferencesManagerH264::D3D12VideoEncoderReferencesManagerH264(
    bool                          gopHasIorPFrames,
-   ID3D12VideoDPBStorageManager &rDpbStorageManager,
+   d3d12_video_dpb_storage_manager_interface &rDpbStorageManager,
    UINT                          MaxL0ReferencesForP,
    UINT                          MaxL0ReferencesForB,
    UINT                          MaxL1ReferencesForB,
@@ -45,7 +45,7 @@ D3D12VideoEncoderReferencesManagerH264::D3D12VideoEncoderReferencesManagerH264(
      m_gopHasInterFrames(gopHasIorPFrames)
 {
    assert((m_MaxDPBCapacity + 1 /*extra for cur frame output recon pic*/) ==
-          m_rDPBStorageManager.GetNumberOfTrackedAllocations());
+          m_rDPBStorageManager.get_number_of_tracked_allocations());
 
    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] Completed construction of "
                  "D3D12VideoEncoderReferencesManagerH264 instance, settings are\n");
@@ -68,8 +68,8 @@ D3D12VideoEncoderReferencesManagerH264::ResetGOPTrackingAndDPB()
    m_CurrentFrameReferencesData.ReconstructedPicTexture = { nullptr, 0 };
 
    // Reset DPB storage
-   UINT numPicsBeforeClearInDPB = m_rDPBStorageManager.GetNumberOfPicsInDPB();
-   UINT cFreedResources         = m_rDPBStorageManager.ClearDecodePictureBuffer();
+   UINT numPicsBeforeClearInDPB = m_rDPBStorageManager.get_number_of_pics_in_dpb();
+   UINT cFreedResources         = m_rDPBStorageManager.clear_decode_picture_buffer();
    VERIFY_ARE_EQUAL(numPicsBeforeClearInDPB, cFreedResources);
 
    // Initialize if needed the reconstructed picture allocation for the first IDR picture in the GOP
@@ -79,8 +79,8 @@ D3D12VideoEncoderReferencesManagerH264::ResetGOPTrackingAndDPB()
 
    // After clearing the DPB, outstanding used allocations should be 1u only for the first allocation for the
    // reconstructed picture of the initial IDR in the GOP
-   VERIFY_ARE_EQUAL(m_rDPBStorageManager.GetNumberOfInUseAllocations(), m_gopHasInterFrames ? 1u : 0u);
-   VERIFY_IS_LESS_THAN_OR_EQUAL(m_rDPBStorageManager.GetNumberOfTrackedAllocations(),
+   VERIFY_ARE_EQUAL(m_rDPBStorageManager.get_number_of_in_use_allocations(), m_gopHasInterFrames ? 1u : 0u);
+   VERIFY_IS_LESS_THAN_OR_EQUAL(m_rDPBStorageManager.get_number_of_tracked_allocations(),
                                 (m_MaxDPBCapacity + 1));   // pool is not extended beyond maximum expected usage
 }
 
@@ -98,8 +98,8 @@ D3D12VideoEncoderReferencesManagerH264::GetCurrentFramePictureControlData(
 
    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] %d resources IN USE out of a total of %d ALLOCATED "
                  "resources at frame with POC: %d\n",
-                 m_rDPBStorageManager.GetNumberOfInUseAllocations(),
-                 m_rDPBStorageManager.GetNumberOfTrackedAllocations(),
+                 m_rDPBStorageManager.get_number_of_in_use_allocations(),
+                 m_rDPBStorageManager.get_number_of_tracked_allocations(),
                  m_curFrameState.PictureOrderCountNumber);
 
    // See casts below
@@ -137,7 +137,7 @@ D3D12VideoEncoderReferencesManagerH264::GetCurrentFrameReconPicOutputAllocation(
 }
 
 D3D12_VIDEO_ENCODE_REFERENCE_FRAMES
-D3D12VideoEncoderReferencesManagerH264::GetCurrentFrameReferenceFrames()
+D3D12VideoEncoderReferencesManagerH264::get_current_reference_frames()
 {
    D3D12_VIDEO_ENCODE_REFERENCE_FRAMES retVal = { 0,
                                                   // ppTexture2Ds
@@ -150,7 +150,7 @@ D3D12VideoEncoderReferencesManagerH264::GetCurrentFrameReferenceFrames()
 
    if ((m_curFrameState.FrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME) &&
        (m_curFrameState.FrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_I_FRAME) && m_gopHasInterFrames) {
-      auto curRef          = m_rDPBStorageManager.GetCurrentFrameReferenceFrames();
+      auto curRef          = m_rDPBStorageManager.get_current_reference_frames();
       retVal.NumTexture2Ds = curRef.NumTexture2Ds;
       retVal.ppTexture2Ds  = curRef.ppTexture2Ds;
       retVal.pSubresources = curRef.pSubresources;
@@ -166,7 +166,7 @@ D3D12VideoEncoderReferencesManagerH264::PrepareCurrentFrameReconPicAllocation()
 
    // If all GOP are intra frames, no point in doing reference pic allocations
    if (IsCurrentFrameUsedAsReference() && m_gopHasInterFrames) {
-      auto reconPic = m_rDPBStorageManager.GetNewTrackedPictureAllocation();
+      auto reconPic = m_rDPBStorageManager.get_new_tracked_picture_allocation();
       m_CurrentFrameReferencesData.ReconstructedPicTexture.pReconstructedPicture = reconPic.pReconstructedPicture;
       m_CurrentFrameReferencesData.ReconstructedPicTexture.ReconstructedPictureSubresource =
          reconPic.ReconstructedPictureSubresource;
@@ -190,13 +190,13 @@ D3D12VideoEncoderReferencesManagerH264::UpdateFIFODPB_PushFrontCurReconPicture()
       D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] MaxDPBCapacity is %d - Number of pics in DPB is %d "
                     "when trying to put frame with POC %d at front of the DPB\n",
                     m_MaxDPBCapacity,
-                    m_rDPBStorageManager.GetNumberOfPicsInDPB(),
+                    m_rDPBStorageManager.get_number_of_pics_in_dpb(),
                     m_curFrameState.PictureOrderCountNumber);
 
       // Release least recently used in DPB if we filled the m_MaxDPBCapacity allowed
-      if (m_rDPBStorageManager.GetNumberOfPicsInDPB() == m_MaxDPBCapacity) {
+      if (m_rDPBStorageManager.get_number_of_pics_in_dpb() == m_MaxDPBCapacity) {
          bool untrackedRes = false;
-         m_rDPBStorageManager.RemoveReferenceFrame(m_rDPBStorageManager.GetNumberOfPicsInDPB() - 1,
+         m_rDPBStorageManager.remove_reference_frame(m_rDPBStorageManager.get_number_of_pics_in_dpb() - 1,
                                                    &untrackedRes);   // Remove last entry
          // Verify that resource was untracked since this class is using the pool completely for allocations
          assert(untrackedRes);
@@ -210,7 +210,7 @@ D3D12VideoEncoderReferencesManagerH264::UpdateFIFODPB_PushFrontCurReconPicture()
       refFrameDesc.ReconstructedPictureSubresource           = recAlloc.ReconstructedPictureSubresource;
       refFrameDesc.pVideoHeap = nullptr;   // D3D12 Video Encode does not need the D3D12VideoEncoderHeap struct for H264
                                            // (used for no-key-frame resolution change in VC1, AV1, etc)
-      m_rDPBStorageManager.InsertReferenceFrame(refFrameDesc, 0);
+      m_rDPBStorageManager.insert_reference_frame(refFrameDesc, 0);
 
       // Prepare D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264 for added DPB member
       D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264 newDPBDescriptor = {
@@ -245,7 +245,7 @@ D3D12VideoEncoderReferencesManagerH264::UpdateFIFODPB_PushFrontCurReconPicture()
 
    // Number of allocations, disregarding if they are used or not, should not exceed this limit due to reuse policies on
    // DPB items removal.
-   VERIFY_IS_LESS_THAN_OR_EQUAL(m_rDPBStorageManager.GetNumberOfTrackedAllocations(), (m_MaxDPBCapacity + 1));
+   VERIFY_IS_LESS_THAN_OR_EQUAL(m_rDPBStorageManager.get_number_of_tracked_allocations(), (m_MaxDPBCapacity + 1));
 }
 
 void
@@ -433,7 +433,7 @@ D3D12VideoEncoderReferencesManagerH264::PrintDPB()
       for (UINT dpbResIdx = 0; dpbResIdx < m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size();
            dpbResIdx++) {
          auto &dpbDesc  = m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors[dpbResIdx];
-         auto  dpbEntry = m_rDPBStorageManager.GetReferenceFrame(dpbDesc.ReconstructedPictureResourceIndex);
+         auto  dpbEntry = m_rDPBStorageManager.get_reference_frame(dpbDesc.ReconstructedPictureResourceIndex);
 
          dpbContents += "{ DPBidx: ";
          dpbContents += std::to_string(dpbResIdx);
@@ -455,7 +455,7 @@ D3D12VideoEncoderReferencesManagerH264::PrintDPB()
 
       D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] DPB has %d frames - DPB references for frame with POC "
                     "%d (frame_num: %d) are: \n %s \n",
-                    m_rDPBStorageManager.GetNumberOfPicsInDPB(),
+                    m_rDPBStorageManager.get_number_of_pics_in_dpb(),
                     m_curFrameState.PictureOrderCountNumber,
                     m_curFrameState.FrameDecodingOrderNumber,
                     dpbContents.c_str());
@@ -468,8 +468,8 @@ D3D12VideoEncoderReferencesManagerH264::EndFrame()
 {
    D3D12_LOG_DBG("[D3D12 Video Encoder Picture Manager H264] %d resources IN USE out of a total of %d ALLOCATED "
                  "resources at EndFrame for frame with POC: %d\n",
-                 m_rDPBStorageManager.GetNumberOfInUseAllocations(),
-                 m_rDPBStorageManager.GetNumberOfTrackedAllocations(),
+                 m_rDPBStorageManager.get_number_of_in_use_allocations(),
+                 m_rDPBStorageManager.get_number_of_tracked_allocations(),
                  m_curFrameState.PictureOrderCountNumber);
 
    // Adds last used (if not null) GetCurrentFrameReconPicOutputAllocation to DPB for next EncodeFrame if necessary

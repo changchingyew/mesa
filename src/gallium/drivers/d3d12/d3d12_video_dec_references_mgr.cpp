@@ -85,7 +85,7 @@ d3d12_video_decoder_references_manager::GetCurrentFrameDecodeOutputTexture(ID3D1
    } else {
       // The DPB Storage only has standard (without the ref only flags) allocations, directly use one of those.
       d3d12_video_reconstructed_picture pFreshAllocation =
-         m_upD3D12TexturesStorageManager->GetNewTrackedPictureAllocation();
+         m_upD3D12TexturesStorageManager->get_new_tracked_picture_allocation();
       *ppOutTexture2D       = pFreshAllocation.pReconstructedPicture;
       *pOutSubresourceIndex = pFreshAllocation.ReconstructedPictureSubresource;
    }
@@ -107,7 +107,7 @@ d3d12_video_decoder_references_manager::GetReferenceOnlyOutput(
 
    // The DPB Storage only has REFERENCE_ONLY allocations, use one of those.
    d3d12_video_reconstructed_picture pFreshAllocation =
-      m_upD3D12TexturesStorageManager->GetNewTrackedPictureAllocation();
+      m_upD3D12TexturesStorageManager->get_new_tracked_picture_allocation();
    *ppOutputReference              = pFreshAllocation.pReconstructedPicture;
    *pOutputSubresource             = pFreshAllocation.ReconstructedPictureSubresource;
    outNeedsTransitionToDecodeWrite = true;
@@ -115,9 +115,9 @@ d3d12_video_decoder_references_manager::GetReferenceOnlyOutput(
 
 //----------------------------------------------------------------------------------------------------------------------------------
 D3D12_VIDEO_DECODE_REFERENCE_FRAMES
-d3d12_video_decoder_references_manager::GetCurrentFrameReferenceFrames()
+d3d12_video_decoder_references_manager::get_current_reference_frames()
 {
-   d3d12_video_reference_frames args = m_upD3D12TexturesStorageManager->GetCurrentFrameReferenceFrames();
+   d3d12_video_reference_frames args = m_upD3D12TexturesStorageManager->get_current_reference_frames();
 
 
    // Convert generic IUnknown into the actual decoder heap object
@@ -186,7 +186,7 @@ d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(c
    d3d12_video_reconstructed_picture reconPicture = { nullptr, 0, nullptr };
 
    for (UINT dpbIdx = 0; dpbIdx < m_dpbDescriptor.dpbSize; dpbIdx++) {
-      m_upD3D12TexturesStorageManager->InsertReferenceFrame(reconPicture, dpbIdx);
+      m_upD3D12TexturesStorageManager->insert_reference_frame(reconPicture, dpbIdx);
    }
 
    MarkAllReferencesAsUnused();
@@ -232,7 +232,7 @@ d3d12_video_decoder_references_manager::UpdateEntry(
       }
 
       d3d12_video_reconstructed_picture reconPicture =
-         m_upD3D12TexturesStorageManager->GetReferenceFrame(remappedIndex);
+         m_upD3D12TexturesStorageManager->get_reference_frame(remappedIndex);
       pOutputReference  = outNeedsTransitionToDecodeRead ? reconPicture.pReconstructedPicture : nullptr;
       OutputSubresource = outNeedsTransitionToDecodeRead ? reconPicture.ReconstructedPictureSubresource : 0u;
    }
@@ -273,7 +273,7 @@ d3d12_video_decoder_references_manager::StoreFutureReference(UINT16             
    VERIFY_SUCCEEDED(decoderHeap.Get()->QueryInterface(IID_PPV_ARGS(&pUnkHeap)));
    d3d12_video_reconstructed_picture reconPic = { pTexture2D, subresourceIndex, pUnkHeap };
 
-   m_upD3D12TexturesStorageManager->AssignReferenceFrame(reconPic, remappedIndex);
+   m_upD3D12TexturesStorageManager->assign_reference_frame(reconPic, remappedIndex);
 
    // Store the index to use for error handling when caller specifies and invalid reference index.
    m_currentOutputIndex = remappedIndex;
@@ -299,14 +299,14 @@ d3d12_video_decoder_references_manager::ReleaseUnusedReferencesTexturesMemory()
 {
    for (UINT index = 0; index < m_dpbDescriptor.dpbSize; index++) {
       if (!m_referenceDXVAIndices[index].fUsed) {
-         d3d12_video_reconstructed_picture reconPicture = m_upD3D12TexturesStorageManager->GetReferenceFrame(index);
+         d3d12_video_reconstructed_picture reconPicture = m_upD3D12TexturesStorageManager->get_reference_frame(index);
          if (reconPicture.pReconstructedPicture != nullptr) {
             // Untrack this resource, will mark it as free un the underlying storage buffer pool
-            VERIFY_IS_TRUE(m_upD3D12TexturesStorageManager->UntrackReconstructedPictureAllocation(reconPicture));
+            VERIFY_IS_TRUE(m_upD3D12TexturesStorageManager->untrack_reconstructed_picture_allocation(reconPicture));
             d3d12_video_reconstructed_picture nullReconPic = { nullptr, 0, nullptr };
 
             // Mark the unused refpic as null/empty in the DPB
-            m_upD3D12TexturesStorageManager->AssignReferenceFrame(nullReconPic, index);
+            m_upD3D12TexturesStorageManager->assign_reference_frame(nullReconPic, index);
          }
 
 

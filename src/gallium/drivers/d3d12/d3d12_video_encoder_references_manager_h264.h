@@ -36,10 +36,10 @@ class D3D12VideoEncoderReferencesManagerH264 : public ID3D12VideoEncodeReference
    D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE GetCurrentFrameReconPicOutputAllocation();
    void GetCurrentFramePictureControlData(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &codecAllocation);
    bool IsCurrentFrameUsedAsReference();
-   D3D12_VIDEO_ENCODE_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();
+   D3D12_VIDEO_ENCODE_REFERENCE_FRAMES get_current_reference_frames();
 
    D3D12VideoEncoderReferencesManagerH264(bool                          gopHasInterCodedFrames,
-                                          ID3D12VideoDPBStorageManager &rDpbStorageManager,
+                                          d3d12_video_dpb_storage_manager_interface &rDpbStorageManager,
                                           UINT                          MaxL0ReferencesForP,
                                           UINT                          MaxL0ReferencesForB,
                                           UINT                          MaxL1ReferencesForB,
@@ -72,7 +72,7 @@ class D3D12VideoEncoderReferencesManagerH264 : public ID3D12VideoEncodeReference
       D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE                          ReconstructedPicTexture;
    } CurrentFrameReferencesData;
 
-   ID3D12VideoDPBStorageManager &m_rDPBStorageManager;
+   d3d12_video_dpb_storage_manager_interface &m_rDPBStorageManager;
 
    CurrentFrameReferencesData m_CurrentFrameReferencesData;
 

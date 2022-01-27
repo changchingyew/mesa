@@ -1034,7 +1034,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE reconPicOutputTextureDesc =
       pD3D12Enc->m_upDPBManager->GetCurrentFrameReconPicOutputAllocation();
    D3D12_VIDEO_ENCODE_REFERENCE_FRAMES referenceFramesDescriptor =
-      pD3D12Enc->m_upDPBManager->GetCurrentFrameReferenceFrames();
+      pD3D12Enc->m_upDPBManager->get_current_reference_frames();
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAGS picCtrlFlags = D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_NONE;
 
    // Transition DPB reference pictures to read mode

@@ -46,49 +46,49 @@ struct d3d12_video_reference_frames
 // the reconstructed pictures
 // Implementors of this interface can decide how to do this, let Class1 and Class2 be implementors...
 // for example Class1 can use a texture array and Class2 or an array of textures
-class ID3D12VideoDPBStorageManager
+class d3d12_video_dpb_storage_manager_interface
 {
-   // ID3D12VideoDPBStorageManager
+   // d3d12_video_dpb_storage_manager_interface
  public:
    // Adds a new reference frame at a given position
-   virtual void InsertReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition) = 0;
+   virtual void insert_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition) = 0;
 
    // Gets a reference frame at a given position
-   virtual d3d12_video_reconstructed_picture GetReferenceFrame(UINT dpbPosition) = 0;
+   virtual d3d12_video_reconstructed_picture get_reference_frame(UINT dpbPosition) = 0;
 
    // Assigns a reference frame at a given position
-   virtual void AssignReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition) = 0;
+   virtual void assign_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition) = 0;
 
    // Removes a new reference frame at a given position and returns operation success
    // pResourceUntracked is an optional output indicating if the removed resource was being tracked by the pool
-   virtual bool RemoveReferenceFrame(UINT dpbPosition, bool *pResourceUntracked) = 0;
+   virtual bool remove_reference_frame(UINT dpbPosition, bool *pResourceUntracked) = 0;
 
    // Returns the resource allocation for a NEW reconstructed picture
-   virtual d3d12_video_reconstructed_picture GetNewTrackedPictureAllocation() = 0;
+   virtual d3d12_video_reconstructed_picture get_new_tracked_picture_allocation() = 0;
 
    // Returns whether it found the tracked resource on this instance pool tracking and was able to free it
-   virtual bool UntrackReconstructedPictureAllocation(d3d12_video_reconstructed_picture trackedItem) = 0;
+   virtual bool untrack_reconstructed_picture_allocation(d3d12_video_reconstructed_picture trackedItem) = 0;
 
    // Returns true if the trackedItem was allocated (and is being tracked) by this class
-   virtual bool IsTrackedAllocation(d3d12_video_reconstructed_picture trackedItem) = 0;
+   virtual bool is_tracked_allocation(d3d12_video_reconstructed_picture trackedItem) = 0;
 
    // resource pool size
-   virtual UINT GetNumberOfTrackedAllocations() = 0;
+   virtual UINT get_number_of_tracked_allocations() = 0;
 
    // number of resources in the pool that are marked as in use
-   virtual UINT GetNumberOfInUseAllocations() = 0;
+   virtual UINT get_number_of_in_use_allocations() = 0;
 
    // Returns the number of pictures currently stored in the DPB
-   virtual UINT GetNumberOfPicsInDPB() = 0;
+   virtual UINT get_number_of_pics_in_dpb() = 0;
 
    // Returns all the current reference frames stored in the storage manager
-   virtual d3d12_video_reference_frames GetCurrentFrameReferenceFrames() = 0;
+   virtual d3d12_video_reference_frames get_current_reference_frames() = 0;
 
    // Remove all pictures from DPB
    // returns the number of resources marked as reusable
-   virtual UINT ClearDecodePictureBuffer() = 0;
+   virtual UINT clear_decode_picture_buffer() = 0;
 
-   virtual ~ID3D12VideoDPBStorageManager()
+   virtual ~d3d12_video_dpb_storage_manager_interface()
    { }
 };
 

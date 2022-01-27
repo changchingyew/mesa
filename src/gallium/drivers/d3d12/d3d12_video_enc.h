@@ -141,7 +141,7 @@ struct d3d12_video_encoder
    UINT m_numNestedBeginFrame = 0;
 
    std::unique_ptr<ID3D12VideoEncodeReferencePicManager> m_upDPBManager;
-   std::unique_ptr<ID3D12VideoDPBStorageManager>         m_upDPBStorageManager;
+   std::unique_ptr<d3d12_video_dpb_storage_manager_interface>         m_upDPBStorageManager;
    std::unique_ptr<ID3D12VideoBitstreamBuilder>          m_upBitstreamBuilder;
 
    bool m_needsGPUFlush = false;

@@ -28,46 +28,46 @@
 #include "d3d12_video_dpb_storage_manager.h"
 #include "d3d12_video_types.h"
 
-class d3d12_array_of_textures_dpb_manager : public ID3D12VideoDPBStorageManager
+class d3d12_array_of_textures_dpb_manager : public d3d12_video_dpb_storage_manager_interface
 {
-   // ID3D12VideoDPBStorageManager
+   // d3d12_video_dpb_storage_manager_interface
  public:
    // Adds a new reference frame at a given position
-   void InsertReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition);
+   void insert_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition);
 
    // Assigns a reference frame at a given position
-   void AssignReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition);
+   void assign_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition);
 
    // Gets a reference frame at a given position
-   d3d12_video_reconstructed_picture GetReferenceFrame(UINT dpbPosition);
+   d3d12_video_reconstructed_picture get_reference_frame(UINT dpbPosition);
 
    // Removes a new reference frame at a given position and returns operation success
    // pResourceUntracked is an optional output indicating if the removed resource was being tracked by the pool
-   bool RemoveReferenceFrame(UINT dpbPosition, bool *pResourceUntracked = nullptr);
+   bool remove_reference_frame(UINT dpbPosition, bool *pResourceUntracked = nullptr);
 
    // Returns the resource allocation for a NEW picture
-   d3d12_video_reconstructed_picture GetNewTrackedPictureAllocation();
+   d3d12_video_reconstructed_picture get_new_tracked_picture_allocation();
 
    // Returns true if the trackedItem was allocated (and is being tracked) by this class
-   bool IsTrackedAllocation(d3d12_video_reconstructed_picture trackedItem);
+   bool is_tracked_allocation(d3d12_video_reconstructed_picture trackedItem);
 
    // Returns whether it found the tracked resource on this instance pool tracking and was able to free it
-   bool UntrackReconstructedPictureAllocation(d3d12_video_reconstructed_picture trackedItem);
+   bool untrack_reconstructed_picture_allocation(d3d12_video_reconstructed_picture trackedItem);
 
    // Returns the number of pictures currently stored in the DPB
-   UINT GetNumberOfPicsInDPB();
+   UINT get_number_of_pics_in_dpb();
 
    // Returns all the current reference frames stored
-   d3d12_video_reference_frames GetCurrentFrameReferenceFrames();
+   d3d12_video_reference_frames get_current_reference_frames();
 
    // Removes all pictures from DPB
    // returns the number of resources marked as reusable
-   UINT ClearDecodePictureBuffer();
+   UINT clear_decode_picture_buffer();
 
    // number of resources in the pool that are marked as in use
-   UINT GetNumberOfInUseAllocations();
+   UINT get_number_of_in_use_allocations();
 
-   UINT GetNumberOfTrackedAllocations();
+   UINT get_number_of_tracked_allocations();
 
    // d3d12_array_of_textures_dpb_manager
  public:
@@ -86,7 +86,7 @@ class d3d12_array_of_textures_dpb_manager : public ID3D12VideoDPBStorageManager
 
    // d3d12_array_of_textures_dpb_manager
  private:
-   void CreateReconstructedPicAllocation(ID3D12Resource **ppResource);
+   void create_reconstructed_picture_allocations(ID3D12Resource **ppResource);
 
    size_t                                      m_dpbInitialSize = 0;
    ID3D12Device *                              m_pDevice;
@@ -112,14 +112,14 @@ class d3d12_array_of_textures_dpb_manager : public ID3D12VideoDPBStorageManager
 
    // Pool of resources to be aliased by the DPB without giving memory ownership
    // This resources are allocated and released by this implementation
-   typedef struct ReusableResource
+   typedef struct d3d12_reusable_resource
    {
       ComPtr<ID3D12Resource> pResource;
       // subresource is always 0 on this AoT implementation of the resources pool
       bool isFree;
-   } ReusableResource;
+   } d3d12_reusable_resource;
 
-   std::vector<ReusableResource> m_ResourcesPool;
+   std::vector<d3d12_reusable_resource> m_ResourcesPool;
 
    // If all subresources are 0, the DPB is loaded with an array of individual textures, the D3D Encode API expects
    // pSubresources to be null in this case The D3D Decode API expects it to be non-null even with all zeroes.
