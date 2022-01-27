@@ -93,14 +93,14 @@ class D3D12TexturesArrayDPBManager : public ID3D12VideoDPBStorageManager
 
    // DPB with array of resources backing storage
 
-   typedef struct D3D12_DPB
+   typedef struct d3d12_video_dpb
    {
       std::vector<ID3D12Resource *> pResources;
       std::vector<UINT>             pSubresources;
       std::vector<IUnknown *> pHeaps;
-   } D3D12_DPB;
+   } d3d12_video_dpb;
 
-   D3D12_DPB m_D3D12DPB;
+   d3d12_video_dpb m_D3D12DPB;
 
    // Flags used when creating the resource pool
    // Usually if reference only is needed for d3d12 video use
