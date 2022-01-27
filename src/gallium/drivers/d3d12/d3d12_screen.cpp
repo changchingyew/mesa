@@ -886,21 +886,21 @@ d3d12_init_null_rtv(struct d3d12_screen *screen)
    screen->dev->CreateRenderTargetView(NULL, &rtv, screen->null_rtv.cpu_handle);
 }
 
-typedef struct D3D12VideoResolutionToLevelEntry
+typedef struct d3d12_video_resolution_to_level_mapping_entry
 {
    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC resolution;
    uint                                        level;
-} D3D12VideoResolutionToLevelEntry;
+} d3d12_video_resolution_to_level_mapping_entry;
 
 
-inline D3D12VideoResolutionToLevelEntry
+inline d3d12_video_resolution_to_level_mapping_entry
 GetMaxLevelResolutionVideoDecodeSupport(D3D12_VIDEO_DECODE_CONFIGURATION         decoderConfig,
                                         DXGI_FORMAT                              format,
                                         struct pipe_screen *                     pscreen,
                                         bool &                                   outSupportAny,
                                         D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT &outSupportedConfig)
 {
-   D3D12VideoResolutionToLevelEntry supportedResult = {};
+   d3d12_video_resolution_to_level_mapping_entry supportedResult = {};
    outSupportAny                                    = false;
    outSupportedConfig                               = {};
 
@@ -911,7 +911,7 @@ GetMaxLevelResolutionVideoDecodeSupport(D3D12_VIDEO_DECODE_CONFIGURATION        
       return supportedResult;
    }
 
-   D3D12VideoResolutionToLevelEntry resolutionsLevelList[10] = {
+   d3d12_video_resolution_to_level_mapping_entry resolutionsLevelList[10] = {
       { { 8192, 4320 }, 61 },   // 8k
       { { 7680, 4800 }, 61 },   // 8k - alternative
       { { 7680, 4320 }, 61 },   // 8k - alternative
@@ -1144,7 +1144,7 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *       pscreen,
                                                                   D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE };
 
                DXGI_FORMAT                      format = DXGI_FORMAT_NV12;
-               D3D12VideoResolutionToLevelEntry bestSupportedConfig =
+               d3d12_video_resolution_to_level_mapping_entry bestSupportedConfig =
                   GetMaxLevelResolutionVideoDecodeSupport(decoderConfig,
                                                           format,
                                                           pscreen,
