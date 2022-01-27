@@ -1005,7 +1005,7 @@ d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *                
       UINT16 referenceCount = (conversionArguments.Enable) ? (UINT16) conversionArguments.ReferenceFrameCount +
                                                                 1 /*extra slot for current picture*/ :
                                                              maxDPB;
-      D3D12DPBDescriptor dpbDesc = {};
+      d3d12_video_decode_dpb_descriptor dpbDesc = {};
       dpbDesc.Width              = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Width : width;
       dpbDesc.Height             = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Height : height;
       dpbDesc.Format =

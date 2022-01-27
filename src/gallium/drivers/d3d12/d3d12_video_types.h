@@ -144,7 +144,7 @@ typedef enum
    VIDEO_DECODE_PROFILE_BIT_DEPTH_16_BIT = (1 << VIDEO_DECODE_PROFILE_BIT_DEPTH_INDEX_16_BIT),
 } VIDEO_DECODE_PROFILE_BIT_DEPTH;
 
-typedef struct D3D12DPBDescriptor
+typedef struct d3d12_video_decode_dpb_descriptor
 {
    DXGI_FORMAT Format          = DXGI_FORMAT_UNKNOWN;
    UINT64      Width           = 0;
@@ -153,7 +153,7 @@ typedef struct D3D12DPBDescriptor
    bool        fReferenceOnly  = false;
    UINT16      dpbSize         = 0;
    UINT        m_NodeMask      = 0;
-} D3D12DPBDescriptor;
+} d3d12_video_decode_dpb_descriptor;
 
 typedef struct D3D12VideoDecodeOutputConversionArguments
 {

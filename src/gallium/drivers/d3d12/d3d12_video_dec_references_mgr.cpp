@@ -145,7 +145,7 @@ _Use_decl_annotations_
 D3D12VideoDecoderReferencesManager::D3D12VideoDecoderReferencesManager(const struct d3d12_screen *     pD3D12Screen,
                                                                        UINT                            NodeMask,
                                                                        D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
-                                                                       D3D12DPBDescriptor              m_dpbDescriptor)
+                                                                       d3d12_video_decode_dpb_descriptor              m_dpbDescriptor)
    : m_pD3D12Screen(pD3D12Screen),
      m_NodeMask(NodeMask),
      m_invalidIndex(GetInvalidReferenceIndex(DecodeProfileType)),

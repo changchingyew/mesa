@@ -33,7 +33,7 @@ struct D3D12VideoDecoderReferencesManager
    D3D12VideoDecoderReferencesManager(const struct d3d12_screen *     pD3D12Screen,
                                       UINT                            NodeMask,
                                       D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
-                                      D3D12DPBDescriptor              dpbDescriptor);
+                                      d3d12_video_decode_dpb_descriptor              dpbDescriptor);
 
    bool IsReferenceOnly()
    {
@@ -105,7 +105,7 @@ struct D3D12VideoDecoderReferencesManager
    const struct d3d12_screen *    m_pD3D12Screen;
    UINT                           m_NodeMask;
    UINT16                         m_invalidIndex;
-   D3D12DPBDescriptor             m_dpbDescriptor      = {};
+   d3d12_video_decode_dpb_descriptor             m_dpbDescriptor      = {};
    UINT16                         m_currentOutputIndex = 0;
    D3D12_FEATURE_DATA_FORMAT_INFO m_formatInfo         = { m_dpbDescriptor.Format };
 };
