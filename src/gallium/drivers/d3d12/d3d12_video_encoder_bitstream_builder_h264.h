@@ -27,14 +27,14 @@
 #include "d3d12_video_encoder_nalu_writer_h264.h"
 #include "d3d12_video_encoder_bitstream_builder.h"
 
-class D3D12VideoBitstreamBuilderH264 : public ID3D12VideoBitstreamBuilder
+class d3d12_video_bitstream_builder_h264 : public d3d12_video_bitstream_builder_interface
 {
 
  public:
-   D3D12VideoBitstreamBuilderH264() {};
-   ~D3D12VideoBitstreamBuilderH264() {};
+   d3d12_video_bitstream_builder_h264() {};
+   ~d3d12_video_bitstream_builder_h264() {};
 
-   void BuildSPS(const D3D12_VIDEO_ENCODER_PROFILE_H264 &               profile,
+   void build_sps(const D3D12_VIDEO_ENCODER_PROFILE_H264 &               profile,
                  const D3D12_VIDEO_ENCODER_LEVELS_H264 &                level,
                  const DXGI_FORMAT &                                    inputFmt,
                  const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &   codecConfig,
@@ -46,7 +46,7 @@ class D3D12VideoBitstreamBuilderH264 : public ID3D12VideoBitstreamBuilder
                  std::vector<BYTE>::iterator                            placingPositionStart,
                  size_t &                                               writtenBytes);
 
-   void BuildPPS(const D3D12_VIDEO_ENCODER_PROFILE_H264 &                   profile,
+   void build_pps(const D3D12_VIDEO_ENCODER_PROFILE_H264 &                   profile,
                  const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &       codecConfig,
                  const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 &pictureControl,
                  UINT                                                       pic_parameter_set_id,
@@ -55,30 +55,30 @@ class D3D12VideoBitstreamBuilderH264 : public ID3D12VideoBitstreamBuilder
                  std::vector<BYTE>::iterator                                placingPositionStart,
                  size_t &                                                   writtenBytes);
 
-   void WriteEndOfStreamNALU(std::vector<BYTE> &         headerBitstream,
+   void write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
                              std::vector<BYTE>::iterator placingPositionStart,
                              size_t &                    writtenBytes);
-   void WriteEndOfSequenceNALU(std::vector<BYTE> &         headerBitstream,
+   void write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
                                std::vector<BYTE>::iterator placingPositionStart,
                                size_t &                    writtenBytes);
 
-   void PrintPPS(const H264_PPS &pps);
-   void PrintSPS(const H264_SPS &sps);
+   void print_pps(const H264_PPS &pps);
+   void print_sps(const H264_SPS &sps);
 
    UINT m_writtenSPSCount = 0;
    UINT m_writtenPPSCount = 0;
 
-   UINT GetSPSCount()
+   UINT get_sps_count()
    {
       return m_writtenSPSCount;
    };
-   UINT GetPPSCount()
+   UINT get_pps_count()
    {
       return m_writtenPPSCount;
    };
 
  private:
-   D3D12VideoNaluWriterH264 m_h264Encoder;
+   d3d12_video_nalu_writer_h264 m_h264Encoder;
 };
 
 #endif

@@ -101,49 +101,49 @@ typedef enum H264_SPEC_PROFILES
 #define MAX_COMPRESSED_PPS 256
 #define MAX_COMPRESSED_SPS 256
 
-class D3D12VideoNaluWriterH264
+class d3d12_video_nalu_writer_h264
 {
  public:
-   D3D12VideoNaluWriterH264()
+   d3d12_video_nalu_writer_h264()
    { }
-   ~D3D12VideoNaluWriterH264()
+   ~d3d12_video_nalu_writer_h264()
    { }
 
    // Writes the H264 SPS structure into a bitstream passed in headerBitstream
    // Function resizes bitstream accordingly and puts result in byte vector
-   void SPSToNALUBytes(H264_SPS *                  pSPS,
+   void sps_to_nalu_bytes(H264_SPS *                  pSPS,
                        std::vector<BYTE> &         headerBitstream,
                        std::vector<BYTE>::iterator placingPositionStart,
                        size_t &                    writtenBytes);
 
    // Writes the H264 PPS structure into a bitstream passed in headerBitstream
    // Function resizes bitstream accordingly and puts result in byte vector
-   void PPSToNALUBytes(H264_PPS *                  pPPS,
+   void pps_to_nalu_bytes(H264_PPS *                  pPPS,
                        std::vector<BYTE> &         headerBitstream,
                        BOOL                        bIsFREXTProfile,
                        std::vector<BYTE>::iterator placingPositionStart,
                        size_t &                    writtenBytes);
 
-   void WriteEndOfStreamNALU(std::vector<BYTE> &         headerBitstream,
+   void write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
                              std::vector<BYTE>::iterator placingPositionStart,
                              size_t &                    writtenBytes);
-   void WriteEndOfSequenceNALU(std::vector<BYTE> &         headerBitstream,
+   void write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
                                std::vector<BYTE>::iterator placingPositionStart,
                                size_t &                    writtenBytes);
 
  private:
    // Writes from structure into bitstream with RBSP trailing but WITHOUT NAL unit wrap (eg. nal_idc_type, etc)
-   UINT32 WriteSPSBytes(D3D12VideoBitstream *pBitstream, H264_SPS *pSPS);
-   UINT32 WritePPSBytes(D3D12VideoBitstream *pBitstream, H264_PPS *pPPS, BOOL bIsFREXTProfile);
+   UINT32 write_sps_bytes(d3d12_video_encoder_bitstream *pBitstream, H264_SPS *pSPS);
+   UINT32 write_pps_bytes(d3d12_video_encoder_bitstream *pBitstream, H264_PPS *pPPS, BOOL bIsFREXTProfile);
 
    // Adds NALU wrapping into structures and ending NALU control bits
-   UINT32 WrapSPSNalu(D3D12VideoBitstream *pNALU, D3D12VideoBitstream *pRBSP);
-   UINT32 WrapPPSNalu(D3D12VideoBitstream *pNALU, D3D12VideoBitstream *pRBSP);
+   UINT32 wrap_sps_nalu(d3d12_video_encoder_bitstream *pNALU, d3d12_video_encoder_bitstream *pRBSP);
+   UINT32 wrap_pps_nalu(d3d12_video_encoder_bitstream *pNALU, d3d12_video_encoder_bitstream *pRBSP);
 
    // Helpers
-   void   WriteNaluEnd(D3D12VideoBitstream *pNALU);
-   void   RBSPTrailing(D3D12VideoBitstream *pBitstream);
-   UINT32 WrapRbspIntoNalu(D3D12VideoBitstream *pNALU, D3D12VideoBitstream *pRBSP, UINT iNaluIdc, UINT iNaluType);
+   void   write_nalu_end(d3d12_video_encoder_bitstream *pNALU);
+   void   rbsp_trailing(d3d12_video_encoder_bitstream *pBitstream);
+   UINT32 wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream *pNALU, d3d12_video_encoder_bitstream *pRBSP, UINT iNaluIdc, UINT iNaluType);
 };
 
 #endif

@@ -24,7 +24,7 @@
 #include <climits>
 #include "d3d12_video_encoder_bitstream.h"
 
-D3D12VideoBitstream::D3D12VideoBitstream()
+d3d12_video_encoder_bitstream::d3d12_video_encoder_bitstream()
 {
    m_pBitsBuffer       = nullptr;
    m_uiBitsBufferSize  = 0;
@@ -36,7 +36,7 @@ D3D12VideoBitstream::D3D12VideoBitstream()
    m_bAllowReallocate  = false;
 }
 
-D3D12VideoBitstream::~D3D12VideoBitstream()
+d3d12_video_encoder_bitstream::~d3d12_video_encoder_bitstream()
 {
    if (!m_bExternalBuffer) {
       DELETE_ARRAY(m_pBitsBuffer);
@@ -44,7 +44,7 @@ D3D12VideoBitstream::~D3D12VideoBitstream()
 }
 
 int32_t
-D3D12VideoBitstream::GetExpGolomb0CodeLength(uint32_t uiVal)
+d3d12_video_encoder_bitstream::GetExpGolomb0CodeLength(uint32_t uiVal)
 {
    int32_t iLen = 0;
    uiVal++;
@@ -64,30 +64,30 @@ D3D12VideoBitstream::GetExpGolomb0CodeLength(uint32_t uiVal)
 }
 
 void
-D3D12VideoBitstream::Exp_Golomb_ue(uint32_t uiVal)
+d3d12_video_encoder_bitstream::exp_Golomb_ue(uint32_t uiVal)
 {
    if (uiVal != UINT_MAX) {
       int32_t iLen = GetExpGolomb0CodeLength(uiVal);
-      PutBits((iLen << 1) + 1, uiVal + 1);
+      put_bits((iLen << 1) + 1, uiVal + 1);
    } else {
-      PutBits(32, 0);
-      PutBits(1, 1);
-      PutBits(32, 1);
+      put_bits(32, 0);
+      put_bits(1, 1);
+      put_bits(32, 1);
    }
 }
 
 void
-D3D12VideoBitstream::Exp_Golomb_se(int32_t iVal)
+d3d12_video_encoder_bitstream::exp_Golomb_se(int32_t iVal)
 {
    if (iVal > 0) {
-      Exp_Golomb_ue((iVal << 1) - 1);
+      exp_Golomb_ue((iVal << 1) - 1);
    } else {
-      Exp_Golomb_ue(((-iVal) << 1) - (iVal == INT_MIN));
+      exp_Golomb_ue(((-iVal) << 1) - (iVal == INT_MIN));
    }
 }
 
 void
-D3D12VideoBitstream::SetupBitStream(uint32_t uiInitBufferSize, uint8_t *pBuffer)
+d3d12_video_encoder_bitstream::setup_bitstream(uint32_t uiInitBufferSize, uint8_t *pBuffer)
 {
    m_pBitsBuffer      = pBuffer;
    m_uiBitsBufferSize = uiInitBufferSize;
@@ -98,7 +98,7 @@ D3D12VideoBitstream::SetupBitStream(uint32_t uiInitBufferSize, uint8_t *pBuffer)
 }
 
 bool
-D3D12VideoBitstream::CreateBitStream(uint32_t uiInitBufferSize)
+d3d12_video_encoder_bitstream::create_bitstream(uint32_t uiInitBufferSize)
 {
    VERIFY_IS_TRUE((uiInitBufferSize) >= 4 && !(uiInitBufferSize & 3));
 
@@ -117,7 +117,7 @@ D3D12VideoBitstream::CreateBitStream(uint32_t uiInitBufferSize)
 }
 
 bool
-D3D12VideoBitstream::ReallocateBuffer()
+d3d12_video_encoder_bitstream::ReallocateBuffer()
 {
    uint32_t uiBufferSize = m_uiBitsBufferSize * 3 / 2;
    uint8_t *pNewBuffer   = (uint8_t *) new uint8_t[uiBufferSize];
@@ -134,7 +134,7 @@ D3D12VideoBitstream::ReallocateBuffer()
 }
 
 bool
-D3D12VideoBitstream::VerifyBuffer(uint32_t uiBytesToWrite)
+d3d12_video_encoder_bitstream::VerifyBuffer(uint32_t uiBytesToWrite)
 {
    if (!m_bBufferOverflow) {
       if (m_uiOffset + uiBytesToWrite > m_uiBitsBufferSize) {
@@ -151,14 +151,14 @@ D3D12VideoBitstream::VerifyBuffer(uint32_t uiBytesToWrite)
 }
 
 void
-D3D12VideoBitstream::IncCurrentOffset(int32_t dwOffset)
+d3d12_video_encoder_bitstream::inc_current_offset(int32_t dwOffset)
 {
    VERIFY_IS_TRUE(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
    m_uiOffset += dwOffset;
 }
 
 void
-D3D12VideoBitstream::GetCurrentBufferPostionAndSize(uint8_t **ppCurrBufPos, int32_t *pdwLeftBufSize)
+d3d12_video_encoder_bitstream::get_current_buffer_position_and_size(uint8_t **ppCurrBufPos, int32_t *pdwLeftBufSize)
 {
    VERIFY_IS_TRUE(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
    *ppCurrBufPos   = m_pBitsBuffer + m_uiOffset;
@@ -166,7 +166,7 @@ D3D12VideoBitstream::GetCurrentBufferPostionAndSize(uint8_t **ppCurrBufPos, int3
 }
 
 void
-D3D12VideoBitstream::Attach(uint8_t *pBitsBuffer, uint32_t uiBufferSize)
+d3d12_video_encoder_bitstream::attach(uint8_t *pBitsBuffer, uint32_t uiBufferSize)
 {
    m_pBitsBuffer      = pBitsBuffer;
    m_uiBitsBufferSize = uiBufferSize;
@@ -178,7 +178,7 @@ D3D12VideoBitstream::Attach(uint8_t *pBitsBuffer, uint32_t uiBufferSize)
 }
 
 void
-D3D12VideoBitstream::WriteByteStartCodePrevention(uint8_t u8Val)
+d3d12_video_encoder_bitstream::WriteByteStartCodePrevention(uint8_t u8Val)
 {
    int32_t  iOffset = m_uiOffset;
    uint8_t *pBuffer = m_pBitsBuffer + iOffset;
@@ -199,7 +199,7 @@ D3D12VideoBitstream::WriteByteStartCodePrevention(uint8_t u8Val)
 #define WRITE_BYTE(byte) WriteByteStartCodePrevention(byte)
 
 void
-D3D12VideoBitstream::PutBits(int32_t uiBitsCount, uint32_t iBitsVal)
+d3d12_video_encoder_bitstream::put_bits(int32_t uiBitsCount, uint32_t iBitsVal)
 {
    VERIFY_IS_TRUE(uiBitsCount <= 32);
 
@@ -226,7 +226,7 @@ D3D12VideoBitstream::PutBits(int32_t uiBitsCount, uint32_t iBitsVal)
 }
 
 void
-D3D12VideoBitstream::Flush()
+d3d12_video_encoder_bitstream::flush()
 {
    VERIFY_IS_TRUE(IsByteAligned());
 
@@ -247,7 +247,7 @@ D3D12VideoBitstream::Flush()
 }
 
 void
-D3D12VideoBitstream::AppendByteStream(D3D12VideoBitstream *pStream)
+d3d12_video_encoder_bitstream::AppendByteStream(d3d12_video_encoder_bitstream *pStream)
 {
    VERIFY_IS_TRUE(pStream->IsByteAligned() && IsByteAligned());
    VERIFY_IS_TRUE(m_iBitsToGo == 32);

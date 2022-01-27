@@ -390,7 +390,7 @@ d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_encoder 
                                  // recon picture
          );
 
-         pD3D12Enc->m_upBitstreamBuilder = std::make_unique<D3D12VideoBitstreamBuilderH264>();
+         pD3D12Enc->m_upBitstreamBuilder = std::make_unique<d3d12_video_bitstream_builder_h264>();
       } break;
 
       default:

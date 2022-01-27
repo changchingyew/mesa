@@ -27,10 +27,10 @@
 
 #include "d3d12_video_types.h"
 
-class ID3D12VideoBitstreamBuilder
+class d3d12_video_bitstream_builder_interface
 {
  public:
-   virtual ~ID3D12VideoBitstreamBuilder()
+   virtual ~d3d12_video_bitstream_builder_interface()
    { }
 };
 

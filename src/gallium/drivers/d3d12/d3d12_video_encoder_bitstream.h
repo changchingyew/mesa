@@ -34,22 +34,22 @@
       }                                                                                                                \
    }
 
-class D3D12VideoBitstream
+class d3d12_video_encoder_bitstream
 {
  public:
-   D3D12VideoBitstream();
-   ~D3D12VideoBitstream();
+   d3d12_video_encoder_bitstream();
+   ~d3d12_video_encoder_bitstream();
 
  public:
-   void GetCurrentBufferPostionAndSize(uint8_t **ppCurrBufPos, int32_t *pdwLeftBufSize);
-   void IncCurrentOffset(int32_t dwOffset);
-   bool CreateBitStream(uint32_t uiInitBufferSize);
-   void SetupBitStream(uint32_t uiInitBufferSize, uint8_t *pBuffer);
-   void Attach(uint8_t *pBitsBuffer, uint32_t uiBufferSize);
-   void PutBits(int32_t uiBitsCount, uint32_t iBitsVal);
-   void Flush();
-   void Exp_Golomb_ue(uint32_t uiVal);
-   void Exp_Golomb_se(int32_t iVal);
+   void get_current_buffer_position_and_size(uint8_t **ppCurrBufPos, int32_t *pdwLeftBufSize);
+   void inc_current_offset(int32_t dwOffset);
+   bool create_bitstream(uint32_t uiInitBufferSize);
+   void setup_bitstream(uint32_t uiInitBufferSize, uint8_t *pBuffer);
+   void attach(uint8_t *pBitsBuffer, uint32_t uiBufferSize);
+   void put_bits(int32_t uiBitsCount, uint32_t iBitsVal);
+   void flush();
+   void exp_Golomb_ue(uint32_t uiVal);
+   void exp_Golomb_se(int32_t iVal);
 
    inline void Clear()
    {
@@ -58,7 +58,7 @@ class D3D12VideoBitstream
       m_uintEncBuffer = 0;
    };
 
-   void AppendByteStream(D3D12VideoBitstream *pStream);
+   void AppendByteStream(d3d12_video_encoder_bitstream *pStream);
 
    void SetStartCodePrevention(bool bSCP)
    {
