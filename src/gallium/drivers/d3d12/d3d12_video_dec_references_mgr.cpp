@@ -47,7 +47,7 @@ GetInvalidReferenceIndex(D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType)
 /// Please see GetReferenceOnlyOutput for the current frame recon pic ref only allocation
 ///
 void
-D3D12VideoDecoderReferencesManager::GetCurrentFrameDecodeOutputTexture(ID3D12Resource **ppOutTexture2D,
+d3d12_video_decoder_references_manager::GetCurrentFrameDecodeOutputTexture(ID3D12Resource **ppOutTexture2D,
                                                                        UINT *           pOutSubresourceIndex)
 {
    if (IsReferenceOnly()) {
@@ -55,7 +55,7 @@ D3D12VideoDecoderReferencesManager::GetCurrentFrameDecodeOutputTexture(ID3D12Res
       // m_upD3D12TexturesStorageManager as decode output == reconpic decode output Otherwise, when ReferenceOnly is
       // true, both the reference frames in the DPB and the current frame reconpic output must be REFERENCE_ONLY, all
       // the allocations are stored in m_upD3D12TexturesStorageManager but we need a +1 allocation without the
-      // REFERENCE_FRAME to use as clear decoded output. In this case D3D12VideoDecoderReferencesManager allocates and
+      // REFERENCE_FRAME to use as clear decoded output. In this case d3d12_video_decoder_references_manager allocates and
       // provides m_pClearDecodedOutputTexture Please note that m_pClearDecodedOutputTexture needs to be copied/read by
       // the client before calling end_frame again, as the allocation will be reused for the next frame.
 
@@ -93,7 +93,7 @@ D3D12VideoDecoderReferencesManager::GetCurrentFrameDecodeOutputTexture(ID3D12Res
 
 //----------------------------------------------------------------------------------------------------------------------------------
 _Use_decl_annotations_ void
-D3D12VideoDecoderReferencesManager::GetReferenceOnlyOutput(
+d3d12_video_decoder_references_manager::GetReferenceOnlyOutput(
    ID3D12Resource **ppOutputReference,     // out -> new reference slot assigned or nullptr
    UINT *           pOutputSubresource,    // out -> new reference slot assigned or nullptr
    bool &outNeedsTransitionToDecodeWrite   // out -> indicates if output resource argument has to be transitioned to
@@ -101,7 +101,7 @@ D3D12VideoDecoderReferencesManager::GetReferenceOnlyOutput(
 )
 {
    if (!IsReferenceOnly()) {
-      D3D12_LOG_ERROR("[D3D12VideoDecoderReferencesManager] D3D12VideoDecoderReferencesManager::GetReferenceOnlyOutput "
+      D3D12_LOG_ERROR("[d3d12_video_decoder_references_manager] d3d12_video_decoder_references_manager::GetReferenceOnlyOutput "
                       "expected IsReferenceOnly() to be true.\n");
    }
 
@@ -115,7 +115,7 @@ D3D12VideoDecoderReferencesManager::GetReferenceOnlyOutput(
 
 //----------------------------------------------------------------------------------------------------------------------------------
 D3D12_VIDEO_DECODE_REFERENCE_FRAMES
-D3D12VideoDecoderReferencesManager::GetCurrentFrameReferenceFrames()
+d3d12_video_decoder_references_manager::GetCurrentFrameReferenceFrames()
 {
    d3d12_video_reference_frames args = m_upD3D12TexturesStorageManager->GetCurrentFrameReferenceFrames();
 
@@ -142,7 +142,7 @@ D3D12VideoDecoderReferencesManager::GetCurrentFrameReferenceFrames()
 
 //----------------------------------------------------------------------------------------------------------------------------------
 _Use_decl_annotations_
-D3D12VideoDecoderReferencesManager::D3D12VideoDecoderReferencesManager(const struct d3d12_screen *     pD3D12Screen,
+d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(const struct d3d12_screen *     pD3D12Screen,
                                                                        UINT                            NodeMask,
                                                                        D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
                                                                        d3d12_video_decode_dpb_descriptor              m_dpbDescriptor)
@@ -195,7 +195,7 @@ D3D12VideoDecoderReferencesManager::D3D12VideoDecoderReferencesManager(const str
 
 //----------------------------------------------------------------------------------------------------------------------------------
 UINT16
-D3D12VideoDecoderReferencesManager::FindRemappedIndex(UINT16 originalIndex)
+d3d12_video_decoder_references_manager::FindRemappedIndex(UINT16 originalIndex)
 {
    // Check if the index is already mapped.
    for (UINT16 remappedIndex = 0; remappedIndex < m_dpbDescriptor.dpbSize; remappedIndex++) {
@@ -209,7 +209,7 @@ D3D12VideoDecoderReferencesManager::FindRemappedIndex(UINT16 originalIndex)
 
 //----------------------------------------------------------------------------------------------------------------------------------
 UINT16
-D3D12VideoDecoderReferencesManager::UpdateEntry(
+d3d12_video_decoder_references_manager::UpdateEntry(
    UINT16           index,                // in
    ID3D12Resource *&pOutputReference,     // out -> new reference slot assigned or nullptr
    UINT &           OutputSubresource,    // out -> new reference slot assigned or 0
@@ -225,7 +225,7 @@ D3D12VideoDecoderReferencesManager::UpdateEntry(
 
       outNeedsTransitionToDecodeRead = true;
       if (remappedIndex == m_invalidIndex || remappedIndex == m_currentOutputIndex) {
-         D3D12_LOG_INFO("[D3D12VideoDecoderReferencesManager] UpdateEntry - Invalid Reference Index\n");
+         D3D12_LOG_INFO("[d3d12_video_decoder_references_manager] UpdateEntry - Invalid Reference Index\n");
 
          remappedIndex                  = m_currentOutputIndex;
          outNeedsTransitionToDecodeRead = false;
@@ -242,7 +242,7 @@ D3D12VideoDecoderReferencesManager::UpdateEntry(
 
 //----------------------------------------------------------------------------------------------------------------------------------
 _Use_decl_annotations_ UINT16
-D3D12VideoDecoderReferencesManager::StoreFutureReference(UINT16                          index,
+d3d12_video_decoder_references_manager::StoreFutureReference(UINT16                          index,
                                                          ComPtr<ID3D12VideoDecoderHeap> &decoderHeap,
                                                          ID3D12Resource *                pTexture2D,
                                                          UINT                            subresourceIndex)
@@ -263,7 +263,7 @@ D3D12VideoDecoderReferencesManager::StoreFutureReference(UINT16                 
    }
 
    if (remappedIndex == m_invalidIndex) {
-      D3D12_LOG_ERROR("[D3D12VideoDecoderReferencesManager] D3D12VideoDecoderReferencesManager - Decode - No available "
+      D3D12_LOG_ERROR("[d3d12_video_decoder_references_manager] d3d12_video_decoder_references_manager - Decode - No available "
                       "reference map entry for output.\n");
    }
 
@@ -283,7 +283,7 @@ D3D12VideoDecoderReferencesManager::StoreFutureReference(UINT16                 
 
 //----------------------------------------------------------------------------------------------------------------------------------
 void
-D3D12VideoDecoderReferencesManager::MarkReferenceInUse(UINT16 index)
+d3d12_video_decoder_references_manager::MarkReferenceInUse(UINT16 index)
 {
    if (index != m_invalidIndex) {
       UINT16 remappedIndex = FindRemappedIndex(index);
@@ -295,7 +295,7 @@ D3D12VideoDecoderReferencesManager::MarkReferenceInUse(UINT16 index)
 
 //----------------------------------------------------------------------------------------------------------------------------------
 void
-D3D12VideoDecoderReferencesManager::ReleaseUnusedReferencesTexturesMemory()
+d3d12_video_decoder_references_manager::ReleaseUnusedReferencesTexturesMemory()
 {
    for (UINT index = 0; index < m_dpbDescriptor.dpbSize; index++) {
       if (!m_referenceDXVAIndices[index].fUsed) {
@@ -317,7 +317,7 @@ D3D12VideoDecoderReferencesManager::ReleaseUnusedReferencesTexturesMemory()
 
 //----------------------------------------------------------------------------------------------------------------------------------
 void
-D3D12VideoDecoderReferencesManager::MarkAllReferencesAsUnused()
+d3d12_video_decoder_references_manager::MarkAllReferencesAsUnused()
 {
    for (UINT index = 0; index < m_dpbDescriptor.dpbSize; index++) {
       m_referenceDXVAIndices[index].fUsed = false;

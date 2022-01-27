@@ -28,9 +28,9 @@
 #include "d3d12_video_dpb_storage_manager.h"
 #include <directx/d3dx12.h>
 
-struct D3D12VideoDecoderReferencesManager
+struct d3d12_video_decoder_references_manager
 {
-   D3D12VideoDecoderReferencesManager(const struct d3d12_screen *     pD3D12Screen,
+   d3d12_video_decoder_references_manager(const struct d3d12_screen *     pD3D12Screen,
                                       UINT                            NodeMask,
                                       D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
                                       d3d12_video_decode_dpb_descriptor              dpbDescriptor);
@@ -114,7 +114,7 @@ struct D3D12VideoDecoderReferencesManager
 //----------------------------------------------------------------------------------------------------------------------------------
 template <typename T, size_t size>
 void
-D3D12VideoDecoderReferencesManager::UpdateEntries(T (&picEntries)[size],
+d3d12_video_decoder_references_manager::UpdateEntries(T (&picEntries)[size],
                                                   std::vector<D3D12_RESOURCE_BARRIER> &outNeededTransitions)
 {
    outNeededTransitions.clear();
@@ -165,7 +165,7 @@ D3D12VideoDecoderReferencesManager::UpdateEntries(T (&picEntries)[size],
 //----------------------------------------------------------------------------------------------------------------------------------
 template <typename T, size_t size>
 void
-D3D12VideoDecoderReferencesManager::MarkReferencesInUse(const T (&picEntries)[size])
+d3d12_video_decoder_references_manager::MarkReferencesInUse(const T (&picEntries)[size])
 {
    for (auto &picEntry : picEntries) {
       MarkReferenceInUse(picEntry.Index7Bits);

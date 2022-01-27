@@ -1019,7 +1019,7 @@ d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *                
 
       // Create DPB manager
       if (pD3D12Dec->m_spDPBManager == nullptr) {
-         pD3D12Dec->m_spDPBManager.reset(new D3D12VideoDecoderReferencesManager(pD3D12Dec->m_pD3D12Screen,
+         pD3D12Dec->m_spDPBManager.reset(new d3d12_video_decoder_references_manager(pD3D12Dec->m_pD3D12Screen,
                                                                                 pD3D12Dec->m_NodeMask,
                                                                                 pD3D12Dec->m_d3d12DecProfileType,
                                                                                 dpbDesc));

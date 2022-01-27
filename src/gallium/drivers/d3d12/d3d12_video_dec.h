@@ -128,7 +128,7 @@ struct d3d12_video_decoder
    ///
 
    // Tracks DPB and reference picture textures
-   std::unique_ptr<D3D12VideoDecoderReferencesManager> m_spDPBManager;
+   std::unique_ptr<d3d12_video_decoder_references_manager> m_spDPBManager;
 
    // Holds the input bitstream buffer while it's being constructed in decode_bitstream calls
    std::vector<BYTE> m_stagingDecodeBitstream;
