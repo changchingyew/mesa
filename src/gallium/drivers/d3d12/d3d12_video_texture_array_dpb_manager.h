@@ -33,32 +33,32 @@ class D3D12TexturesArrayDPBManager : public ID3D12VideoDPBStorageManager
    // ID3D12VideoDPBStorageManager
  public:
    // Adds a new reference frame at a given position
-   void InsertReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE pReconPicture, UINT dpbPosition);
+   void InsertReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition);
 
    // Assigns a reference frame at a given position
-   void AssignReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE pReconPicture, UINT dpbPosition);
+   void AssignReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition);
 
    // Gets a reference frame at a given position
-   D3D12_VIDEO_RECONSTRUCTED_PICTURE GetReferenceFrame(UINT dpbPosition);
+   d3d12_video_reconstructed_picture GetReferenceFrame(UINT dpbPosition);
 
    // Removes a new reference frame at a given position and returns operation success
    // pResourceUntracked is an optional output indicating if the removed resource was being tracked by the pool
    bool RemoveReferenceFrame(UINT dpbPosition, bool *pResourceUntracked = nullptr);
 
    // Returns the resource allocation for a NEW picture
-   D3D12_VIDEO_RECONSTRUCTED_PICTURE GetNewTrackedPictureAllocation();
+   d3d12_video_reconstructed_picture GetNewTrackedPictureAllocation();
 
    // Returns true if the trackedItem was allocated (and is being tracked) by this class
-   bool IsTrackedAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE trackedItem);
+   bool IsTrackedAllocation(d3d12_video_reconstructed_picture trackedItem);
 
    // Returns whether it found the tracked resource on this instance pool tracking and was able to free it
-   bool UntrackReconstructedPictureAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE trackedItem);
+   bool UntrackReconstructedPictureAllocation(d3d12_video_reconstructed_picture trackedItem);
 
    // Returns the number of pictures currently stored in the DPB
    UINT GetNumberOfPicsInDPB();
 
    // Returns all the current reference frames stored
-   D3D12_VIDEO_REFERENCE_FRAMES GetCurrentFrameReferenceFrames();
+   d3d12_video_reference_frames GetCurrentFrameReferenceFrames();
 
    // Removes all pictures from DPB
    // returns the number of resources marked as reusable

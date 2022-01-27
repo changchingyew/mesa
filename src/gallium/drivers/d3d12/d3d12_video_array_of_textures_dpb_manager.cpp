@@ -114,7 +114,7 @@ D3D12ArrayOfTexturesDPBManager::ClearDecodePictureBuffer()
 
 // Assigns a reference frame at a given position
 void
-D3D12ArrayOfTexturesDPBManager::AssignReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE pReconPicture, UINT dpbPosition)
+D3D12ArrayOfTexturesDPBManager::AssignReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -130,7 +130,7 @@ D3D12ArrayOfTexturesDPBManager::AssignReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_P
 
 // Adds a new reference frame at a given position
 void
-D3D12ArrayOfTexturesDPBManager::InsertReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE pReconPicture, UINT dpbPosition)
+D3D12ArrayOfTexturesDPBManager::InsertReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -149,14 +149,14 @@ D3D12ArrayOfTexturesDPBManager::InsertReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_P
 }
 
 // Gets a reference frame at a given position
-D3D12_VIDEO_RECONSTRUCTED_PICTURE
+d3d12_video_reconstructed_picture
 D3D12ArrayOfTexturesDPBManager::GetReferenceFrame(UINT dpbPosition)
 {
    if (dpbPosition >= m_D3D12DPB.pResources.size()) {
       D3D12_LOG_ERROR("[D3D12ArrayOfTexturesDPBManager] GetReferenceFrame - dpbPosition out of bounds.\n");
    }
 
-   D3D12_VIDEO_RECONSTRUCTED_PICTURE retVal = { m_D3D12DPB.pResources[dpbPosition],
+   d3d12_video_reconstructed_picture retVal = { m_D3D12DPB.pResources[dpbPosition],
                                                 m_D3D12DPB.pSubresources[dpbPosition],
                                                 m_D3D12DPB.pHeaps[dpbPosition] };
 
@@ -194,7 +194,7 @@ D3D12ArrayOfTexturesDPBManager::RemoveReferenceFrame(UINT dpbPosition, bool *pRe
 
 // Returns true if the trackedItem was allocated (and is being tracked) by this class
 bool
-D3D12ArrayOfTexturesDPBManager::IsTrackedAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE trackedItem)
+D3D12ArrayOfTexturesDPBManager::IsTrackedAllocation(d3d12_video_reconstructed_picture trackedItem)
 {
    for (auto &reusableRes : m_ResourcesPool) {
       if (trackedItem.pReconstructedPicture == reusableRes.pResource.Get() && !reusableRes.isFree) {
@@ -206,7 +206,7 @@ D3D12ArrayOfTexturesDPBManager::IsTrackedAllocation(D3D12_VIDEO_RECONSTRUCTED_PI
 
 // Returns whether it found the tracked resource on this instance pool tracking and was able to free it
 bool
-D3D12ArrayOfTexturesDPBManager::UntrackReconstructedPictureAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE trackedItem)
+D3D12ArrayOfTexturesDPBManager::UntrackReconstructedPictureAllocation(d3d12_video_reconstructed_picture trackedItem)
 {
    for (auto &reusableRes : m_ResourcesPool) {
       if (trackedItem.pReconstructedPicture == reusableRes.pResource.Get()) {
@@ -219,10 +219,10 @@ D3D12ArrayOfTexturesDPBManager::UntrackReconstructedPictureAllocation(D3D12_VIDE
 
 // Returns a fresh resource for a new reconstructed picture to be written to
 // this class implements the dpb allocations as an array of textures
-D3D12_VIDEO_RECONSTRUCTED_PICTURE
+d3d12_video_reconstructed_picture
 D3D12ArrayOfTexturesDPBManager::GetNewTrackedPictureAllocation()
 {
-   D3D12_VIDEO_RECONSTRUCTED_PICTURE freshAllocation = { // pResource
+   d3d12_video_reconstructed_picture freshAllocation = { // pResource
                                                          nullptr,
                                                          // subresource
                                                          0
@@ -266,7 +266,7 @@ D3D12ArrayOfTexturesDPBManager::GetNumberOfPicsInDPB()
    return static_cast<UINT>(m_D3D12DPB.pResources.size());
 }
 
-D3D12_VIDEO_REFERENCE_FRAMES
+d3d12_video_reference_frames
 D3D12ArrayOfTexturesDPBManager::GetCurrentFrameReferenceFrames()
 {
    // If all subresources are 0, the DPB is loaded with an array of individual textures, the D3D Encode API expects
@@ -277,7 +277,7 @@ D3D12ArrayOfTexturesDPBManager::GetCurrentFrameReferenceFrames()
       pSubresources = nullptr;
    }
 
-   D3D12_VIDEO_REFERENCE_FRAMES retVal = { GetNumberOfPicsInDPB(),
+   d3d12_video_reference_frames retVal = { GetNumberOfPicsInDPB(),
                                            m_D3D12DPB.pResources.data(),
                                            pSubresources,
                                            m_D3D12DPB.pHeaps.data() };

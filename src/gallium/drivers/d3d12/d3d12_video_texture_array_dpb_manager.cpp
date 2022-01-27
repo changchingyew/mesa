@@ -124,7 +124,7 @@ D3D12TexturesArrayDPBManager::ClearDecodePictureBuffer()
 
 // Assigns a reference frame at a given position
 void
-D3D12TexturesArrayDPBManager::AssignReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE pReconPicture, UINT dpbPosition)
+D3D12TexturesArrayDPBManager::AssignReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -140,7 +140,7 @@ D3D12TexturesArrayDPBManager::AssignReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PIC
 
 // Adds a new reference frame at a given position
 void
-D3D12TexturesArrayDPBManager::InsertReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PICTURE pReconPicture, UINT dpbPosition)
+D3D12TexturesArrayDPBManager::InsertReferenceFrame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition)
 {
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pSubresources.size());
    assert(m_D3D12DPB.pResources.size() == m_D3D12DPB.pHeaps.size());
@@ -159,14 +159,14 @@ D3D12TexturesArrayDPBManager::InsertReferenceFrame(D3D12_VIDEO_RECONSTRUCTED_PIC
 }
 
 // Gets a reference frame at a given position
-D3D12_VIDEO_RECONSTRUCTED_PICTURE
+d3d12_video_reconstructed_picture
 D3D12TexturesArrayDPBManager::GetReferenceFrame(UINT dpbPosition)
 {
    if (dpbPosition >= m_D3D12DPB.pResources.size()) {
       D3D12_LOG_ERROR("[D3D12TexturesArrayDPBManager] GetReferenceFrame - dpbPosition out of bounds.\n");
    }
 
-   D3D12_VIDEO_RECONSTRUCTED_PICTURE retVal = { m_D3D12DPB.pResources[dpbPosition],
+   d3d12_video_reconstructed_picture retVal = { m_D3D12DPB.pResources[dpbPosition],
                                                 m_D3D12DPB.pSubresources[dpbPosition],
                                                 m_D3D12DPB.pHeaps[dpbPosition] };
 
@@ -205,7 +205,7 @@ D3D12TexturesArrayDPBManager::RemoveReferenceFrame(UINT dpbPosition, bool *pReso
 
 // Returns true if the trackedItem was allocated (and is being tracked) by this class
 bool
-D3D12TexturesArrayDPBManager::IsTrackedAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE trackedItem)
+D3D12TexturesArrayDPBManager::IsTrackedAllocation(d3d12_video_reconstructed_picture trackedItem)
 {
    for (auto &reusableRes : m_ResourcesPool) {
       if ((trackedItem.pReconstructedPicture == reusableRes.pResource.Get()) &&
@@ -218,7 +218,7 @@ D3D12TexturesArrayDPBManager::IsTrackedAllocation(D3D12_VIDEO_RECONSTRUCTED_PICT
 
 // Returns whether it found the tracked resource on this instance pool tracking and was able to free it
 bool
-D3D12TexturesArrayDPBManager::UntrackReconstructedPictureAllocation(D3D12_VIDEO_RECONSTRUCTED_PICTURE trackedItem)
+D3D12TexturesArrayDPBManager::UntrackReconstructedPictureAllocation(d3d12_video_reconstructed_picture trackedItem)
 {
    for (auto &reusableRes : m_ResourcesPool) {
       if ((trackedItem.pReconstructedPicture == reusableRes.pResource.Get()) &&
@@ -232,10 +232,10 @@ D3D12TexturesArrayDPBManager::UntrackReconstructedPictureAllocation(D3D12_VIDEO_
 
 // Returns a fresh resource for a NEW picture to be written to
 // this class implements the dpb allocations as an array of textures
-D3D12_VIDEO_RECONSTRUCTED_PICTURE
+d3d12_video_reconstructed_picture
 D3D12TexturesArrayDPBManager::GetNewTrackedPictureAllocation()
 {
-   D3D12_VIDEO_RECONSTRUCTED_PICTURE freshAllocation = { // pResource
+   d3d12_video_reconstructed_picture freshAllocation = { // pResource
                                                          nullptr,
                                                          // subresource
                                                          0
@@ -270,10 +270,10 @@ D3D12TexturesArrayDPBManager::GetNumberOfPicsInDPB()
    return static_cast<UINT>(m_D3D12DPB.pResources.size());
 }
 
-D3D12_VIDEO_REFERENCE_FRAMES
+d3d12_video_reference_frames
 D3D12TexturesArrayDPBManager::GetCurrentFrameReferenceFrames()
 {
-   D3D12_VIDEO_REFERENCE_FRAMES retVal = {
+   d3d12_video_reference_frames retVal = {
       GetNumberOfPicsInDPB(),
       m_D3D12DPB.pResources.data(),
       m_D3D12DPB.pSubresources.data(),

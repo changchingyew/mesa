@@ -205,7 +205,7 @@ D3D12VideoEncoderReferencesManagerH264::UpdateFIFODPB_PushFrontCurReconPicture()
 
       // Add new dpb to front of DPB
       D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE recAlloc     = GetCurrentFrameReconPicOutputAllocation();
-      D3D12_VIDEO_RECONSTRUCTED_PICTURE         refFrameDesc = {};
+      d3d12_video_reconstructed_picture         refFrameDesc = {};
       refFrameDesc.pReconstructedPicture                     = recAlloc.pReconstructedPicture;
       refFrameDesc.ReconstructedPictureSubresource           = recAlloc.ReconstructedPictureSubresource;
       refFrameDesc.pVideoHeap = nullptr;   // D3D12 Video Encode does not need the D3D12VideoEncoderHeap struct for H264
