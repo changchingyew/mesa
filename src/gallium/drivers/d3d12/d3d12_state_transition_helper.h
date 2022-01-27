@@ -33,17 +33,17 @@
 #include <directx/d3dx12.h>
 
 template <class TCommandList>
-class D3D12ScopedStateTransition
+class d3d12_scoped_state_transition
 {
  public:
-   D3D12ScopedStateTransition() : m_List(NULL), m_Resource(NULL), m_OriginalUsage(D3D12_RESOURCE_STATE_COMMON)
+   d3d12_scoped_state_transition() : m_List(NULL), m_Resource(NULL), m_OriginalUsage(D3D12_RESOURCE_STATE_COMMON)
    { }
 
-   D3D12ScopedStateTransition(TCommandList *        List,
-                              ID3D12Resource *      Resource,
-                              D3D12_RESOURCE_STATES DestinationUsage,
-                              D3D12_RESOURCE_STATES OriginalUsage,
-                              UINT                  Subresource = 0)
+   d3d12_scoped_state_transition(TCommandList *        List,
+                                 ID3D12Resource *      Resource,
+                                 D3D12_RESOURCE_STATES DestinationUsage,
+                                 D3D12_RESOURCE_STATES OriginalUsage,
+                                 UINT                  Subresource = 0)
       : m_List(List),
         m_Resource(Resource),
         m_OriginalUsage(OriginalUsage),
@@ -51,14 +51,14 @@ class D3D12ScopedStateTransition
         m_Subresource(Subresource)
    {
       if (m_OriginalUsage != m_DestUsage) {
-         ResourceBarrierHelper(m_List, m_Resource, m_OriginalUsage, m_DestUsage, m_Subresource);
+         d3d12_resource_barrier_helper(m_List, m_Resource, m_OriginalUsage, m_DestUsage, m_Subresource);
       }
    }
 
-   ~D3D12ScopedStateTransition()
+   ~d3d12_scoped_state_transition()
    {
       if (m_List && (m_OriginalUsage != m_DestUsage)) {
-         ResourceBarrierHelper(m_List, m_Resource, m_DestUsage, m_OriginalUsage, m_Subresource);
+         d3d12_resource_barrier_helper(m_List, m_Resource, m_DestUsage, m_OriginalUsage, m_Subresource);
       }
    }
 
@@ -69,7 +69,7 @@ class D3D12ScopedStateTransition
    D3D12_RESOURCE_STATES m_DestUsage;
    UINT                  m_Subresource;
 
-   void ResourceBarrierHelper(
+   void d3d12_resource_barrier_helper(
       TCommandList *List, ID3D12Resource *Resource, UINT StateBefore, UINT StateAfter, UINT Subresource)
    {
       D3D12_RESOURCE_BARRIER Barrier = {};

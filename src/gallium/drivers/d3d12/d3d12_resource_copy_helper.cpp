@@ -95,7 +95,7 @@ d3d12_resource_copy_helper::upload_data(ID3D12Resource *      pResource,
 
    // Record command to copy data from pTempResource to pResource
    {
-      D3D12ScopedStateTransition<ID3D12GraphicsCommandList> ResourceTransition(m_pCommandList.Get(),
+      d3d12_scoped_state_transition<ID3D12GraphicsCommandList> ResourceTransition(m_pCommandList.Get(),
                                                                                pResource,
                                                                                D3D12_RESOURCE_STATE_COPY_DEST,
                                                                                ResourceState,
@@ -151,7 +151,7 @@ d3d12_resource_copy_helper::readback_data(void *                pData,
 
    {
       // Record command to copy data from pResource to pTempResource
-      D3D12ScopedStateTransition<ID3D12GraphicsCommandList> ResourceTransition(m_pCommandList.Get(),
+      d3d12_scoped_state_transition<ID3D12GraphicsCommandList> ResourceTransition(m_pCommandList.Get(),
                                                                                pResource,
                                                                                D3D12_RESOURCE_STATE_COPY_SOURCE,
                                                                                ResourceState,
