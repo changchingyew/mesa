@@ -173,7 +173,7 @@ d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(c
                                                                                          setNullSubresourcesOnAllZero,
                                                                                          m_dpbDescriptor.m_NodeMask);
    } else {
-      m_upD3D12TexturesStorageManager = std::make_unique<D3D12TexturesArrayDPBManager>(m_dpbDescriptor.dpbSize,
+      m_upD3D12TexturesStorageManager = std::make_unique<d3d12_texture_array_dpb_manager>(m_dpbDescriptor.dpbSize,
                                                                                        m_pD3D12Screen->dev,
                                                                                        m_dpbDescriptor.Format,
                                                                                        targetFrameResolution,

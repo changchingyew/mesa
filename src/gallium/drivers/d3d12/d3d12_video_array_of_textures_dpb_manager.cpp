@@ -26,7 +26,7 @@
 ///
 /// d3d12_array_of_textures_dpb_manager
 ///
-// Differences with D3D12TexturesArrayDPBManager
+// Differences with d3d12_texture_array_dpb_manager
 // Uses an std::vector with individual D3D resources as backing storage instead of an D3D12 Texture Array
 // Supports dynamic pool capacity extension (by pushing back a new D3D12Resource) of the pool
 

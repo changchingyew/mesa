@@ -237,7 +237,7 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
             pD3D12Enc->m_NodeMask);
       } else {
          pD3D12Enc->m_upDPBStorageManager =
-            std::make_unique<D3D12TexturesArrayDPBManager>(texturePoolSize,
+            std::make_unique<d3d12_texture_array_dpb_manager>(texturePoolSize,
                                                            pD3D12Enc->m_pD3D12Screen->dev,
                                                            pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
                                                            pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
