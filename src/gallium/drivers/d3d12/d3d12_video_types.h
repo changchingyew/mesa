@@ -155,13 +155,13 @@ typedef struct d3d12_video_decode_dpb_descriptor
    UINT        m_NodeMask      = 0;
 } d3d12_video_decode_dpb_descriptor;
 
-typedef struct D3D12VideoDecodeOutputConversionArguments
+typedef struct d3d12_video_decode_output_conversion_arguments
 {
    BOOL                  Enable;
    DXGI_COLOR_SPACE_TYPE OutputColorSpace;
    D3D12_VIDEO_SAMPLE    ReferenceInfo;
    UINT                  ReferenceFrameCount;
-} D3D12VideoDecodeOutputConversionArguments;
+} d3d12_video_decode_output_conversion_arguments;
 
 void
 d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVELS_H264 level12,

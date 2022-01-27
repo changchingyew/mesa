@@ -403,7 +403,7 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    ///
 
    // Requested conversions by caller upper layer (none for now)
-   D3D12VideoDecodeOutputConversionArguments requestedConversionArguments = {};
+   d3d12_video_decode_output_conversion_arguments requestedConversionArguments = {};
 
    ///
    /// Record DecodeFrame operation and resource state transitions.
@@ -888,7 +888,7 @@ d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12D
                                              UINT *                      pOutSubresourceIndex,
                                              ID3D12Resource **           ppRefOnlyOutTexture2D,
                                              UINT *                      pRefOnlyOutSubresourceIndex,
-                                             const D3D12VideoDecodeOutputConversionArguments &conversionArgs)
+                                             const d3d12_video_decode_output_conversion_arguments &conversionArgs)
 {
    d3d12_video_decoder_reconfigure_dpb(pD3D12Dec, pD3D12VideoBuffer, conversionArgs);
 
@@ -962,7 +962,7 @@ d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12D
 void
 d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *                     pD3D12Dec,
                                     struct d3d12_video_buffer *                      pD3D12VideoBuffer,
-                                    const D3D12VideoDecodeOutputConversionArguments &conversionArguments)
+                                    const d3d12_video_decode_output_conversion_arguments &conversionArguments)
 {
    UINT   width;
    UINT   height;
