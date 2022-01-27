@@ -744,7 +744,7 @@ d3d12_video_encoder_create_command_objects(struct d3d12_video_encoder *pD3D12Enc
       return false;
    }
 
-   pD3D12Enc->m_D3D12ResourceCopyHelper.reset(new D3D12ResourceCopyHelper(pD3D12Enc->m_spCopyQueue.Get()));
+   pD3D12Enc->m_d3d12_resource_copy_helper.reset(new d3d12_resource_copy_helper(pD3D12Enc->m_spCopyQueue.Get()));
 
    return true;
 }
@@ -1137,7 +1137,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    // Upload the CPU buffers with the bitstream headers to the compressed bitstream resource in the interval [0,
    // prefixGeneratedHeadersByteSize)
    assert(prefixGeneratedHeadersByteSize == pD3D12Enc->m_BitstreamHeadersBuffer.size());
-   pD3D12Enc->m_D3D12ResourceCopyHelper->UploadData(pOutputBufferD3D12Res,
+   pD3D12Enc->m_d3d12_resource_copy_helper->upload_data(pOutputBufferD3D12Res,
                                                     0,
                                                     D3D12_RESOURCE_STATE_COMMON,
                                                     pD3D12Enc->m_BitstreamHeadersBuffer.data(),
@@ -1245,7 +1245,7 @@ d3d12_video_encoder_extract_encode_metadata(
 {
    std::vector<uint8_t> pTmp(resourceMetadataSize);
    uint8_t *            pMetadataBufferSrc = pTmp.data();
-   pD3D12Enc->m_D3D12ResourceCopyHelper->ReadbackData(pMetadataBufferSrc,
+   pD3D12Enc->m_d3d12_resource_copy_helper->readback_data(pMetadataBufferSrc,
                                                       resourceMetadataSize,
                                                       resourceMetadataSize,
                                                       pResolvedMetadataBuffer,

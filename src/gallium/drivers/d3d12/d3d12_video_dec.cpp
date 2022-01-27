@@ -382,7 +382,7 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
       sliceDataStagingBufferSize;   // This can be less than m_curFrameCompressedBitstreamBufferAllocatedSize.
    assert(pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize <=
           pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize);
-   pD3D12Dec->m_D3D12ResourceCopyHelper->UploadData(pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get(),
+   pD3D12Dec->m_d3d12_resource_copy_helper->upload_data(pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get(),
                                                     0,
                                                     D3D12_RESOURCE_STATE_COMMON,
                                                     sliceDataStagingBufferPtr,
@@ -760,7 +760,7 @@ d3d12_video_decoder_create_command_objects(const struct d3d12_screen * pD3D12Scr
       return false;
    }
 
-   pD3D12Dec->m_D3D12ResourceCopyHelper.reset(new D3D12ResourceCopyHelper(pD3D12Dec->m_spCopyQueue.Get()));
+   pD3D12Dec->m_d3d12_resource_copy_helper.reset(new d3d12_resource_copy_helper(pD3D12Dec->m_spCopyQueue.Get()));
 
    return true;
 }

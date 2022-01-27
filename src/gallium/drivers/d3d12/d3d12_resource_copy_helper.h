@@ -29,19 +29,19 @@
 
 // Copies data into/out of D3D12 resources
 // Note that all copy operations are synchronous (they imply a wait for idle)
-class D3D12ResourceCopyHelper
+class d3d12_resource_copy_helper
 {
  public:
-   D3D12ResourceCopyHelper(ID3D12CommandQueue *pCommandQueue);
+   d3d12_resource_copy_helper(ID3D12CommandQueue *pCommandQueue);
 
-   void UploadData(ID3D12Resource *      pResource,
+   void upload_data(ID3D12Resource *      pResource,
                    UINT                  Subresource,
                    D3D12_RESOURCE_STATES ResourceState,
                    const void *          pData,
                    UINT                  RowPitch,
                    UINT                  SlicePitch);
 
-   void ReadbackData(void *                pData,
+   void readback_data(void *                pData,
                      UINT                  RowPitch,
                      UINT                  SlicePitch,
                      ID3D12Resource *      pResource,

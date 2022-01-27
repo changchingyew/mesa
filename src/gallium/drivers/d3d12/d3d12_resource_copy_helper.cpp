@@ -23,7 +23,7 @@
 
 #include "d3d12_resource_copy_helper.h"
 
-D3D12ResourceCopyHelper::D3D12ResourceCopyHelper(ID3D12CommandQueue *pCommandQueue)
+d3d12_resource_copy_helper::d3d12_resource_copy_helper(ID3D12CommandQueue *pCommandQueue)
    : m_pCommandQueue(pCommandQueue), m_NodeMask(pCommandQueue->GetDesc().NodeMask)
 {
    D3D12_COMMAND_QUEUE_DESC CommandQueueDesc = pCommandQueue->GetDesc();
@@ -41,7 +41,7 @@ D3D12ResourceCopyHelper::D3D12ResourceCopyHelper(ID3D12CommandQueue *pCommandQue
 }
 
 void
-D3D12ResourceCopyHelper::UploadData(ID3D12Resource *      pResource,
+d3d12_resource_copy_helper::upload_data(ID3D12Resource *      pResource,
                                     UINT                  Subresource,
                                     D3D12_RESOURCE_STATES ResourceState,
                                     const void *          pData,
@@ -120,7 +120,7 @@ D3D12ResourceCopyHelper::UploadData(ID3D12Resource *      pResource,
 }
 
 void
-D3D12ResourceCopyHelper::ReadbackData(void *                pData,
+d3d12_resource_copy_helper::readback_data(void *                pData,
                                       UINT                  RowPitch,
                                       UINT                  SlicePitch,
                                       ID3D12Resource *      pResource,
@@ -191,7 +191,7 @@ D3D12ResourceCopyHelper::ReadbackData(void *                pData,
 }
 
 void
-D3D12ResourceCopyHelper::Epilog()
+d3d12_resource_copy_helper::Epilog()
 {
    // Execute the command list, wait for it to finish
    VERIFY_SUCCEEDED(m_pCommandList->Close());
