@@ -265,7 +265,7 @@ convert_planar_resource(struct d3d12_resource *res)
       &res->base.b, nullptr, nullptr
    };
    for (int plane = num_planes - 1; plane >= 0; --plane) {
-      struct d3d12_resource *plane_res = d3d12_resource(planes[plane]);      
+      struct d3d12_resource *plane_res = d3d12_resource(planes[plane]);
       if (!plane_res) {
          plane_res = CALLOC_STRUCT(d3d12_resource);
          *plane_res = *res;
