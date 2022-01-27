@@ -125,6 +125,8 @@ D3D12VideoDecoderReferencesManager::GetCurrentFrameReferenceFrames()
    for (UINT i = 0; i < args.NumTexture2Ds; i++) {
       if (args.ppHeaps[i]) {
          VERIFY_SUCCEEDED(args.ppHeaps[i]->QueryInterface(IID_PPV_ARGS(&m_ppHeaps[i])));
+      } else {
+         m_ppHeaps[i] = nullptr;
       }
    }
 
