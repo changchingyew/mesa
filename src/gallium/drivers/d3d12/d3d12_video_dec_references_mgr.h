@@ -26,7 +26,7 @@
 
 #include "d3d12_video_types.h"
 #include "d3d12_video_dpb_storage_manager.h"
-#include <d3dx12.h>
+#include <directx/d3dx12.h>
 
 struct D3D12VideoDecoderReferencesManager
 {

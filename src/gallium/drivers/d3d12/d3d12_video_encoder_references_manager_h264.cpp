@@ -26,7 +26,6 @@
 #include "d3d12_screen.h"
 #define _Field_size_full_opt_(x)
 #include <d3d12video.h>
-#include <d3dx12.h>
 
 using namespace std;
 

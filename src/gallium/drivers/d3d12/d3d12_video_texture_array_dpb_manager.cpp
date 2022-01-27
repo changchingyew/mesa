@@ -29,7 +29,7 @@
 
 #define D3D12_IGNORE_SDK_LAYERS
 #include <directx/d3d12.h>
-#include <d3dx12.h>
+#include <directx/d3dx12.h>
 
 ///
 /// D3D12TexturesArrayDPBManager
