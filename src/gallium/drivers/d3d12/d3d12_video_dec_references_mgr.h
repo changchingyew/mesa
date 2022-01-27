@@ -30,38 +30,38 @@
 
 struct d3d12_video_decoder_references_manager
 {
-   d3d12_video_decoder_references_manager(const struct d3d12_screen *     pD3D12Screen,
-                                      UINT                            NodeMask,
-                                      D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType,
-                                      d3d12_video_decode_dpb_descriptor              dpbDescriptor);
+   d3d12_video_decoder_references_manager(const struct d3d12_screen *       pD3D12Screen,
+                                          UINT                              NodeMask,
+                                          D3D12_VIDEO_DECODE_PROFILE_TYPE   DecodeProfileType,
+                                          d3d12_video_decode_dpb_descriptor dpbDescriptor);
 
-   bool IsReferenceOnly()
+   bool is_reference_only()
    {
       return m_dpbDescriptor.fReferenceOnly;
    }
-   bool IsArrayOfTextures()
+   bool is_array_of_textures()
    {
       return m_dpbDescriptor.fArrayOfTexture;
    }
 
-   void MarkAllReferencesAsUnused();
-   void ReleaseUnusedReferencesTexturesMemory();
+   void mark_all_references_as_unused();
+   void release_unused_references_texture_memory();
 
    template <typename T, size_t size>
-   void MarkReferencesInUse(const T (&picEntries)[size]);
-   void MarkReferenceInUse(UINT16 index);
+   void mark_references_in_use(const T (&picEntries)[size]);
+   void mark_reference_in_use(UINT16 index);
 
-   UINT16 StoreFutureReference(UINT16 index,
-                               _In_ ComPtr<ID3D12VideoDecoderHeap> &decoderHeap,
-                               ID3D12Resource *                     pTexture2D,
-                               UINT                                 subresourceIndex);
+   UINT16 store_future_reference(UINT16 index,
+                                 _In_ ComPtr<ID3D12VideoDecoderHeap> &decoderHeap,
+                                 ID3D12Resource *                     pTexture2D,
+                                 UINT                                 subresourceIndex);
 
    // Will clear() argument outNeededTransitions and fill it with the necessary transitions to perform by the caller
    // after the method returns
    template <typename T, size_t size>
-   void UpdateEntries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> &outNeededTransitions);
+   void update_entries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> &outNeededTransitions);
 
-   void GetReferenceOnlyOutput(
+   void get_reference_only_output(
       ID3D12Resource **ppOutputReference,     // out -> new reference slot assigned or nullptr
       UINT *           pOutputSubresource,    // out -> new reference slot assigned or nullptr
       bool &outNeedsTransitionToDecodeWrite   // out -> indicates if output resource argument has to be transitioned to
@@ -69,12 +69,12 @@ struct d3d12_video_decoder_references_manager
    );
 
    // Gets the output texture for the current frame to be decoded
-   void GetCurrentFrameDecodeOutputTexture(ID3D12Resource **ppOutTexture2D, UINT *pOutSubresourceIndex);
+   void get_current_frame_decode_output_texture(ID3D12Resource **ppOutTexture2D, UINT *pOutSubresourceIndex);
 
    D3D12_VIDEO_DECODE_REFERENCE_FRAMES get_current_reference_frames();
 
  private:
-   UINT16 UpdateEntry(
+   UINT16 update_entry(
       UINT16           index,                // in
       ID3D12Resource *&pOutputReference,     // out -> new reference slot assigned or nullptr
       UINT &           OutputSubresource,    // out -> new reference slot assigned or 0
@@ -82,7 +82,7 @@ struct d3d12_video_decoder_references_manager
                                              // D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
    );
 
-   UINT16 FindRemappedIndex(UINT16 originalIndex);
+   UINT16 find_remapped_index(UINT16 originalIndex);
 
    struct ReferenceData
    {
@@ -102,25 +102,25 @@ struct d3d12_video_decoder_references_manager
 
    ComPtr<ID3D12Resource> m_pClearDecodedOutputTexture;
 
-   const struct d3d12_screen *    m_pD3D12Screen;
-   UINT                           m_NodeMask;
-   UINT16                         m_invalidIndex;
-   d3d12_video_decode_dpb_descriptor             m_dpbDescriptor      = {};
-   UINT16                         m_currentOutputIndex = 0;
-   D3D12_FEATURE_DATA_FORMAT_INFO m_formatInfo         = { m_dpbDescriptor.Format };
+   const struct d3d12_screen *       m_pD3D12Screen;
+   UINT                              m_NodeMask;
+   UINT16                            m_invalidIndex;
+   d3d12_video_decode_dpb_descriptor m_dpbDescriptor      = {};
+   UINT16                            m_currentOutputIndex = 0;
+   D3D12_FEATURE_DATA_FORMAT_INFO    m_formatInfo         = { m_dpbDescriptor.Format };
 };
 
 
 //----------------------------------------------------------------------------------------------------------------------------------
 template <typename T, size_t size>
 void
-d3d12_video_decoder_references_manager::UpdateEntries(T (&picEntries)[size],
-                                                  std::vector<D3D12_RESOURCE_BARRIER> &outNeededTransitions)
+d3d12_video_decoder_references_manager::update_entries(T (&picEntries)[size],
+                                                       std::vector<D3D12_RESOURCE_BARRIER> &outNeededTransitions)
 {
    outNeededTransitions.clear();
 
    for (auto &picEntry : picEntries) {
-      // UINT16 UpdateEntry(
+      // UINT16 update_entry(
       //     UINT16 index, // in
       //     ID3D12Resource*& pOutputReference, // out -> new reference slot assigned or nullptr
       //     UINT& OutputSubresource, // out -> new reference slot assigned or 0
@@ -133,7 +133,7 @@ d3d12_video_decoder_references_manager::UpdateEntries(T (&picEntries)[size],
       bool            outNeedsTransitionToDecodeRead = false;
 
       picEntry.Index7Bits =
-         UpdateEntry(picEntry.Index7Bits, pOutputReference, OutputSubresource, outNeedsTransitionToDecodeRead);
+         update_entry(picEntry.Index7Bits, pOutputReference, OutputSubresource, outNeedsTransitionToDecodeRead);
 
       if (outNeedsTransitionToDecodeRead) {
          ///
@@ -165,10 +165,10 @@ d3d12_video_decoder_references_manager::UpdateEntries(T (&picEntries)[size],
 //----------------------------------------------------------------------------------------------------------------------------------
 template <typename T, size_t size>
 void
-d3d12_video_decoder_references_manager::MarkReferencesInUse(const T (&picEntries)[size])
+d3d12_video_decoder_references_manager::mark_references_in_use(const T (&picEntries)[size])
 {
    for (auto &picEntry : picEntries) {
-      MarkReferenceInUse(picEntry.Index7Bits);
+      mark_reference_in_use(picEntry.Index7Bits);
    }
 }
 

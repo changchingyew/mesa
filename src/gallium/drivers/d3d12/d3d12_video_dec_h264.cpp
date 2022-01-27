@@ -27,8 +27,8 @@
 void
 d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec)
 {
-   pD3D12Dec->m_spDPBManager->MarkAllReferencesAsUnused();
-   pD3D12Dec->m_spDPBManager->MarkReferencesInUse(
+   pD3D12Dec->m_spDPBManager->mark_all_references_as_unused();
+   pD3D12Dec->m_spDPBManager->mark_references_in_use(
       d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList);
 }
 
@@ -60,7 +60,7 @@ d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_dec
                                                           UINT                        subresourceIndex)
 {
    DXVA_PicParams_H264 *pPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
-   pPicParams->CurrPic.Index7Bits  = pD3D12Dec->m_spDPBManager->StoreFutureReference(pPicParams->CurrPic.Index7Bits,
+   pPicParams->CurrPic.Index7Bits  = pD3D12Dec->m_spDPBManager->store_future_reference(pPicParams->CurrPic.Index7Bits,
                                                                                     pD3D12Dec->m_spVideoDecoderHeap,
                                                                                     pTexture2D,
                                                                                     subresourceIndex);
@@ -76,8 +76,8 @@ d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_dec
    //     all cases, when Index7Bits does not contain a valid index, the value is 127.
 
    std::vector<D3D12_RESOURCE_BARRIER>
-      neededStateTransitions;   // Returned by UpdateEntries to perform by the method caller
-   pD3D12Dec->m_spDPBManager->UpdateEntries(
+      neededStateTransitions;   // Returned by update_entries to perform by the method caller
+   pD3D12Dec->m_spDPBManager->update_entries(
       d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList,
       neededStateTransitions);
 

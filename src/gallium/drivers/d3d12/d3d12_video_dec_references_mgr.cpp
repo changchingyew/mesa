@@ -44,13 +44,13 @@ GetInvalidReferenceIndex(D3D12_VIDEO_DECODE_PROFILE_TYPE DecodeProfileType)
 //----------------------------------------------------------------------------------------------------------------------------------
 ///
 /// This should always be a clear (non ref only) texture, to be presented downstream as the decoded texture
-/// Please see GetReferenceOnlyOutput for the current frame recon pic ref only allocation
+/// Please see get_reference_only_output for the current frame recon pic ref only allocation
 ///
 void
-d3d12_video_decoder_references_manager::GetCurrentFrameDecodeOutputTexture(ID3D12Resource **ppOutTexture2D,
+d3d12_video_decoder_references_manager::get_current_frame_decode_output_texture(ID3D12Resource **ppOutTexture2D,
                                                                        UINT *           pOutSubresourceIndex)
 {
-   if (IsReferenceOnly()) {
+   if (is_reference_only()) {
       // When using clear DPB references (not ReferenceOnly) the decode output allocations come from
       // m_upD3D12TexturesStorageManager as decode output == reconpic decode output Otherwise, when ReferenceOnly is
       // true, both the reference frames in the DPB and the current frame reconpic output must be REFERENCE_ONLY, all
@@ -93,16 +93,16 @@ d3d12_video_decoder_references_manager::GetCurrentFrameDecodeOutputTexture(ID3D1
 
 //----------------------------------------------------------------------------------------------------------------------------------
 _Use_decl_annotations_ void
-d3d12_video_decoder_references_manager::GetReferenceOnlyOutput(
+d3d12_video_decoder_references_manager::get_reference_only_output(
    ID3D12Resource **ppOutputReference,     // out -> new reference slot assigned or nullptr
    UINT *           pOutputSubresource,    // out -> new reference slot assigned or nullptr
    bool &outNeedsTransitionToDecodeWrite   // out -> indicates if output resource argument has to be transitioned to
                                            // D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
 )
 {
-   if (!IsReferenceOnly()) {
-      D3D12_LOG_ERROR("[d3d12_video_decoder_references_manager] d3d12_video_decoder_references_manager::GetReferenceOnlyOutput "
-                      "expected IsReferenceOnly() to be true.\n");
+   if (!is_reference_only()) {
+      D3D12_LOG_ERROR("[d3d12_video_decoder_references_manager] d3d12_video_decoder_references_manager::get_reference_only_output "
+                      "expected is_reference_only() to be true.\n");
    }
 
    // The DPB Storage only has REFERENCE_ONLY allocations, use one of those.
@@ -189,13 +189,13 @@ d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(c
       m_upD3D12TexturesStorageManager->insert_reference_frame(reconPicture, dpbIdx);
    }
 
-   MarkAllReferencesAsUnused();
-   ReleaseUnusedReferencesTexturesMemory();
+   mark_all_references_as_unused();
+   release_unused_references_texture_memory();
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
 UINT16
-d3d12_video_decoder_references_manager::FindRemappedIndex(UINT16 originalIndex)
+d3d12_video_decoder_references_manager::find_remapped_index(UINT16 originalIndex)
 {
    // Check if the index is already mapped.
    for (UINT16 remappedIndex = 0; remappedIndex < m_dpbDescriptor.dpbSize; remappedIndex++) {
@@ -209,7 +209,7 @@ d3d12_video_decoder_references_manager::FindRemappedIndex(UINT16 originalIndex)
 
 //----------------------------------------------------------------------------------------------------------------------------------
 UINT16
-d3d12_video_decoder_references_manager::UpdateEntry(
+d3d12_video_decoder_references_manager::update_entry(
    UINT16           index,                // in
    ID3D12Resource *&pOutputReference,     // out -> new reference slot assigned or nullptr
    UINT &           OutputSubresource,    // out -> new reference slot assigned or 0
@@ -221,11 +221,11 @@ d3d12_video_decoder_references_manager::UpdateEntry(
    outNeedsTransitionToDecodeRead = false;
 
    if (index != m_invalidIndex) {
-      remappedIndex = FindRemappedIndex(index);
+      remappedIndex = find_remapped_index(index);
 
       outNeedsTransitionToDecodeRead = true;
       if (remappedIndex == m_invalidIndex || remappedIndex == m_currentOutputIndex) {
-         D3D12_LOG_INFO("[d3d12_video_decoder_references_manager] UpdateEntry - Invalid Reference Index\n");
+         D3D12_LOG_INFO("[d3d12_video_decoder_references_manager] update_entry - Invalid Reference Index\n");
 
          remappedIndex                  = m_currentOutputIndex;
          outNeedsTransitionToDecodeRead = false;
@@ -242,13 +242,13 @@ d3d12_video_decoder_references_manager::UpdateEntry(
 
 //----------------------------------------------------------------------------------------------------------------------------------
 _Use_decl_annotations_ UINT16
-d3d12_video_decoder_references_manager::StoreFutureReference(UINT16                          index,
+d3d12_video_decoder_references_manager::store_future_reference(UINT16                          index,
                                                          ComPtr<ID3D12VideoDecoderHeap> &decoderHeap,
                                                          ID3D12Resource *                pTexture2D,
                                                          UINT                            subresourceIndex)
 {
    // Check if the index was in use.
-   UINT16 remappedIndex = FindRemappedIndex(index);
+   UINT16 remappedIndex = find_remapped_index(index);
 
    if (remappedIndex == m_invalidIndex) {
       // If not already mapped, see if the same index in the remapped space is available.
@@ -259,7 +259,7 @@ d3d12_video_decoder_references_manager::StoreFutureReference(UINT16             
 
    if (remappedIndex == m_invalidIndex) {
       // The current output index was not used last frame.  Get an unused entry.
-      remappedIndex = FindRemappedIndex(m_invalidIndex);
+      remappedIndex = find_remapped_index(m_invalidIndex);
    }
 
    if (remappedIndex == m_invalidIndex) {
@@ -283,10 +283,10 @@ d3d12_video_decoder_references_manager::StoreFutureReference(UINT16             
 
 //----------------------------------------------------------------------------------------------------------------------------------
 void
-d3d12_video_decoder_references_manager::MarkReferenceInUse(UINT16 index)
+d3d12_video_decoder_references_manager::mark_reference_in_use(UINT16 index)
 {
    if (index != m_invalidIndex) {
-      UINT16 remappedIndex = FindRemappedIndex(index);
+      UINT16 remappedIndex = find_remapped_index(index);
       if (remappedIndex != m_invalidIndex) {
          m_referenceDXVAIndices[remappedIndex].fUsed = true;
       }
@@ -295,7 +295,7 @@ d3d12_video_decoder_references_manager::MarkReferenceInUse(UINT16 index)
 
 //----------------------------------------------------------------------------------------------------------------------------------
 void
-d3d12_video_decoder_references_manager::ReleaseUnusedReferencesTexturesMemory()
+d3d12_video_decoder_references_manager::release_unused_references_texture_memory()
 {
    for (UINT index = 0; index < m_dpbDescriptor.dpbSize; index++) {
       if (!m_referenceDXVAIndices[index].fUsed) {
@@ -317,7 +317,7 @@ d3d12_video_decoder_references_manager::ReleaseUnusedReferencesTexturesMemory()
 
 //----------------------------------------------------------------------------------------------------------------------------------
 void
-d3d12_video_decoder_references_manager::MarkAllReferencesAsUnused()
+d3d12_video_decoder_references_manager::mark_all_references_as_unused()
 {
    for (UINT index = 0; index < m_dpbDescriptor.dpbSize; index++) {
       m_referenceDXVAIndices[index].fUsed = false;

@@ -896,14 +896,14 @@ d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12D
    d3d12_video_decoder_refresh_dpb_active_references(pD3D12Dec);
 
    // Get the output texture for the current frame to be decoded
-   pD3D12Dec->m_spDPBManager->GetCurrentFrameDecodeOutputTexture(ppOutTexture2D, pOutSubresourceIndex);
+   pD3D12Dec->m_spDPBManager->get_current_frame_decode_output_texture(ppOutTexture2D, pOutSubresourceIndex);
 
    // Get the reference only texture for the current frame to be decoded (if applicable)
    bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags &
                           D3D12_VIDEO_DECODE_CONFIG_SPECIFIC_REFERENCE_ONLY_TEXTURES_REQUIRED) != 0;
    if (fReferenceOnly) {
       bool needsTransitionToDecodeWrite = false;
-      pD3D12Dec->m_spDPBManager->GetReferenceOnlyOutput(ppRefOnlyOutTexture2D,
+      pD3D12Dec->m_spDPBManager->get_reference_only_output(ppRefOnlyOutTexture2D,
                                                         pRefOnlyOutSubresourceIndex,
                                                         needsTransitionToDecodeWrite);
       VERIFY_IS_TRUE(needsTransitionToDecodeWrite);
@@ -1057,7 +1057,7 @@ d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD
    // Method overview
    // 1. Codec specific strategy in switch statement regarding reference frames eviction policy. Should only mark active
    // DPB references, leaving evicted ones as unused
-   // 2. Call ReleaseUnusedReferencesTexturesMemory(); at the end of this method. Any references (and texture
+   // 2. Call release_unused_references_texture_memory(); at the end of this method. Any references (and texture
    // allocations associated)
    //    that were left not marked as used in m_spDPBManager by step (2) are lost.
 
@@ -1077,7 +1077,7 @@ d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD
 
    // Releases the underlying reference picture texture objects of all references that were not marked as used in this
    // method.
-   pD3D12Dec->m_spDPBManager->ReleaseUnusedReferencesTexturesMemory();
+   pD3D12Dec->m_spDPBManager->release_unused_references_texture_memory();
 }
 
 void
