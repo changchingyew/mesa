@@ -91,7 +91,11 @@ struct D3D12VideoDecoderReferencesManager
    };
 
    // Holds the DPB textures
-   std::unique_ptr<ID3D12VideoDPBStorageManager<ID3D12VideoDecoderHeap>> m_upD3D12TexturesStorageManager;
+   std::unique_ptr<ID3D12VideoDPBStorageManager> m_upD3D12TexturesStorageManager;
+   std::vector<ID3D12VideoDecoderHeap *>
+      m_ppHeaps;   // Auxiliary allocation to QueryInterface the IUnknown's
+                   // m_upD3D12TexturesStorageManager->GetCurrentFrameReferenceFrames().ppHeaps
+                   // containing the generic video encode/decode heap;
 
    // Holds the mapping between DXVA PicParams indices and the D3D12 indices
    std::vector<ReferenceData> m_referenceDXVAIndices;

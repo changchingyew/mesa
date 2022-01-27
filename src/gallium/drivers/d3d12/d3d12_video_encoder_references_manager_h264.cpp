@@ -31,12 +31,12 @@
 using namespace std;
 
 D3D12VideoEncoderReferencesManagerH264::D3D12VideoEncoderReferencesManagerH264(
-   bool                                                  gopHasIorPFrames,
-   ID3D12VideoDPBStorageManager<ID3D12VideoEncoderHeap> &rDpbStorageManager,
-   UINT                                                  MaxL0ReferencesForP,
-   UINT                                                  MaxL0ReferencesForB,
-   UINT                                                  MaxL1ReferencesForB,
-   UINT                                                  MaxDPBCapacity)
+   bool                          gopHasIorPFrames,
+   ID3D12VideoDPBStorageManager &rDpbStorageManager,
+   UINT                          MaxL0ReferencesForP,
+   UINT                          MaxL0ReferencesForB,
+   UINT                          MaxL1ReferencesForB,
+   UINT                          MaxDPBCapacity)
    : m_MaxL0ReferencesForP(MaxL0ReferencesForP),
      m_MaxL0ReferencesForB(MaxL0ReferencesForB),
      m_MaxL1ReferencesForB(MaxL1ReferencesForB),
@@ -205,10 +205,10 @@ D3D12VideoEncoderReferencesManagerH264::UpdateFIFODPB_PushFrontCurReconPicture()
       }
 
       // Add new dpb to front of DPB
-      D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE                 recAlloc = GetCurrentFrameReconPicOutputAllocation();
-      D3D12_VIDEO_RECONSTRUCTED_PICTURE<ID3D12VideoEncoderHeap> refFrameDesc = {};
-      refFrameDesc.pReconstructedPicture                                     = recAlloc.pReconstructedPicture;
-      refFrameDesc.ReconstructedPictureSubresource                           = recAlloc.ReconstructedPictureSubresource;
+      D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE recAlloc     = GetCurrentFrameReconPicOutputAllocation();
+      D3D12_VIDEO_RECONSTRUCTED_PICTURE         refFrameDesc = {};
+      refFrameDesc.pReconstructedPicture                     = recAlloc.pReconstructedPicture;
+      refFrameDesc.ReconstructedPictureSubresource           = recAlloc.ReconstructedPictureSubresource;
       refFrameDesc.pVideoHeap = nullptr;   // D3D12 Video Encode does not need the D3D12VideoEncoderHeap struct for H264
                                            // (used for no-key-frame resolution change in VC1, AV1, etc)
       m_rDPBStorageManager.InsertReferenceFrame(refFrameDesc, 0);

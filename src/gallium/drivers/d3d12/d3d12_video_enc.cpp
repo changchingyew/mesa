@@ -227,7 +227,7 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
                                1u;   // adding an extra slot as we also need to count the current frame output recon
                                      // allocation along max reference frame allocations
       if (fArrayOfTextures) {
-         pD3D12Enc->m_upDPBStorageManager = std::make_unique<D3D12ArrayOfTexturesDPBManager<ID3D12VideoEncoderHeap>>(
+         pD3D12Enc->m_upDPBStorageManager = std::make_unique<D3D12ArrayOfTexturesDPBManager>(
             texturePoolSize,
             pD3D12Enc->m_pD3D12Screen->dev,
             pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
@@ -236,13 +236,13 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
             true,   // setNullSubresourcesOnAllZero - D3D12 Video Encode expects nullptr pSubresources if AoT,
             pD3D12Enc->m_NodeMask);
       } else {
-         pD3D12Enc->m_upDPBStorageManager = std::make_unique<D3D12TexturesArrayDPBManager<ID3D12VideoEncoderHeap>>(
-            texturePoolSize,
-            pD3D12Enc->m_pD3D12Screen->dev,
-            pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
-            pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
-            resourceAllocFlags,
-            pD3D12Enc->m_NodeMask);
+         pD3D12Enc->m_upDPBStorageManager =
+            std::make_unique<D3D12TexturesArrayDPBManager>(texturePoolSize,
+                                                           pD3D12Enc->m_pD3D12Screen->dev,
+                                                           pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
+                                                           pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
+                                                           resourceAllocFlags,
+                                                           pD3D12Enc->m_NodeMask);
       }
       VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
       d3d12_video_encoder_create_reference_picture_manager(pD3D12Enc);
@@ -1117,8 +1117,8 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
       pInputVideoD3D12Res,
       inputVideoD3D12Subresource,
       prefixGeneratedHeadersByteSize   // hint for driver to know header size in final bitstream for rate control internal
-                                       // budgeting. - User can also calculate headers fixed size beforehand (eg. no VUI,
-                                       // etc) and build them with final values after EncodeFrame is executed
+      // budgeting. - User can also calculate headers fixed size beforehand (eg. no VUI,
+      // etc) and build them with final values after EncodeFrame is executed
    };
 
    const D3D12_VIDEO_ENCODER_ENCODEFRAME_OUTPUT_ARGUMENTS outputStreamArguments = {
