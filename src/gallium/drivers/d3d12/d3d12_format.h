@@ -77,9 +77,6 @@ d3d12_get_format_start_plane(enum pipe_format fmt);
 unsigned
 d3d12_get_format_num_planes(enum pipe_format fmt);
 
-unsigned
-d3d12_get_plane_slice_from_plane_format(enum pipe_format overallFormat, enum pipe_format planeFormat);
-
 DXGI_FORMAT
 d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile);
 

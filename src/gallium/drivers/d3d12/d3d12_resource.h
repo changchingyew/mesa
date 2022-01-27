@@ -43,6 +43,7 @@ struct d3d12_resource {
    struct d3d12_bo *bo;
    DXGI_FORMAT dxgi_format;
    enum pipe_format overall_format;
+   unsigned int plane_slice;
    unsigned mip_levels;
    struct sw_displaytarget *dt;
    unsigned dt_stride;

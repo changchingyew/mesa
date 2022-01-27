@@ -197,7 +197,7 @@ d3d12_video_buffer_get_surfaces(struct pipe_video_buffer *buffer)
    // in d3d12_resource this is handled by having a linked list of planes with
    // d3dRes->base.next ptr to next plane resource
    // starting with the plane 0 being the overall resource
-   struct pipe_resource *pBaseResource = &pD3D12VideoBuffer->m_pD3D12Resource->base.b;
+   struct pipe_resource *pCurPlaneResource = &pD3D12VideoBuffer->m_pD3D12Resource->base.b;
 
    for (uint PlaneSlice = 0; PlaneSlice < pD3D12VideoBuffer->m_NumPlanes; ++PlaneSlice) {
       if (!pD3D12VideoBuffer->m_SurfacePlanes[PlaneSlice]) {
@@ -205,12 +205,14 @@ d3d12_video_buffer_get_surfaces(struct pipe_video_buffer *buffer)
          surface_template.format =
             util_format_get_plane_format(pD3D12VideoBuffer->m_pD3D12Resource->overall_format, PlaneSlice);
 
-         pD3D12VideoBuffer->m_SurfacePlanes[PlaneSlice] = pipe->create_surface(pipe, pBaseResource, &surface_template);
+         pD3D12VideoBuffer->m_SurfacePlanes[PlaneSlice] =
+            pipe->create_surface(pipe, pCurPlaneResource, &surface_template);
 
          if (!pD3D12VideoBuffer->m_SurfacePlanes[PlaneSlice]) {
             goto error;
          }
       }
+      pCurPlaneResource = pCurPlaneResource->next;
    }
 
    return pD3D12VideoBuffer->m_SurfacePlanes.data();

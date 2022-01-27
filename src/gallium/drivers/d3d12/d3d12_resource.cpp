@@ -265,7 +265,7 @@ convert_planar_resource(struct d3d12_resource *res)
       &res->base.b, nullptr, nullptr
    };
    for (int plane = num_planes - 1; plane >= 0; --plane) {
-      struct d3d12_resource *plane_res = d3d12_resource(planes[plane]);
+      struct d3d12_resource *plane_res = d3d12_resource(planes[plane]);      
       if (!plane_res) {
          plane_res = CALLOC_STRUCT(d3d12_resource);
          *plane_res = *res;
@@ -277,6 +277,7 @@ convert_planar_resource(struct d3d12_resource *res)
       plane_res->base.b.next = next;
       next = &plane_res->base.b;
 
+      plane_res->plane_slice = plane;
       plane_res->base.b.format = util_format_get_plane_format(res->base.b.format, plane);
       plane_res->base.b.width0 = util_format_get_plane_width(res->base.b.format, plane, res->base.b.width0);
       plane_res->base.b.height0 = util_format_get_plane_height(res->base.b.format, plane, res->base.b.height0);
@@ -305,6 +306,7 @@ d3d12_resource_create(struct pipe_screen *pscreen,
 
    res->base.b = *templ;
    res->overall_format = templ->format;
+   res->plane_slice = 0;
 
    if (D3D12_DEBUG_RESOURCE & d3d12_debug) {
       debug_printf("D3D12: Create %sresource %s@%d %dx%dx%d as:%d mip:%d\n",
@@ -522,6 +524,7 @@ d3d12_resource_from_handle(struct pipe_screen *pscreen,
       handle->format = res->overall_format;
 
    res->dxgi_format = d3d12_get_format(res->overall_format);
+   res->plane_slice = handle->plane;
 
    if (!res->bo) {
       res->bo = d3d12_bo_wrap_res(d3d12_res, res->overall_format);
@@ -1255,7 +1258,7 @@ d3d12_transfer_map(struct pipe_context *pctx,
    {
       // Cannot distinguish between subresource planes calls here and copy_info.src_loc has whe wrong subresource src and ends up copying
       // half the size of height into the UV mapped dst buffer but from the Y plane values
-      level = d3d12_get_plane_slice_from_plane_format(res->overall_format, pres->format);
+      level = res->plane_slice; // TODO: Don't use the level arg, down in the stack use the plane_slice to calculate the right subresource
    }
 
    if (usage & PIPE_MAP_DIRECTLY || !res->bo)
