@@ -317,17 +317,17 @@ copy_subregion_no_barriers(struct d3d12_context *ctx,
 
       src_loc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
       src_loc.SubresourceIndex = get_subresource_id(src->base.b.target, src_level, src_subres_stride, src_z, &src_z) +
-                                 subres * stencil_src_res_offset;
+                                 subres * stencil_src_res_offset + src->plane_slice;
       src_loc.pResource = d3d12_resource_resource(src);
 
       dst_loc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
       dst_loc.SubresourceIndex = get_subresource_id(dst->base.b.target, dst_level, dst_subres_stride, dstz, &dstz) +
-                                 subres * stencil_dst_res_offset;
+                                 subres * stencil_dst_res_offset + dst->plane_slice;
       dst_loc.pResource = d3d12_resource_resource(dst);
 
       if (psrc_box->x == 0 && psrc_box->y == 0 && psrc_box->z == 0 &&
-          psrc_box->width == (util_format_is_yuv(src->overall_format) ? src->base.b.width0 : (int)u_minify(src->base.b.width0, src_level)) &&
-          psrc_box->height == (util_format_is_yuv(src->overall_format) ? src->base.b.height0 : (int)u_minify(src->base.b.height0, src_level)) &&
+          psrc_box->width == (int)u_minify(src->base.b.width0, src_level) &&
+          psrc_box->height == (int)u_minify(src->base.b.height0, src_level) &&
           psrc_box->depth == (int)u_minify(src->base.b.depth0, src_level)) {
 
          assert((dstx == 0 && dsty == 0 && dstz == 0) ||
@@ -344,9 +344,9 @@ copy_subregion_no_barriers(struct d3d12_context *ctx,
       } else {
          D3D12_BOX src_box;
          src_box.left = psrc_box->x;
-         src_box.right = MIN2(psrc_box->x + psrc_box->width, (util_format_is_yuv(src->overall_format) ? src->base.b.width0 : (int)u_minify(src->base.b.width0, src_level)));
+         src_box.right = MIN2(psrc_box->x + psrc_box->width, (int)u_minify(src->base.b.width0, src_level));
          src_box.top = psrc_box->y;
-         src_box.bottom = MIN2(psrc_box->y + psrc_box->height, (util_format_is_yuv(src->overall_format) ? src->base.b.height0 : (int)u_minify(src->base.b.height0, src_level)));
+         src_box.bottom = MIN2(psrc_box->y + psrc_box->height, (int)u_minify(src->base.b.height0, src_level));
          src_box.front = src_z;
          src_box.back = src_z + psrc_box->depth;
 

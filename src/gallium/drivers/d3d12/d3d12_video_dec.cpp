@@ -609,13 +609,13 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
 
       pD3D12Dec->base.context->resource_copy_region(pD3D12Dec->base.context,
                                                     pPipeDstViews[PlaneSlice]->texture,              // dst
-                                                    PlaneSlice,                                      // dst subres
+                                                    0,                                               // dst level
                                                     0,                                               // dstX
                                                     0,                                               // dstY
                                                     0,                                               // dstZ
                                                     (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next,   // src
-                                                    planeOutputSubresource,                          // src subresource
-                                                    &box);
+                                                    0,                                               // src level
+                                                    &box);   // TODO: Need to support planar texture arrays subresource
    }
    // Flush resource_copy_region batch
    pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
