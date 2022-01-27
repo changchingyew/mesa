@@ -651,7 +651,7 @@ fill_texture_location(struct d3d12_resource *res,
                       struct d3d12_transfer *trans, unsigned resid, unsigned z)
 {
    D3D12_TEXTURE_COPY_LOCATION tex_loc = {0};
-   int subres = get_subresource_id(res, resid, z, trans->base.b.level);
+   int subres = get_subresource_id(res, resid, z, trans->base.b.level) + res->plane_slice;
 
    tex_loc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
    tex_loc.SubresourceIndex = subres;
@@ -674,7 +674,7 @@ fill_buffer_location(struct d3d12_context *ctx,
    struct d3d12_screen *screen = d3d12_screen(ctx->base.screen);
    ID3D12Device* dev = screen->dev;
 
-   unsigned sub_resid = get_subresource_id(res, resid, z, trans->base.b.level);
+   unsigned sub_resid = get_subresource_id(res, resid, z, trans->base.b.level) + res->plane_slice;
    dev->GetCopyableFootprints(&descr, sub_resid, 1, 0, &footprint, nullptr, nullptr, nullptr);
 
    buf_loc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
@@ -1245,21 +1245,6 @@ d3d12_transfer_map(struct pipe_context *pctx,
    struct d3d12_context *ctx = d3d12_context(pctx);
    struct d3d12_resource *res = d3d12_resource(pres);
    struct d3d12_screen *screen = d3d12_screen(pres->screen);
-
-   // Some callers (like vlVaGetImage call pipe_map_texture with the following pattern from sampler_views of a planar d3d12_resource
-   // drv->pipe->texture_map(drv->pipe, views[PlaneSlice]->texture /*associated individual plane resource*/, 0 /*level*/, ...);
-   // Which passes the actual plane pipe_resource object, always with level 0.
-   // When we cast pres into res, it opaques the individual planes being passed in pres of d3d12_resource objects with planer formats
-   // as any plane (ie R8, R8G8 in NV12) object passed in pres ends up being casted to an (ie. NV12) d3d12_resource object in res, 
-   // losing the PlaneSlice specific data.
-   // This causes the map.src resource to be always considered to be the subresource 0 (Y plane) when passing Y or UV planes in pres.
-   // Let's detect the actual planar subresource and use that as map.src.subresource
-   if(util_format_is_yuv(res->overall_format))
-   {
-      // Cannot distinguish between subresource planes calls here and copy_info.src_loc has whe wrong subresource src and ends up copying
-      // half the size of height into the UV mapped dst buffer but from the Y plane values
-      level = res->plane_slice; // TODO: Don't use the level arg, down in the stack use the plane_slice to calculate the right subresource
-   }
 
    if (usage & PIPE_MAP_DIRECTLY || !res->bo)
       return NULL;
