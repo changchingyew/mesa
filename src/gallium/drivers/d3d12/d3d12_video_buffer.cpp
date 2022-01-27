@@ -66,14 +66,8 @@ d3d12_video_buffer_create(struct pipe_context *pipe, const struct pipe_video_buf
       return nullptr;
    }
 
-   struct d3d12_video_buffer *pD3D12VideoBuffer =
-      new d3d12_video_buffer;   // Not using new doesn't call ctor and the initializations in the class declaration are
-                                // lost
-   if (!pD3D12VideoBuffer) {
-      D3D12_LOG_ERROR(
-         "[d3d12_video_buffer] d3d12_video_buffer_create - Could not allocate memory for d3d12_video_buffer\n");
-      return nullptr;
-   }
+   // Not using new doesn't call ctor and the initializations in the class declaration are lost
+   struct d3d12_video_buffer *pD3D12VideoBuffer = new d3d12_video_buffer;
 
    // Fill base template
    pD3D12VideoBuffer->base               = *tmpl;

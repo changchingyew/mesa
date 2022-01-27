@@ -49,14 +49,9 @@ d3d12_video_create_decoder(struct pipe_context *context, const struct pipe_video
    /// Initialize d3d12_video_decoder
    ///
 
-   struct d3d12_video_decoder *pD3D12Dec =
-      new d3d12_video_decoder;   // Not using new doesn't call ctor and the initializations in the class declaration are
-                                 // lost
-   if (!pD3D12Dec) {
-      D3D12_LOG_ERROR(
-         "[d3d12_video_decoder] d3d12_video_create_decoder - Could not allocate memory for d3d12_video_decoder\n");
-      return nullptr;
-   }
+
+   // Not using new doesn't call ctor and the initializations in the class declaration are lost
+   struct d3d12_video_decoder *pD3D12Dec = new d3d12_video_decoder;
 
    pD3D12Dec->base     = *codec;
    pD3D12Dec->m_screen = context->screen;
