@@ -151,7 +151,8 @@ initialize_rtv(struct pipe_context *pctx,
                struct pipe_resource *pres,
                const struct pipe_surface *tpl,
                struct d3d12_descriptor_handle *handle,
-               DXGI_FORMAT dxgi_format)
+               DXGI_FORMAT dxgi_format,
+               enum pipe_format plane_format)
 {
    struct d3d12_resource *res = d3d12_resource(pres);
    struct d3d12_screen *screen = d3d12_screen(pctx->screen);
@@ -195,7 +196,7 @@ initialize_rtv(struct pipe_context *pctx,
       desc.Texture2D.PlaneSlice = 0;
       if(util_format_is_yuv(res->overall_format))
       {
-         desc.Texture2D.PlaneSlice = d3d12_get_plane_slice_from_plane_format(res->overall_format, d3d12_get_pipe_format(desc.Format));
+         desc.Texture2D.PlaneSlice = d3d12_get_plane_slice_from_plane_format(res->overall_format, plane_format);
       }      
       break;
 
@@ -260,7 +261,7 @@ d3d12_create_surface(struct pipe_context *pctx,
    if (is_depth_or_stencil)
       initialize_dsv(pctx, pres, tpl, &surface->desc_handle, dxgi_format);
    else
-      initialize_rtv(pctx, pres, tpl, &surface->desc_handle, dxgi_format);
+      initialize_rtv(pctx, pres, tpl, &surface->desc_handle, dxgi_format, tpl->format);
 
    return &surface->base;
 }
@@ -348,7 +349,7 @@ d3d12_surface_update_pre_draw(struct pipe_context *pctx,
 
    if (!d3d12_descriptor_handle_is_allocated(&surface->uint_rtv_handle)) {
       initialize_rtv(surface->base.context, &res->base.b, &surface->base,
-                     &surface->uint_rtv_handle, DXGI_FORMAT_R8G8B8A8_UINT);
+                     &surface->uint_rtv_handle, DXGI_FORMAT_R8G8B8A8_UINT, PIPE_FORMAT_R8G8B8A8_UINT);
    }
 
    return mode;
