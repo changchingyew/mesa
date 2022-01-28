@@ -81,7 +81,7 @@ d3d12_texture_array_dpb_manager::d3d12_texture_array_dpb_manager(
      m_nodeMask(nodeMask)
 {
    // Initialize D3D12 DPB exposed in this class implemented CRUD interface for a DPB
-   VERIFY_IS_TRUE(0u == clear_decode_picture_buffer());
+   assert(0u == clear_decode_picture_buffer());
 
    // Implement a reusable pool of D3D12 Resources as an array of textures
    UINT16 poolFixedSize = m_dpbTextureArraySize;

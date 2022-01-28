@@ -141,7 +141,7 @@ d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video
    struct pipe_h264_enc_picture_desc * h264Pic = (struct pipe_h264_enc_picture_desc *) picture;
    d3d12_video_bitstream_builder_h264 *pH264BitstreamBuilder =
       dynamic_cast<d3d12_video_bitstream_builder_h264 *>(pD3D12Enc->m_upBitstreamBuilder.get());
-   VERIFY_IS_TRUE(pH264BitstreamBuilder != nullptr);
+   assert(pH264BitstreamBuilder != nullptr);
 
    picParams.pH264PicData->pic_parameter_set_id     = pH264BitstreamBuilder->get_pps_count();
    picParams.pH264PicData->idr_pic_id               = h264Pic->idr_pic_id;
@@ -531,7 +531,11 @@ d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD
          pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT,
                                                               &capPictureControlData,
                                                               sizeof(capPictureControlData)));
-      VERIFY_IS_TRUE(capPictureControlData.IsSupported);
+      if (!capPictureControlData.IsSupported) {
+         D3D12_LOG_ERROR(
+            "[d3d12_video_encoder_h264] d3d12_video_encoder_update_h264_gop_configuration failed. "
+            "Requested configuration is not supported by D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT\n");
+      }
 
       // Calculate the DPB size for this session based on
       // 1. Driver reported caps
@@ -916,7 +920,7 @@ d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder *pD3D12E
 
    d3d12_video_bitstream_builder_h264 *pH264BitstreamBuilder =
       dynamic_cast<d3d12_video_bitstream_builder_h264 *>(pD3D12Enc->m_upBitstreamBuilder.get());
-   VERIFY_IS_TRUE(pH264BitstreamBuilder);
+   assert(pH264BitstreamBuilder);
 
    UINT active_seq_parameter_set_id = pH264BitstreamBuilder->get_sps_count();
    if (active_seq_parameter_set_id > 0) {

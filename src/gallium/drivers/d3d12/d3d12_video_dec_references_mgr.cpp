@@ -306,7 +306,11 @@ d3d12_video_decoder_references_manager::release_unused_references_texture_memory
          d3d12_video_reconstructed_picture reconPicture = m_upD3D12TexturesStorageManager->get_reference_frame(index);
          if (reconPicture.pReconstructedPicture != nullptr) {
             // Untrack this resource, will mark it as free un the underlying storage buffer pool
-            VERIFY_IS_TRUE(m_upD3D12TexturesStorageManager->untrack_reconstructed_picture_allocation(reconPicture));
+            if (!m_upD3D12TexturesStorageManager->untrack_reconstructed_picture_allocation(reconPicture)) {
+               D3D12_LOG_ERROR("[d3d12_video_decoder_references_manager] untrack_reconstructed_picture_allocation - "
+                               "untrack_reconstructed_picture_allocation called with a resource not tracked by the "
+                               "textures storage manager.\n");
+            }
             d3d12_video_reconstructed_picture nullReconPic = { nullptr, 0, nullptr };
 
             // Mark the unused refpic as null/empty in the DPB

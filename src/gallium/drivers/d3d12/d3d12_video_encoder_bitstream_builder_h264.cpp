@@ -75,7 +75,10 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
       constraint_set3_flag = 0;
    }
 
-   VERIFY_IS_TRUE((inputFmt == DXGI_FORMAT_NV12) || (inputFmt == DXGI_FORMAT_P010));
+   if ((inputFmt != DXGI_FORMAT_NV12) && (inputFmt != DXGI_FORMAT_P010)) {
+      D3D12_LOG_ERROR(
+         "[D3D12 d3d12_video_bitstream_builder_h264::build_sps] Failed - Supported inputFmt are NV12 or P010\n");
+   }
 
    // Assume NV12 YUV 420 8 bits
    UINT bit_depth_luma_minus8   = 0;

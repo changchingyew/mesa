@@ -34,7 +34,8 @@ d3d12_video_nalu_writer_h264::rbsp_trailing(d3d12_video_encoder_bitstream *pBits
       pBitstream->put_bits(iLeft, 0);
    }
 
-   VERIFY_IS_TRUE(pBitstream->is_byte_aligned());
+   bool isAligned = pBitstream->is_byte_aligned();   // causes side-effects in object state, don't put inside assert()
+   assert(isAligned);
 }
 
 UINT32
@@ -187,7 +188,8 @@ d3d12_video_nalu_writer_h264::wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream 
                                                   UINT                           iNaluIdc,
                                                   UINT                           iNaluType)
 {
-   VERIFY_IS_TRUE(pRBSP->is_byte_aligned());
+   bool isAligned = pRBSP->is_byte_aligned();   // causes side-effects in object state, don't put inside assert()
+   assert(isAligned);
 
    INT32 iBytesWritten = pNALU->get_byte_count();
 
@@ -220,7 +222,8 @@ d3d12_video_nalu_writer_h264::wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream 
       }
    }
 
-   VERIFY_IS_TRUE(pNALU->is_byte_aligned());
+   isAligned = pNALU->is_byte_aligned();   // causes side-effects in object state, don't put inside assert()
+   assert(isAligned);
    write_nalu_end(pNALU);
 
    pNALU->flush();
@@ -237,12 +240,23 @@ d3d12_video_nalu_writer_h264::sps_to_nalu_bytes(H264_SPS *                  pSPS
 {
    // Wrap SPS into NALU and copy full NALU into output byte array
    d3d12_video_encoder_bitstream rbsp, nalu;
-   VERIFY_IS_TRUE(rbsp.create_bitstream(MAX_COMPRESSED_SPS));
-   VERIFY_IS_TRUE(nalu.create_bitstream(2 * MAX_COMPRESSED_SPS));
+
+   if (!rbsp.create_bitstream(MAX_COMPRESSED_SPS)) {
+      D3D12_LOG_ERROR("rbsp.create_bitstream(MAX_COMPRESSED_SPS) failed\n");
+   }
+
+   if (!nalu.create_bitstream(2 * MAX_COMPRESSED_SPS)) {
+      D3D12_LOG_ERROR("nalu.create_bitstream(2 * MAX_COMPRESSED_SPS) failed\n");
+   }
 
    rbsp.set_start_code_prevention(TRUE);
-   VERIFY_IS_TRUE(write_sps_bytes(&rbsp, pSPS) > 0u);
-   VERIFY_IS_TRUE(wrap_sps_nalu(&nalu, &rbsp) > 0u);
+   if (write_sps_bytes(&rbsp, pSPS) <= 0u) {
+      D3D12_LOG_ERROR("write_sps_bytes(&rbsp, pSPS) didn't write any bytes.\n");
+   }
+
+   if (wrap_sps_nalu(&nalu, &rbsp) <= 0u) {
+      D3D12_LOG_ERROR("wrap_sps_nalu(&nalu, &rbsp) didn't write any bytes.\n");
+   }
 
    // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer
    // memory.
@@ -268,12 +282,23 @@ d3d12_video_nalu_writer_h264::pps_to_nalu_bytes(H264_PPS *                  pPPS
 {
    // Wrap PPS into NALU and copy full NALU into output byte array
    d3d12_video_encoder_bitstream rbsp, nalu;
-   VERIFY_IS_TRUE(rbsp.create_bitstream(MAX_COMPRESSED_PPS));
-   VERIFY_IS_TRUE(nalu.create_bitstream(2 * MAX_COMPRESSED_PPS));
+   if (!rbsp.create_bitstream(MAX_COMPRESSED_PPS)) {
+      D3D12_LOG_ERROR("rbsp.create_bitstream(MAX_COMPRESSED_PPS) failed\n");
+   }
+
+   if (!nalu.create_bitstream(2 * MAX_COMPRESSED_PPS)) {
+      D3D12_LOG_ERROR("nalu.create_bitstream(2 * MAX_COMPRESSED_PPS) failed\n");
+   }
 
    rbsp.set_start_code_prevention(TRUE);
-   VERIFY_IS_TRUE(write_pps_bytes(&rbsp, pPPS, bIsHighProfile) > 0u);
-   VERIFY_IS_TRUE(wrap_pps_nalu(&nalu, &rbsp) > 0u);
+
+   if (write_pps_bytes(&rbsp, pPPS, bIsHighProfile) <= 0u) {
+      D3D12_LOG_ERROR("write_pps_bytes(&rbsp, pPPS, bIsHighProfile) didn't write any bytes.\n");
+   }
+
+   if (wrap_pps_nalu(&nalu, &rbsp) <= 0u) {
+      D3D12_LOG_ERROR("wrap_pps_nalu(&nalu, &rbsp) didn't write any bytes.\n");
+   }
 
    // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer
    // memory.
@@ -296,11 +321,18 @@ d3d12_video_nalu_writer_h264::write_end_of_stream_nalu(std::vector<BYTE> &      
                                                        size_t &                    writtenBytes)
 {
    d3d12_video_encoder_bitstream rbsp, nalu;
-   VERIFY_IS_TRUE(rbsp.create_bitstream(8));
-   VERIFY_IS_TRUE(nalu.create_bitstream(2 * MAX_COMPRESSED_PPS));
+   if (!rbsp.create_bitstream(8)) {
+      D3D12_LOG_ERROR("rbsp.create_bitstream(8) failed\n");
+   }
+   if (!nalu.create_bitstream(2 * MAX_COMPRESSED_PPS)) {
+      D3D12_LOG_ERROR("nalu.create_bitstream(2 * MAX_COMPRESSED_PPS) failed\n");
+   }
 
    rbsp.set_start_code_prevention(TRUE);
-   VERIFY_IS_TRUE(wrap_rbsp_into_nalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_STREAM) > 0u);
+   if (wrap_rbsp_into_nalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_STREAM) <= 0u) {
+      D3D12_LOG_ERROR(
+         "wrap_rbsp_into_nalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_STREAM) didn't write any bytes.\n");
+   }
 
    // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer
    // memory.
@@ -323,11 +355,19 @@ d3d12_video_nalu_writer_h264::write_end_of_sequence_nalu(std::vector<BYTE> &    
                                                          size_t &                    writtenBytes)
 {
    d3d12_video_encoder_bitstream rbsp, nalu;
-   VERIFY_IS_TRUE(rbsp.create_bitstream(8));
-   VERIFY_IS_TRUE(nalu.create_bitstream(2 * MAX_COMPRESSED_PPS));
+   if (!rbsp.create_bitstream(8)) {
+      D3D12_LOG_ERROR("rbsp.create_bitstream(8) failed.\n")
+   }
+
+   if (!nalu.create_bitstream(2 * MAX_COMPRESSED_PPS)) {
+      D3D12_LOG_ERROR("nalu.create_bitstream(2 * MAX_COMPRESSED_PPS) failed.\n")
+   }
 
    rbsp.set_start_code_prevention(TRUE);
-   VERIFY_IS_TRUE(wrap_rbsp_into_nalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_SEQUENCE) > 0u);
+   if (wrap_rbsp_into_nalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_SEQUENCE) <= 0u) {
+
+      D3D12_LOG_ERROR("wrap_rbsp_into_nalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_SEQUENCE) didn't write any bytes.\n")
+   }
 
    // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer
    // memory.

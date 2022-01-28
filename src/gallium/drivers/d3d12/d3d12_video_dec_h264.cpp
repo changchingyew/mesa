@@ -107,7 +107,12 @@ d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder 
                                                             processedBitstreamBytes,
                                                             pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer,
                                                             pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
-      VERIFY_IS_TRUE(sliceFound);
+      if (!sliceFound) {
+         D3D12_LOG_ERROR("[d3d12_video_decoder_h264] Slice NOT FOUND with index %ld for frame with fenceValue: %d\n",
+                         sliceIdx,
+                         pD3D12Dec->m_fenceValue);
+      }
+
       D3D12_LOG_INFO("[d3d12_video_decoder_h264] Detected slice index %ld with size %d and offset %d for frame with "
                      "fenceValue: %d\n",
                      sliceIdx,
@@ -138,7 +143,7 @@ d3d12_video_decoder_get_slice_size_and_offset_h264(size_t             sliceIdx,
                                                                             DXVA_H264_START_CODE,
                                                                             DXVA_H264_START_CODE_LEN_BITS,
                                                                             numBitsToSearchIntoBuffer);
-   VERIFY_IS_TRUE(currentSlicePosition >= 0);
+   assert(currentSlicePosition >= 0);
 
    // Save the offset until the next slice in the output param
    outSliceOffset = currentSlicePosition + bufferOffset;
@@ -165,7 +170,7 @@ d3d12_video_decoder_get_slice_size_and_offset_h264(size_t             sliceIdx,
                                                                                        DXVA_H264_START_CODE,
                                                                                        DXVA_H264_START_CODE_LEN_BITS,
                                                                                        numBitsToSearchIntoBuffer);
-      VERIFY_IS_TRUE(nextSlicePosition >= 0);   // if currentSlicePosition was the last slice, this might fail
+      assert(nextSlicePosition >= 0);   // if currentSlicePosition was the last slice, this might fail
 
       outSliceSize = nextSlicePosition - currentSlicePosition;
    }

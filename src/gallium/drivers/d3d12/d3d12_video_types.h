@@ -85,13 +85,6 @@ using Microsoft::WRL::ComPtr;
          D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_SUCCEEDED(%s) failed with HR %x\n", #x, hr);               \
       }                                                                                                                \
    }
-#define VERIFY_IS_TRUE(x)                                                                                              \
-   {                                                                                                                   \
-      bool evaluationRes = (x);                                                                                        \
-      if (!evaluationRes) {                                                                                            \
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_TRUE(%s) failed\n", #x);                                \
-      }                                                                                                                \
-   }
 
 typedef enum
 {

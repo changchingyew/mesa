@@ -215,7 +215,12 @@ d3d12_video_decoder_decode_bitstream(struct pipe_video_codec * codec,
                                                  codec->profile,
                                                  PIPE_VIDEO_ENTRYPOINT_BITSTREAM,
                                                  PIPE_VIDEO_CAP_SUPPORTED);
-   VERIFY_IS_TRUE(capsResult != 0);
+   if (capsResult == 0) {
+      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream failed. Requested configuration is "
+                      "not supported by d3d12_screen_get_video_param"
+                      " for fenceValue: %d\n",
+                      pD3D12Dec->m_fenceValue);
+   }
 
    ///
    /// Compressed bitstream buffers
@@ -414,8 +419,13 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    const uint64_t d3d12BitstreamOffsetAlignment =
       128u;   // specified in
               // https://docs.microsoft.com/en-us/windows/win32/api/d3d12video/ne-d3d12video-d3d12_video_decode_tier
-   VERIFY_IS_TRUE((d3d12InputArguments.CompressedBitstream.Offset == 0) ||
-                  ((d3d12InputArguments.CompressedBitstream.Offset % d3d12BitstreamOffsetAlignment) == 0));
+   if (!((d3d12InputArguments.CompressedBitstream.Offset == 0) ||
+         ((d3d12InputArguments.CompressedBitstream.Offset % d3d12BitstreamOffsetAlignment) == 0))) {
+      D3D12_LOG_ERROR(
+         "[d3d12_video_decoder] d3d12_video_decoder_end_frame - d3d12InputArguments.CompressedBitstream.Offset is not "
+         "aligned to d3d12BitstreamOffsetAlignment: %ld.\n",
+         d3d12BitstreamOffsetAlignment);
+   }
    d3d12InputArguments.CompressedBitstream.Size = pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize;
 
    d3d12_record_state_transition(pD3D12Dec->m_spDecodeCommandList,
@@ -591,15 +601,15 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
                               1 };
 
       pD3D12Dec->base.context->resource_array_copy_region(pD3D12Dec->base.context,
-                                                          pPipeDstViews[PlaneSlice]->texture,              // dst
-                                                          0,                                               // dst level
-                                                          0,                                               // dst array slice
-                                                          0,                                               // dstX
-                                                          0,                                               // dstY
-                                                          0,                                               // dstZ
+                                                          pPipeDstViews[PlaneSlice]->texture,   // dst
+                                                          0,                                    // dst level
+                                                          0,                                    // dst array slice
+                                                          0,                                    // dstX
+                                                          0,                                    // dstY
+                                                          0,                                    // dstZ
                                                           (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next,   // src
                                                           0,                                               // src level
-                                                          d3d12OutputArguments.OutputSubresource,          // src array slice
+                                                          d3d12OutputArguments.OutputSubresource,   // src array slice
                                                           &box);
    }
    // Flush resource_copy_region batch
@@ -893,7 +903,7 @@ d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12D
       pD3D12Dec->m_spDPBManager->get_reference_only_output(ppRefOnlyOutTexture2D,
                                                            pRefOnlyOutSubresourceIndex,
                                                            needsTransitionToDecodeWrite);
-      VERIFY_IS_TRUE(needsTransitionToDecodeWrite);
+      assert(needsTransitionToDecodeWrite);
 
       CD3DX12_RESOURCE_DESC outputDesc((*ppRefOnlyOutTexture2D)->GetDesc());
       UINT                  MipLevel, PlaneSlice, ArraySlice;

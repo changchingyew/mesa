@@ -58,7 +58,7 @@ d3d12_video_encoder_bitstream::get_exp_golomb0_code_len(uint32_t uiVal)
       iLen += 8;
    }
 
-   VERIFY_IS_TRUE(uiVal < 256);
+   assert(uiVal < 256);
 
    return iLen + m_iLog_2_N[uiVal];
 }
@@ -100,7 +100,7 @@ d3d12_video_encoder_bitstream::setup_bitstream(uint32_t uiInitBufferSize, uint8_
 bool
 d3d12_video_encoder_bitstream::create_bitstream(uint32_t uiInitBufferSize)
 {
-   VERIFY_IS_TRUE((uiInitBufferSize) >= 4 && !(uiInitBufferSize & 3));
+   assert((uiInitBufferSize) >= 4 && !(uiInitBufferSize & 3));
 
    m_pBitsBuffer = (uint8_t *) new uint8_t[uiInitBufferSize];
 
@@ -153,14 +153,14 @@ d3d12_video_encoder_bitstream::verify_buffer(uint32_t uiBytesToWrite)
 void
 d3d12_video_encoder_bitstream::inc_current_offset(int32_t dwOffset)
 {
-   VERIFY_IS_TRUE(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
+   assert(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
    m_uiOffset += dwOffset;
 }
 
 void
 d3d12_video_encoder_bitstream::get_current_buffer_position_and_size(uint8_t **ppCurrBufPos, int32_t *pdwLeftBufSize)
 {
-   VERIFY_IS_TRUE(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
+   assert(32 == m_iBitsToGo && m_uiOffset < m_uiBitsBufferSize);
    *ppCurrBufPos   = m_pBitsBuffer + m_uiOffset;
    *pdwLeftBufSize = m_uiBitsBufferSize - m_uiOffset;
 }
@@ -201,7 +201,7 @@ d3d12_video_encoder_bitstream::write_byte_start_code_prevention(uint8_t u8Val)
 void
 d3d12_video_encoder_bitstream::put_bits(int32_t uiBitsCount, uint32_t iBitsVal)
 {
-   VERIFY_IS_TRUE(uiBitsCount <= 32);
+   assert(uiBitsCount <= 32);
 
    if (uiBitsCount < m_iBitsToGo) {
       m_uintEncBuffer |= (iBitsVal << (m_iBitsToGo - uiBitsCount));
@@ -228,7 +228,8 @@ d3d12_video_encoder_bitstream::put_bits(int32_t uiBitsCount, uint32_t iBitsVal)
 void
 d3d12_video_encoder_bitstream::flush()
 {
-   VERIFY_IS_TRUE(is_byte_aligned());
+   bool isAligned = is_byte_aligned(); // causes side-effects in object state, don't put inside assert()
+   assert(isAligned);
 
    uint32_t temp = (uint32_t)(32 - m_iBitsToGo);
 
@@ -249,8 +250,11 @@ d3d12_video_encoder_bitstream::flush()
 void
 d3d12_video_encoder_bitstream::append_byte_stream(d3d12_video_encoder_bitstream *pStream)
 {
-   VERIFY_IS_TRUE(pStream->is_byte_aligned() && is_byte_aligned());
-   VERIFY_IS_TRUE(m_iBitsToGo == 32);
+   bool isStreamAligned = pStream->is_byte_aligned(); // causes side-effects in object state, don't put inside assert()
+   assert(isStreamAligned);
+   bool isThisAligned = is_byte_aligned(); // causes side-effects in object state, don't put inside assert()
+   assert(isThisAligned);
+   assert(m_iBitsToGo == 32);
 
    uint8_t *pDst  = m_pBitsBuffer + m_uiOffset;
    uint8_t *pSrc  = pStream->get_bitstream_buffer();
