@@ -70,7 +70,7 @@ d3d12_video_encoder_references_manager_h264::reset_gop_tracking_and_dpb()
    // Reset DPB storage
    UINT numPicsBeforeClearInDPB = m_rDPBStorageManager.get_number_of_pics_in_dpb();
    UINT cFreedResources         = m_rDPBStorageManager.clear_decode_picture_buffer();
-   VERIFY_ARE_EQUAL(numPicsBeforeClearInDPB, cFreedResources);
+   assert(numPicsBeforeClearInDPB == cFreedResources);
 
    // Initialize if needed the reconstructed picture allocation for the first IDR picture in the GOP
    // This needs to be done after initializing the GOP tracking state above since it makes decisions based on the
@@ -79,9 +79,9 @@ d3d12_video_encoder_references_manager_h264::reset_gop_tracking_and_dpb()
 
    // After clearing the DPB, outstanding used allocations should be 1u only for the first allocation for the
    // reconstructed picture of the initial IDR in the GOP
-   VERIFY_ARE_EQUAL(m_rDPBStorageManager.get_number_of_in_use_allocations(), m_gopHasInterFrames ? 1u : 0u);
-   VERIFY_IS_LESS_THAN_OR_EQUAL(m_rDPBStorageManager.get_number_of_tracked_allocations(),
-                                (m_MaxDPBCapacity + 1));   // pool is not extended beyond maximum expected usage
+   assert(m_rDPBStorageManager.get_number_of_in_use_allocations() == m_gopHasInterFrames ? 1u : 0u);
+   assert(m_rDPBStorageManager.get_number_of_tracked_allocations() <=
+          (m_MaxDPBCapacity + 1));   // pool is not extended beyond maximum expected usage
 }
 
 // Calculates the picture control structure for the current frame
@@ -245,7 +245,7 @@ d3d12_video_encoder_references_manager_h264::update_fifo_dpb_push_front_cur_reco
 
    // Number of allocations, disregarding if they are used or not, should not exceed this limit due to reuse policies on
    // DPB items removal.
-   VERIFY_IS_LESS_THAN_OR_EQUAL(m_rDPBStorageManager.get_number_of_tracked_allocations(), (m_MaxDPBCapacity + 1));
+   assert(m_rDPBStorageManager.get_number_of_tracked_allocations() <= (m_MaxDPBCapacity + 1));
 }
 
 void

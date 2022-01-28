@@ -92,18 +92,6 @@ using Microsoft::WRL::ComPtr;
          D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_TRUE(%s) failed\n", #x);                                \
       }                                                                                                                \
    }
-#define VERIFY_ARE_EQUAL(a, b)                                                                                         \
-   {                                                                                                                   \
-      if ((a) != (b)) {                                                                                                \
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_ARE_EQUAL(%s, %s) failed\n", #a, #b);                      \
-      }                                                                                                                \
-   }
-#define VERIFY_IS_LESS_THAN_OR_EQUAL(a, b)                                                                             \
-   {                                                                                                                   \
-      if ((a) > (b)) {                                                                                                 \
-         D3D12_LOG_ERROR("[D3D12 Video Driver Error] VERIFY_IS_LESS_THAN_OR_EQUAL(%s, %s) failed\n", #a, #b);          \
-      }                                                                                                                \
-   }
 
 typedef enum
 {
