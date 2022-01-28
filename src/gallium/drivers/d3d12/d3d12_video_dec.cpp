@@ -584,22 +584,9 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    pipe_resource *pPipeSrc = d3d12_resource_from_resource(&pD3D12Screen->base, d3d12OutputArguments.pOutputTexture2D);
    assert(pPipeSrc);
 
-   UINT outputMipLevel, outputPlaneSlice, outputArraySlice;
-   D3D12DecomposeSubresource(d3d12OutputArguments.OutputSubresource,
-                             outputDesc.MipLevels,
-                             outputDesc.ArraySize(),
-                             outputMipLevel,
-                             outputArraySlice,
-                             outputPlaneSlice);
-
    // Copy all format subresources/texture planes
 
    for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
-      uint planeOutputSubresource = outputDesc.CalcSubresource(outputMipLevel, outputArraySlice, PlaneSlice);
-      D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout          = {};
-      UINT64                             totalPlaneBytes = 0;
-      pD3D12Screen->dev
-         ->GetCopyableFootprints(&outputDesc, planeOutputSubresource, 1, 0, &layout, nullptr, nullptr, &totalPlaneBytes);
       struct pipe_box box = { 0,
                               0,
                               0,
@@ -607,15 +594,17 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
                               static_cast<int16_t>(pPipeDstViews[PlaneSlice]->texture->height0),
                               1 };
 
-      pD3D12Dec->base.context->resource_copy_region(pD3D12Dec->base.context,
-                                                    pPipeDstViews[PlaneSlice]->texture,              // dst
-                                                    0,                                               // dst level
-                                                    0,                                               // dstX
-                                                    0,                                               // dstY
-                                                    0,                                               // dstZ
-                                                    (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next,   // src
-                                                    0,                                               // src level
-                                                    &box);   // TODO: Need to support planar texture arrays subresource
+      pD3D12Dec->base.context->resource_array_copy_region(pD3D12Dec->base.context,
+                                                          pPipeDstViews[PlaneSlice]->texture,              // dst
+                                                          0,                                               // dst level
+                                                          0,                                               // dst array slice
+                                                          0,                                               // dstX
+                                                          0,                                               // dstY
+                                                          0,                                               // dstZ
+                                                          (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next,   // src
+                                                          0,                                               // src level
+                                                          d3d12OutputArguments.OutputSubresource,          // src array slice
+                                                          &box);
    }
    // Flush resource_copy_region batch
    pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
