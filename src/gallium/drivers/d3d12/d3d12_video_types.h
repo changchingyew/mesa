@@ -24,10 +24,6 @@
 #ifndef D3D12_VIDEO_TYPES_H
 #define D3D12_VIDEO_TYPES_H
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wswitch"
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-
 #include <stdarg.h>
 #include <memory>
 #include <vector>
@@ -173,7 +169,5 @@ D3D12_VIDEO_ENCODER_CODEC
 d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(enum pipe_video_profile profile);
 GUID
 d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(enum pipe_video_profile profile);
-
-#pragma GCC diagnostic pop
 
 #endif

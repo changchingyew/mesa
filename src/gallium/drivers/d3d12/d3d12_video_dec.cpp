@@ -21,10 +21,6 @@
  * IN THE SOFTWARE.
  */
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wswitch"
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-
 #include "d3d12_context.h"
 #include "d3d12_format.h"
 #include "d3d12_resource.h"
@@ -1358,5 +1354,3 @@ d3d12_video_decoder_get_format_bitdepth(DXGI_FORMAT Format)
       } break;
    }
 }
-
-#pragma GCC diagnostic pop

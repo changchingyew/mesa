@@ -21,10 +21,6 @@
  * IN THE SOFTWARE.
  */
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wswitch"
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-
 #include "d3d12_context.h"
 #include "d3d12_format.h"
 #include "d3d12_resource.h"
@@ -1313,5 +1309,3 @@ d3d12_video_encoder_end_frame(struct pipe_video_codec * codec,
    d3d12_video_encoder_flush(codec);
    VERIFY_DEVICE_NOT_REMOVED(pD3D12Enc);
 }
-
-#pragma GCC diagnostic pop
