@@ -35,9 +35,11 @@ void
 d3d12_direct_copy(struct d3d12_context *ctx,
                   struct d3d12_resource *dst,
                   unsigned dst_level,
+                  unsigned dst_array_slice,
                   const struct pipe_box *pdst_box,
                   struct d3d12_resource *src,
                   unsigned src_level,
+                  unsigned src_array_slice,
                   const struct pipe_box *psrc_box, unsigned mask);
 
 #endif // D3D12_BLIT_H

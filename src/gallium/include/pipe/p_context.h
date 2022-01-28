@@ -656,6 +656,21 @@ struct pipe_context {
                                 unsigned src_level,
                                 const struct pipe_box *src_box);
 
+   /**
+    * Extension of resource_copy_region that allows
+    * to copy between texture arrays indicating
+    * the src and dst array slice indices
+    */
+   void (*resource_array_copy_region)(struct pipe_context *pipe,
+                                struct pipe_resource *dst,
+                                unsigned dst_level,
+                                unsigned dst_array_slice,
+                                unsigned dstx, unsigned dsty, unsigned dstz,
+                                struct pipe_resource *src,
+                                unsigned src_level,
+                                unsigned src_array_slice,
+                                const struct pipe_box *src_box);
+
    /* Optimal hardware path for blitting pixels.
     * Scaling, format conversion, up- and downsampling (resolve) are allowed.
     */

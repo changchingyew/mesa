@@ -643,7 +643,8 @@ get_subresource_id(struct d3d12_resource *res, unsigned resid,
    unsigned layer_stride = res->base.b.last_level + 1;
 
    return resid * resource_stride + z * layer_stride +
-         base_level;
+         base_level
+         + res->plane_slice * resource_stride;
 }
 
 static D3D12_TEXTURE_COPY_LOCATION
@@ -651,7 +652,7 @@ fill_texture_location(struct d3d12_resource *res,
                       struct d3d12_transfer *trans, unsigned resid, unsigned z)
 {
    D3D12_TEXTURE_COPY_LOCATION tex_loc = {0};
-   int subres = get_subresource_id(res, resid, z, trans->base.b.level) + res->plane_slice;
+   int subres = get_subresource_id(res, resid, z, trans->base.b.level);
 
    tex_loc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
    tex_loc.SubresourceIndex = subres;
@@ -674,7 +675,7 @@ fill_buffer_location(struct d3d12_context *ctx,
    struct d3d12_screen *screen = d3d12_screen(ctx->base.screen);
    ID3D12Device* dev = screen->dev;
 
-   unsigned sub_resid = get_subresource_id(res, resid, z, trans->base.b.level) + res->plane_slice;
+   unsigned sub_resid = get_subresource_id(res, resid, z, trans->base.b.level);
    dev->GetCopyableFootprints(&descr, sub_resid, 1, 0, &footprint, nullptr, nullptr, nullptr);
 
    buf_loc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
@@ -1435,7 +1436,7 @@ d3d12_resource_make_writeable(struct pipe_context *pctx,
       box.height = 1;
       box.depth = 1;
 
-      d3d12_direct_copy(ctx, dup_res, 0, &box, res, 0, &box, PIPE_MASK_RGBAZS);
+      d3d12_direct_copy(ctx, dup_res, 0, 0, &box, res, 0, 0, &box, PIPE_MASK_RGBAZS);
    }
 
    /* Move new BO to old resource */
