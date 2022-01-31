@@ -1134,12 +1134,21 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    // Upload the CPU buffers with the bitstream headers to the compressed bitstream resource in the interval [0,
    // prefixGeneratedHeadersByteSize)
    assert(prefixGeneratedHeadersByteSize == pD3D12Enc->m_BitstreamHeadersBuffer.size());
-   pD3D12Enc->m_d3d12_resource_copy_helper->upload_data(pOutputBufferD3D12Res,
-                                                        0,
-                                                        D3D12_RESOURCE_STATE_COMMON,
-                                                        pD3D12Enc->m_BitstreamHeadersBuffer.data(),
-                                                        pD3D12Enc->m_BitstreamHeadersBuffer.size(),
-                                                        pD3D12Enc->m_BitstreamHeadersBuffer.size());
+
+   /* One-shot transfer operation with data supplied in a user
+    * pointer.
+    */
+   pD3D12Enc->base.context->buffer_subdata(
+      pD3D12Enc->base.context,   // context
+      destination,               // dst buffer - "destination" is the pipe_resource object
+                                 // wrapping pOutputBitstreamBuffer and eventually pOutputBufferD3D12Res
+      PIPE_MAP_WRITE,            // usage PIPE_MAP_x
+      0,                         // offset
+      pD3D12Enc->m_BitstreamHeadersBuffer.size(),
+      pD3D12Enc->m_BitstreamHeadersBuffer.data());
+   
+   // Flush buffer_subdata batch
+   pD3D12Enc->base.context->flush(pD3D12Enc->base.context, NULL, 0);
 
    D3D12_RESOURCE_BARRIER rgResolveMetadataStateTransitions[] = {
       CD3DX12_RESOURCE_BARRIER::Transition(pD3D12Enc->m_spResolvedMetadataBuffer.Get(),

@@ -597,8 +597,12 @@ d3d12_resource_from_resource(struct pipe_screen *pscreen,
 
     struct pipe_resource templ;
     memset(&templ, 0, sizeof(templ));
-    templ.target = (inputDesc.DepthOrArraySize > 1) ? PIPE_TEXTURE_2D_ARRAY : PIPE_TEXTURE_2D;
-    templ.bind = PIPE_BIND_SAMPLER_VIEW;
+    if(inputDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER) {
+       templ.target = PIPE_BUFFER;
+    } else {
+      templ.target = (inputDesc.DepthOrArraySize > 1) ? PIPE_TEXTURE_2D_ARRAY : PIPE_TEXTURE_2D;
+    }
+    
     templ.format = d3d12_get_pipe_format(inputDesc.Format);
     templ.width0 = inputDesc.Width;
     templ.height0 = inputDesc.Height;
