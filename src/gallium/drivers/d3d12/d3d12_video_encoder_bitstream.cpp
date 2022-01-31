@@ -39,7 +39,10 @@ d3d12_video_encoder_bitstream::d3d12_video_encoder_bitstream()
 d3d12_video_encoder_bitstream::~d3d12_video_encoder_bitstream()
 {
    if (!m_bExternalBuffer) {
-      DELETE_ARRAY(m_pBitsBuffer);
+      if (m_pBitsBuffer) {
+         delete[](m_pBitsBuffer);
+         (m_pBitsBuffer) = NULL;
+      }
    }
 }
 
@@ -127,7 +130,10 @@ d3d12_video_encoder_bitstream::reallocate_buffer()
    }
 
    memcpy(pNewBuffer, m_pBitsBuffer, m_uiOffset * sizeof(uint8_t));
-   DELETE_ARRAY(m_pBitsBuffer);
+   if (m_pBitsBuffer) {
+      delete[](m_pBitsBuffer);
+      (m_pBitsBuffer) = NULL;
+   }
    m_pBitsBuffer      = pNewBuffer;
    m_uiBitsBufferSize = uiBufferSize;
    return true;

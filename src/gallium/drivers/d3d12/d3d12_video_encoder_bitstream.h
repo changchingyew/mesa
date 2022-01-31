@@ -26,14 +26,6 @@
 
 #include "d3d12_video_types.h"
 
-#define DELETE_ARRAY(ptr)                                                                                              \
-   {                                                                                                                   \
-      if (ptr) {                                                                                                       \
-         delete[](ptr);                                                                                                \
-         (ptr) = NULL;                                                                                                 \
-      }                                                                                                                \
-   }
-
 class d3d12_video_encoder_bitstream
 {
  public:
