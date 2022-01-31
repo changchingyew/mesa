@@ -25,7 +25,6 @@
 #define D3D12_VIDEO_ENC_H
 
 #include "d3d12_video_types.h"
-#include "d3d12_resource_copy_helper.h"
 #include "d3d12_video_encoder_references_manager.h"
 #include "d3d12_video_dpb_storage_manager.h"
 #include "d3d12_video_encoder_bitstream_builder_h264.h"
@@ -131,7 +130,6 @@ struct d3d12_video_encoder
    ComPtr<ID3D12CommandAllocator>              m_spCommandAllocator;
    ComPtr<ID3D12VideoEncodeCommandList2>       m_spEncodeCommandList;
    ComPtr<ID3D12CommandQueue>                  m_spCopyQueue;
-   std::unique_ptr<d3d12_resource_copy_helper> m_d3d12_resource_copy_helper;
    std::vector<D3D12_RESOURCE_BARRIER>         m_transitionsBeforeCloseCmdList;
 
    // Number of consecutive encode_frame calls without end_frame call

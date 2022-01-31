@@ -21,6 +21,14 @@
  * IN THE SOFTWARE.
  */
 
+#ifndef _WIN32
+#include <wsl/winadapter.h>
+#endif
+
+#define D3D12_IGNORE_SDK_LAYERS
+#include <directx/d3d12.h>
+#include <directx/d3dx12.h>
+
 #include "d3d12_context.h"
 #include "d3d12_format.h"
 #include "d3d12_resource.h"
@@ -28,7 +36,6 @@
 #include "d3d12_surface.h"
 #include "d3d12_video_enc.h"
 #include "d3d12_video_enc_h264.h"
-#include "d3d12_state_transition_helper.h"
 #include "d3d12_video_buffer.h"
 #include "d3d12_video_texture_array_dpb_manager.h"
 #include "d3d12_video_array_of_textures_dpb_manager.h"
@@ -740,8 +747,6 @@ d3d12_video_encoder_create_command_objects(struct d3d12_video_encoder *pD3D12Enc
       return false;
    }
 
-   pD3D12Enc->m_d3d12_resource_copy_helper.reset(new d3d12_resource_copy_helper(pD3D12Enc->m_spCopyQueue.Get()));
-
    return true;
 }
 
@@ -1146,7 +1151,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
       0,                         // offset
       pD3D12Enc->m_BitstreamHeadersBuffer.size(),
       pD3D12Enc->m_BitstreamHeadersBuffer.data());
-   
+
    // Flush buffer_subdata batch
    pD3D12Enc->base.context->flush(pD3D12Enc->base.context, NULL, 0);
 
@@ -1250,14 +1255,30 @@ d3d12_video_encoder_extract_encode_metadata(
    std::vector<D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA> &pSubregionsMetadata        // output
 )
 {
-   std::vector<uint8_t> pTmp(resourceMetadataSize);
-   uint8_t *            pMetadataBufferSrc = pTmp.data();
-   pD3D12Enc->m_d3d12_resource_copy_helper->readback_data(pMetadataBufferSrc,
-                                                          resourceMetadataSize,
-                                                          resourceMetadataSize,
-                                                          pResolvedMetadataBuffer,
-                                                          0,
-                                                          D3D12_RESOURCE_STATE_COMMON);
+   struct d3d12_screen *pD3D12Screen = (struct d3d12_screen *) pD3D12Enc->m_pD3D12Screen;
+   assert(pD3D12Screen);
+   pipe_resource *pPipeResolvedMetadataBuffer =
+      d3d12_resource_from_resource(&pD3D12Screen->base, pResolvedMetadataBuffer);
+   assert(pPipeResolvedMetadataBuffer);
+   assert(resourceMetadataSize < INT_MAX);
+   struct pipe_box box = {
+      0,                                        // x
+      0,                                        // y
+      0,                                        // z
+      static_cast<int>(resourceMetadataSize),   // width
+      1,                                        // height
+      1                                         // depth
+   };
+   struct pipe_transfer *mapTransfer;
+   void *pMetadataBufferSrc = pD3D12Enc->base.context->buffer_map(pD3D12Enc->base.context,
+                                                                  pPipeResolvedMetadataBuffer,
+                                                                  0,
+                                                                  PIPE_MAP_READ,
+                                                                  &box,
+                                                                  &mapTransfer);
+
+   // Flush buffer_map batch
+   pD3D12Enc->base.context->flush(pD3D12Enc->base.context, NULL, 0);
 
    // Clear output
    memset(&parsedMetadata, 0, sizeof(D3D12_VIDEO_ENCODER_OUTPUT_METADATA));
@@ -1283,6 +1304,9 @@ d3d12_video_encoder_extract_encode_metadata(
       pSubregionsMetadata[sliceIdx].bSize        = pFrameSubregionMetadata[sliceIdx].bSize;
       pSubregionsMetadata[sliceIdx].bStartOffset = pFrameSubregionMetadata[sliceIdx].bStartOffset;
    }
+
+   // Unmap the buffer tmp storage
+   pipe_buffer_unmap(pD3D12Enc->base.context, mapTransfer);
 }
 
 /**

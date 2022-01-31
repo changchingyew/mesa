@@ -26,7 +26,6 @@
 
 #include "d3d12_video_types.h"
 #include "d3d12_video_dec_references_mgr.h"
-#include "d3d12_resource_copy_helper.h"
 
 ///
 /// Pipe video interface starts
@@ -109,7 +108,6 @@ struct d3d12_video_decoder
    ComPtr<ID3D12CommandAllocator>              m_spCommandAllocator;
    ComPtr<ID3D12VideoDecodeCommandList1>       m_spDecodeCommandList;
    ComPtr<ID3D12CommandQueue>                  m_spCopyQueue;
-   std::unique_ptr<d3d12_resource_copy_helper> m_d3d12_resource_copy_helper;
 
    std::vector<D3D12_RESOURCE_BARRIER> m_transitionsBeforeCloseCmdList;
 

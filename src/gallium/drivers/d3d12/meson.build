@@ -44,7 +44,6 @@ files_libd3d12 = files(
   'd3d12_surface.cpp',
   'd3d12_video_dec.cpp',
   'd3d12_video_dec_references_mgr.cpp',
-  'd3d12_resource_copy_helper.cpp',
   'd3d12_video_dec_h264.cpp',
   'd3d12_video_buffer.cpp',
   'd3d12_video_enc.cpp',
