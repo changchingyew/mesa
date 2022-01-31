@@ -33,17 +33,17 @@ class d3d12_texture_array_dpb_manager : public d3d12_video_dpb_storage_manager_i
    // d3d12_video_dpb_storage_manager_interface
  public:
    // Adds a new reference frame at a given position
-   void insert_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition);
+   void insert_reference_frame(d3d12_video_reconstructed_picture pReconPicture, uint32_t dpbPosition);
 
    // Assigns a reference frame at a given position
-   void assign_reference_frame(d3d12_video_reconstructed_picture pReconPicture, UINT dpbPosition);
+   void assign_reference_frame(d3d12_video_reconstructed_picture pReconPicture, uint32_t dpbPosition);
 
    // Gets a reference frame at a given position
-   d3d12_video_reconstructed_picture get_reference_frame(UINT dpbPosition);
+   d3d12_video_reconstructed_picture get_reference_frame(uint32_t dpbPosition);
 
    // Removes a new reference frame at a given position and returns operation success
    // pResourceUntracked is an optional output indicating if the removed resource was being tracked by the pool
-   bool remove_reference_frame(UINT dpbPosition, bool *pResourceUntracked = nullptr);
+   bool remove_reference_frame(uint32_t dpbPosition, bool *pResourceUntracked = nullptr);
 
    // Returns the resource allocation for a NEW picture
    d3d12_video_reconstructed_picture get_new_tracked_picture_allocation();
@@ -55,19 +55,19 @@ class d3d12_texture_array_dpb_manager : public d3d12_video_dpb_storage_manager_i
    bool untrack_reconstructed_picture_allocation(d3d12_video_reconstructed_picture trackedItem);
 
    // Returns the number of pictures currently stored in the DPB
-   UINT get_number_of_pics_in_dpb();
+   uint32_t get_number_of_pics_in_dpb();
 
    // Returns all the current reference frames stored
    d3d12_video_reference_frames get_current_reference_frames();
 
    // Removes all pictures from DPB
    // returns the number of resources marked as reusable
-   UINT clear_decode_picture_buffer();
+   uint32_t clear_decode_picture_buffer();
 
    // number of resources in the pool that are marked as in use
-   UINT get_number_of_in_use_allocations();
+   uint32_t get_number_of_in_use_allocations();
 
-   UINT get_number_of_tracked_allocations();
+   uint32_t get_number_of_tracked_allocations();
 
    // d3d12_texture_array_dpb_manager
  public:
@@ -79,7 +79,7 @@ class d3d12_texture_array_dpb_manager : public d3d12_video_dpb_storage_manager_i
       DXGI_FORMAT                                 encodeSessionFormat,
       D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
       D3D12_RESOURCE_FLAGS                        resourceAllocFlags = D3D12_RESOURCE_FLAG_NONE,
-      UINT                                        nodeMask           = 0);
+      uint32_t                                    nodeMask           = 0);
    ~d3d12_texture_array_dpb_manager();
 
    // d3d12_texture_array_dpb_manager
@@ -96,7 +96,7 @@ class d3d12_texture_array_dpb_manager : public d3d12_video_dpb_storage_manager_i
    typedef struct d3d12_video_dpb
    {
       std::vector<ID3D12Resource *> pResources;
-      std::vector<UINT>             pSubresources;
+      std::vector<uint32_t>         pSubresources;
       std::vector<IUnknown *>       pHeaps;
    } d3d12_video_dpb;
 
@@ -113,14 +113,14 @@ class d3d12_texture_array_dpb_manager : public d3d12_video_dpb_storage_manager_i
    typedef struct d3d12_reusable_resource
    {
       ComPtr<ID3D12Resource> pResource;
-      UINT                   subresource;
+      uint32_t               subresource;
       bool                   isFree;
    } d3d12_reusable_resource;
 
    ComPtr<ID3D12Resource>               m_baseTexArrayResource;
    std::vector<d3d12_reusable_resource> m_ResourcesPool;
 
-   UINT m_nodeMask = 0u;
+   uint32_t m_nodeMask = 0u;
 };
 
 #endif

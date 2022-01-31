@@ -123,20 +123,20 @@ struct d3d12_video_encoder
    ComPtr<ID3D12Fence> m_spFence;
    uint                m_fenceValue = 1u;
 
-   ComPtr<ID3D12VideoDevice3>                  m_spD3D12VideoDevice;
-   ComPtr<ID3D12VideoEncoder>                  m_spVideoEncoder;
-   ComPtr<ID3D12VideoEncoderHeap>              m_spVideoEncoderHeap;
-   ComPtr<ID3D12CommandQueue>                  m_spEncodeCommandQueue;
-   ComPtr<ID3D12CommandAllocator>              m_spCommandAllocator;
-   ComPtr<ID3D12VideoEncodeCommandList2>       m_spEncodeCommandList;
-   ComPtr<ID3D12CommandQueue>                  m_spCopyQueue;
-   std::vector<D3D12_RESOURCE_BARRIER>         m_transitionsBeforeCloseCmdList;
+   ComPtr<ID3D12VideoDevice3>            m_spD3D12VideoDevice;
+   ComPtr<ID3D12VideoEncoder>            m_spVideoEncoder;
+   ComPtr<ID3D12VideoEncoderHeap>        m_spVideoEncoderHeap;
+   ComPtr<ID3D12CommandQueue>            m_spEncodeCommandQueue;
+   ComPtr<ID3D12CommandAllocator>        m_spCommandAllocator;
+   ComPtr<ID3D12VideoEncodeCommandList2> m_spEncodeCommandList;
+   ComPtr<ID3D12CommandQueue>            m_spCopyQueue;
+   std::vector<D3D12_RESOURCE_BARRIER>   m_transitionsBeforeCloseCmdList;
 
    // Number of consecutive encode_frame calls without end_frame call
-   UINT m_numConsecutiveEncodeFrame = 0;
+   uint32_t m_numConsecutiveEncodeFrame = 0;
 
    // Number of consecutive begin_frame calls without end_frame call
-   UINT m_numNestedBeginFrame = 0;
+   uint32_t m_numNestedBeginFrame = 0;
 
    std::unique_ptr<d3d12_video_encoder_references_manager_interface> m_upDPBManager;
    std::unique_ptr<d3d12_video_dpb_storage_manager_interface>        m_upDPBStorageManager;
@@ -178,7 +178,7 @@ struct d3d12_video_encoder
       size_t m_resolvedLayoutMetadataBufferRequiredSize;
 
       // The maximum number of slices that the output of the current frame to be encoded will contain
-      UINT m_MaxSlicesInOutput;
+      uint32_t m_MaxSlicesInOutput;
 
       D3D12_FEATURE_DATA_VIDEO_ENCODER_RESOURCE_REQUIREMENTS m_ResourceRequirementsCaps;
 
@@ -254,7 +254,7 @@ struct d3d12_video_encoder
          D3D12_VIDEO_ENCODER_MOTION_ESTIMATION_PRECISION_MODE_MAXIMUM;
 
       D3D12_VIDEO_ENCODER_INTRA_REFRESH m_IntraRefresh = { D3D12_VIDEO_ENCODER_INTRA_REFRESH_MODE_NONE, 0 };
-      UINT                              m_IntraRefreshCurrentFrameIndex = 0;
+      uint32_t                          m_IntraRefreshCurrentFrameIndex = 0;
 
    } m_currentEncodeConfig;
 };
@@ -289,7 +289,7 @@ D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA
 d3d12_video_encoder_get_current_slice_param_settings(struct d3d12_video_encoder *pD3D12Enc);
 D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE
 d3d12_video_encoder_get_current_gop_desc(struct d3d12_video_encoder *pD3D12Enc);
-UINT
+uint32_t
 d3d12_video_encoder_get_current_max_dpb_capacity(struct d3d12_video_encoder *pD3D12Enc);
 void
 d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_encoder *pD3D12Enc);
@@ -298,19 +298,19 @@ d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder *pD3D12
                                               struct pipe_video_buffer *  srcTexture,
                                               struct pipe_picture_desc *  picture);
 void
-d3d12_video_encoder_calculate_metadata_resolved_buffer_size(UINT maxSliceNumber, size_t &bufferSize);
-UINT
+d3d12_video_encoder_calculate_metadata_resolved_buffer_size(uint32_t maxSliceNumber, size_t &bufferSize);
+uint32_t
 d3d12_video_encoder_calculate_max_slices_count_in_output(
    D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE                          slicesMode,
    const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA_SLICES *slicesConfig,
-   UINT                                                                     MaxSubregionsNumberFromCaps,
+   uint32_t                                                                 MaxSubregionsNumberFromCaps,
    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC                              sequenceTargetResolution,
-   UINT                                                                     SubregionBlockPixelsSize);
+   uint32_t                                                                 SubregionBlockPixelsSize);
 void
 d3d12_video_encoder_prepare_output_buffers(struct d3d12_video_encoder *pD3D12Enc,
                                            struct pipe_video_buffer *  srcTexture,
                                            struct pipe_picture_desc *  picture);
-UINT
+uint32_t
 d3d12_video_encoder_build_codec_headers(struct d3d12_video_encoder *pD3D12Enc);
 void
 d3d12_video_encoder_extract_encode_metadata(

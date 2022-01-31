@@ -224,11 +224,11 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
 
       D3D12_RESOURCE_FLAGS resourceAllocFlags =
          D3D12_RESOURCE_FLAG_VIDEO_ENCODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-      bool fArrayOfTextures = ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags &
+      bool     fArrayOfTextures = ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags &
                                 D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RECONSTRUCTED_FRAMES_REQUIRE_TEXTURE_ARRAYS) == 0);
-      UINT texturePoolSize  = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc) +
-                             1u;   // adding an extra slot as we also need to count the current frame output recon
-                                   // allocation along max reference frame allocations
+      uint32_t texturePoolSize  = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc) +
+                                 1u;   // adding an extra slot as we also need to count the current frame output recon
+                                       // allocation along max reference frame allocations
       assert(texturePoolSize < UINT16_MAX);
       if (fArrayOfTextures) {
          pD3D12Enc->m_upDPBStorageManager = std::make_unique<d3d12_array_of_textures_dpb_manager>(
@@ -529,7 +529,7 @@ d3d12_video_encoder_get_current_level_desc(struct d3d12_video_encoder *pD3D12Enc
    }
 }
 
-UINT
+uint32_t
 d3d12_video_encoder_build_codec_headers(struct d3d12_video_encoder *pD3D12Enc)
 {
    enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
@@ -640,7 +640,7 @@ d3d12_video_encoder_get_current_picture_control_capabilities_desc(struct d3d12_v
    }
 }
 
-UINT
+uint32_t
 d3d12_video_encoder_get_current_max_dpb_capacity(struct d3d12_video_encoder *pD3D12Enc)
 {
    enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
@@ -923,7 +923,7 @@ d3d12_video_encoder_begin_frame(struct pipe_video_codec * codec,
 }
 
 void
-d3d12_video_encoder_calculate_metadata_resolved_buffer_size(UINT maxSliceNumber, size_t &bufferSize)
+d3d12_video_encoder_calculate_metadata_resolved_buffer_size(uint32_t maxSliceNumber, size_t &bufferSize)
 {
    bufferSize = sizeof(D3D12_VIDEO_ENCODER_OUTPUT_METADATA) +
                 (maxSliceNumber * sizeof(D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA));
@@ -931,20 +931,20 @@ d3d12_video_encoder_calculate_metadata_resolved_buffer_size(UINT maxSliceNumber,
 
 // Returns the number of slices that the output will contain for fixed slicing modes
 // and the maximum number of slices the output might contain for dynamic slicing modes (eg. max bytes per slice)
-UINT
+uint32_t
 d3d12_video_encoder_calculate_max_slices_count_in_output(
    D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE                          slicesMode,
    const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA_SLICES *slicesConfig,
-   UINT                                                                     MaxSubregionsNumberFromCaps,
+   uint32_t                                                                 MaxSubregionsNumberFromCaps,
    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC                              sequenceTargetResolution,
-   UINT                                                                     SubregionBlockPixelsSize)
+   uint32_t                                                                 SubregionBlockPixelsSize)
 {
-   UINT pic_width_in_subregion_units =
-      static_cast<UINT>(std::ceil(sequenceTargetResolution.Width / static_cast<double>(SubregionBlockPixelsSize)));
-   UINT pic_height_in_subregion_units =
-      static_cast<UINT>(std::ceil(sequenceTargetResolution.Height / static_cast<double>(SubregionBlockPixelsSize)));
-   UINT total_picture_subregion_units = pic_width_in_subregion_units * pic_height_in_subregion_units;
-   UINT maxSlices                     = 0u;
+   uint32_t pic_width_in_subregion_units =
+      static_cast<uint32_t>(std::ceil(sequenceTargetResolution.Width / static_cast<double>(SubregionBlockPixelsSize)));
+   uint32_t pic_height_in_subregion_units =
+      static_cast<uint32_t>(std::ceil(sequenceTargetResolution.Height / static_cast<double>(SubregionBlockPixelsSize)));
+   uint32_t total_picture_subregion_units = pic_width_in_subregion_units * pic_height_in_subregion_units;
+   uint32_t maxSlices                     = 0u;
    switch (slicesMode) {
       case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_FULL_FRAME:
       {
@@ -956,12 +956,12 @@ d3d12_video_encoder_calculate_max_slices_count_in_output(
       } break;
       case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_SQUARE_UNITS_PER_SUBREGION_ROW_UNALIGNED:
       {
-         maxSlices = static_cast<UINT>(
+         maxSlices = static_cast<uint32_t>(
             std::ceil(total_picture_subregion_units / static_cast<double>(slicesConfig->NumberOfCodingUnitsPerSlice)));
       } break;
       case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_ROWS_PER_SUBREGION:
       {
-         maxSlices = static_cast<UINT>(
+         maxSlices = static_cast<uint32_t>(
             std::ceil(pic_height_in_subregion_units / static_cast<double>(slicesConfig->NumberOfRowsPerSlice)));
       } break;
       case D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME:
@@ -1000,7 +1000,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    struct d3d12_video_buffer *pInputVideoBuffer = (struct d3d12_video_buffer *) source;
    assert(pInputVideoBuffer);
    ID3D12Resource *pInputVideoD3D12Res        = d3d12_resource_resource(pInputVideoBuffer->m_pD3D12Resource);
-   UINT            inputVideoD3D12Subresource = 0u;
+   uint32_t        inputVideoD3D12Subresource = 0u;
 
    struct d3d12_resource *pOutputBitstreamBuffer = (struct d3d12_resource *) destination;
    assert(pOutputBitstreamBuffer);
@@ -1043,7 +1043,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    // TODO: D3D12DecomposeSubresource in all transitions, take TextureArray case into account too. For resources managed
    // by pipe/mesa (ie. not DPB resources or staging frame textures), do we want to use d3d12_transition_resource_state
    // from d3d12_context?
-   UINT                                maxReferences = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
+   uint32_t                            maxReferences = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
    std::vector<D3D12_RESOURCE_BARRIER> rgReferenceTransitions(maxReferences);
    if ((referenceFramesDescriptor.NumTexture2Ds > 0) ||
        (pD3D12Enc->m_upDPBManager->is_current_frame_used_as_reference())) {
@@ -1053,7 +1053,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
       if (referenceFramesDescriptor.pSubresources == nullptr) {
          // Array of resources mode
          // Transition all subresources of each resource
-         for (UINT referenceIdx = 0; referenceIdx < referenceFramesDescriptor.NumTexture2Ds; referenceIdx++) {
+         for (uint32_t referenceIdx = 0; referenceIdx < referenceFramesDescriptor.NumTexture2Ds; referenceIdx++) {
             rgReferenceTransitions.push_back(
                CD3DX12_RESOURCE_BARRIER::Transition(referenceFramesDescriptor.ppTexture2Ds[referenceIdx],
                                                     D3D12_RESOURCE_STATE_COMMON,
@@ -1078,7 +1078,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
       }
 
       if (rgReferenceTransitions.size() > 0) {
-         pD3D12Enc->m_spEncodeCommandList->ResourceBarrier(static_cast<UINT>(rgReferenceTransitions.size()),
+         pD3D12Enc->m_spEncodeCommandList->ResourceBarrier(static_cast<uint32_t>(rgReferenceTransitions.size()),
                                                            rgReferenceTransitions.data());
       }
    }
@@ -1088,7 +1088,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
       d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
    pD3D12Enc->m_upDPBManager->get_current_frame_picture_control_data(currentPicParams);
 
-   UINT prefixGeneratedHeadersByteSize = d3d12_video_encoder_build_codec_headers(pD3D12Enc);
+   uint32_t prefixGeneratedHeadersByteSize = d3d12_video_encoder_build_codec_headers(pD3D12Enc);
 
    const D3D12_VIDEO_ENCODER_ENCODEFRAME_INPUT_ARGUMENTS inputStreamArguments = {
       // D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_DESC
@@ -1103,7 +1103,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
         d3d12_video_encoder_get_current_slice_param_settings(pD3D12Enc),
         d3d12_video_encoder_get_current_gop_desc(pD3D12Enc) },
       // D3D12_VIDEO_ENCODER_PICTURE_CONTROL_DESC
-      { // UINT IntraRefreshFrameIndex;
+      { // uint32_t IntraRefreshFrameIndex;
         pD3D12Enc->m_currentEncodeConfig.m_IntraRefreshCurrentFrameIndex,
         // D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAGS Flags;
         picCtrlFlags,
@@ -1193,7 +1193,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
       }
 
       if (rgReferenceTransitions.size() > 0) {
-         pD3D12Enc->m_spEncodeCommandList->ResourceBarrier(static_cast<UINT>(rgReferenceTransitions.size()),
+         pD3D12Enc->m_spEncodeCommandList->ResourceBarrier(static_cast<uint32_t>(rgReferenceTransitions.size()),
                                                            rgReferenceTransitions.data());
       }
    }
@@ -1294,13 +1294,13 @@ d3d12_video_encoder_extract_encode_metadata(
    // (D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA[]) is placed in memory immediately after the
    // D3D12_VIDEO_ENCODER_OUTPUT_METADATA structure
    D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA *pFrameSubregionMetadata =
-      reinterpret_cast<D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA *>(reinterpret_cast<BYTE *>(pMetadataBufferSrc) +
+      reinterpret_cast<D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA *>(reinterpret_cast<uint8_t *>(pMetadataBufferSrc) +
                                                                        encoderMetadataSize);
 
    // Copy fields into D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA
    assert(parsedMetadata.WrittenSubregionsCount < SIZE_MAX);
    pSubregionsMetadata.resize(static_cast<size_t>(parsedMetadata.WrittenSubregionsCount));
-   for (UINT sliceIdx = 0; sliceIdx < parsedMetadata.WrittenSubregionsCount; sliceIdx++) {
+   for (uint32_t sliceIdx = 0; sliceIdx < parsedMetadata.WrittenSubregionsCount; sliceIdx++) {
       pSubregionsMetadata[sliceIdx].bHeaderSize  = pFrameSubregionMetadata[sliceIdx].bHeaderSize;
       pSubregionsMetadata[sliceIdx].bSize        = pFrameSubregionMetadata[sliceIdx].bSize;
       pSubregionsMetadata[sliceIdx].bStartOffset = pFrameSubregionMetadata[sliceIdx].bStartOffset;

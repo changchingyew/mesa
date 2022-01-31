@@ -34,7 +34,7 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
 
 void
 d3d12_video_decoder_get_frame_info_h264(
-   struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, uint16_t *pMaxDPB, bool &isInterlaced)
+   struct d3d12_video_decoder *pD3D12Dec, uint32_t *pWidth, uint32_t *pHeight, uint16_t *pMaxDPB, bool &isInterlaced)
 {
    auto pPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
    // wFrameWidthInMbsMinus1 Width of the frame containing this picture, in units of macroblocks, minus 1. (The width in
@@ -57,7 +57,7 @@ d3d12_video_decoder_get_frame_info_h264(
 void
 d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_decoder *pD3D12Dec,
                                                           ID3D12Resource *            pTexture2D,
-                                                          UINT                        subresourceIndex)
+                                                          uint32_t                    subresourceIndex)
 {
    DXVA_PicParams_H264 *pPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
    pPicParams->CurrPic.Index7Bits  = pD3D12Dec->m_spDPBManager->store_future_reference(pPicParams->CurrPic.Index7Bits,
@@ -125,12 +125,12 @@ d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder 
 }
 
 bool
-d3d12_video_decoder_get_slice_size_and_offset_h264(size_t             sliceIdx,
-                                                   size_t             numSlices,
-                                                   std::vector<BYTE> &buf,
-                                                   unsigned int       bufferOffset,
-                                                   UINT &             outSliceSize,
-                                                   UINT &             outSliceOffset)
+d3d12_video_decoder_get_slice_size_and_offset_h264(size_t                sliceIdx,
+                                                   size_t                numSlices,
+                                                   std::vector<uint8_t> &buf,
+                                                   unsigned int          bufferOffset,
+                                                   uint32_t &            outSliceSize,
+                                                   uint32_t &            outSliceOffset)
 {
    if (sliceIdx >= numSlices) {
       return false;
@@ -179,93 +179,93 @@ d3d12_video_decoder_get_slice_size_and_offset_h264(size_t             sliceIdx,
 
 DXVA_PicParams_H264
 d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
-   UINT               frameNum,
+   uint32_t           frameNum,
    pipe_video_profile profile,
-   UINT
-        decodeWidth,   // pipe_h264_picture_desc doesn't have the size of the frame for H264, but it does for other codecs.
-   UINT decodeHeight,   // pipe_h264_picture_desc doesn't have the size of the frame for H264, but it does for other
-                        // codecs.
+   uint32_t decodeWidth,    // pipe_h264_picture_desc doesn't have the size of the frame for H264, but it does for other
+                            // codecs.
+   uint32_t decodeHeight,   // pipe_h264_picture_desc doesn't have the size of the frame for H264, but it does for other
+                            // codecs.
    pipe_h264_picture_desc *pPipeDesc)
 {
    DXVA_PicParams_H264 dxvaStructure = {};
 
-   // USHORT  wFrameWidthInMbsMinus1;
+   // uint16_t  wFrameWidthInMbsMinus1;
    uint width_in_mb                     = decodeWidth / D3D12_VIDEO_H264_MB_IN_PIXELS;
    dxvaStructure.wFrameWidthInMbsMinus1 = width_in_mb - 1;
-   // USHORT  wFrameHeightInMbsMinus1;
+   // uint16_t  wFrameHeightInMbsMinus1;
    uint height_in_mb                     = static_cast<uint>(std::ceil(decodeHeight / D3D12_VIDEO_H264_MB_IN_PIXELS));
    dxvaStructure.wFrameHeightInMbsMinus1 = height_in_mb - 1;
    // CurrPic.Index7Bits
    dxvaStructure.CurrPic.Index7Bits = pPipeDesc->frame_num;
-   // UCHAR   num_ref_frames;
+   // uint8_t   num_ref_frames;
    dxvaStructure.num_ref_frames = pPipeDesc->num_ref_frames;
    // union {
    // struct {
-   // USHORT  field_pic_flag                 : 1;
+   // uint16_t  field_pic_flag                 : 1;
    dxvaStructure.field_pic_flag = pPipeDesc->field_pic_flag;
-   // USHORT  chroma_format_idc              : 2;
+   // uint16_t  chroma_format_idc              : 2;
    dxvaStructure.chroma_format_idc = 1;   // This is always 4:2:0 for D3D12 Video. NV12/P010 DXGI formats only.
-   // USHORT  constrained_intra_pred_flag    : 1;
+   // uint16_t  constrained_intra_pred_flag    : 1;
    dxvaStructure.constrained_intra_pred_flag = pPipeDesc->pps->constrained_intra_pred_flag;
-   // USHORT  weighted_pred_flag             : 1;
+   // uint16_t  weighted_pred_flag             : 1;
    dxvaStructure.weighted_pred_flag = pPipeDesc->pps->weighted_pred_flag;
-   // USHORT  weighted_bipred_idc            : 2;
+   // uint16_t  weighted_bipred_idc            : 2;
    dxvaStructure.weighted_bipred_idc = pPipeDesc->pps->weighted_bipred_idc;
-   // USHORT  frame_mbs_only_flag            : 1;
+   // uint16_t  frame_mbs_only_flag            : 1;
    dxvaStructure.frame_mbs_only_flag = pPipeDesc->pps->sps->frame_mbs_only_flag;
-   // USHORT  transform_8x8_mode_flag        : 1;
+   // uint16_t  transform_8x8_mode_flag        : 1;
    dxvaStructure.transform_8x8_mode_flag = pPipeDesc->pps->transform_8x8_mode_flag;
    // };
-   // USHORT  wBitFields;
+   // uint16_t  wBitFields;
    // };
-   // UCHAR  bit_depth_luma_minus8;
+   // uint8_t  bit_depth_luma_minus8;
    dxvaStructure.bit_depth_luma_minus8 = pPipeDesc->pps->sps->bit_depth_luma_minus8;
-   // UCHAR  bit_depth_chroma_minus8;
+   // uint8_t  bit_depth_chroma_minus8;
    dxvaStructure.bit_depth_chroma_minus8 = pPipeDesc->pps->sps->bit_depth_chroma_minus8;
-   // CHAR   chroma_qp_index_offset;   /* also used for QScb */
+   // uint8_t   chroma_qp_index_offset;   /* also used for QScb */
    dxvaStructure.chroma_qp_index_offset = pPipeDesc->pps->chroma_qp_index_offset;
-   // CHAR   second_chroma_qp_index_offset; /* also for QScr */
+   // uint8_t   second_chroma_qp_index_offset; /* also for QScr */
    dxvaStructure.second_chroma_qp_index_offset = pPipeDesc->pps->second_chroma_qp_index_offset;
 
    /* remainder for parsing */
-   // CHAR   pic_init_qp_minus26;
+   // uint8_t   pic_init_qp_minus26;
    dxvaStructure.pic_init_qp_minus26 = pPipeDesc->pps->pic_init_qp_minus26;
-   // UCHAR  num_ref_idx_l0_active_minus1;
+   // uint8_t  num_ref_idx_l0_active_minus1;
    dxvaStructure.num_ref_idx_l0_active_minus1 = pPipeDesc->num_ref_idx_l0_active_minus1;
-   // UCHAR  num_ref_idx_l1_active_minus1;
+   // uint8_t  num_ref_idx_l1_active_minus1;
    dxvaStructure.num_ref_idx_l1_active_minus1 = pPipeDesc->num_ref_idx_l1_active_minus1;
 
-   // USHORT frame_num;
+   // uint16_t frame_num;
    dxvaStructure.frame_num = pPipeDesc->frame_num;
 
-   // UCHAR  log2_max_frame_num_minus4;
+   // uint8_t  log2_max_frame_num_minus4;
    dxvaStructure.log2_max_frame_num_minus4 = pPipeDesc->pps->sps->log2_max_frame_num_minus4;
-   // UCHAR  pic_order_cnt_type;
+   // uint8_t  pic_order_cnt_type;
    dxvaStructure.pic_order_cnt_type = pPipeDesc->pps->sps->pic_order_cnt_type;
-   // UCHAR  log2_max_pic_order_cnt_lsb_minus4;
+   // uint8_t  log2_max_pic_order_cnt_lsb_minus4;
    dxvaStructure.log2_max_pic_order_cnt_lsb_minus4 = pPipeDesc->pps->sps->log2_max_pic_order_cnt_lsb_minus4;
-   // UCHAR  delta_pic_order_always_zero_flag;
+   // uint8_t  delta_pic_order_always_zero_flag;
    dxvaStructure.delta_pic_order_always_zero_flag = pPipeDesc->pps->sps->delta_pic_order_always_zero_flag;
-   // UCHAR  direct_8x8_inference_flag;
+   // uint8_t  direct_8x8_inference_flag;
    dxvaStructure.direct_8x8_inference_flag = pPipeDesc->pps->sps->direct_8x8_inference_flag;
-   // UCHAR  entropy_coding_mode_flag;
+   // uint8_t  entropy_coding_mode_flag;
    dxvaStructure.entropy_coding_mode_flag = pPipeDesc->pps->entropy_coding_mode_flag;
-   // UCHAR  num_slice_groups_minus1;
+   // uint8_t  num_slice_groups_minus1;
    dxvaStructure.num_slice_groups_minus1 = pPipeDesc->pps->num_slice_groups_minus1;
 
-   // UCHAR  slice_group_map_type;
+   // uint8_t  slice_group_map_type;
    dxvaStructure.slice_group_map_type = pPipeDesc->pps->slice_group_map_type;
-   // UCHAR  deblocking_filter_control_present_flag;
+   // uint8_t  deblocking_filter_control_present_flag;
    dxvaStructure.deblocking_filter_control_present_flag = pPipeDesc->pps->deblocking_filter_control_present_flag;
-   // UCHAR  redundant_pic_cnt_present_flag;
+   // uint8_t  redundant_pic_cnt_present_flag;
    dxvaStructure.redundant_pic_cnt_present_flag = pPipeDesc->pps->redundant_pic_cnt_present_flag;
-   // USHORT slice_group_change_rate_minus1;
+   // uint16_t slice_group_change_rate_minus1;
    dxvaStructure.slice_group_change_rate_minus1 = pPipeDesc->pps->slice_group_change_rate_minus1;
-   // INT    CurrFieldOrderCnt[2];
+   // int32_t    CurrFieldOrderCnt[2];
    dxvaStructure.CurrFieldOrderCnt[0] = pPipeDesc->field_order_cnt[0];
    dxvaStructure.CurrFieldOrderCnt[1] = pPipeDesc->field_order_cnt[1];
 
-   // USHORT  RefPicFlag                     : 1;
+   // uint16_t  RefPicFlag                     : 1;
    dxvaStructure.RefPicFlag = pPipeDesc->is_reference;
 
    // DXVA_PicEntry_H264  RefFrameList[16]; /* DXVA_PicEntry_H264.AssociatedFlag 1 means LongTermRef */
@@ -311,7 +311,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
 
          dxvaStructure.RefFrameList[i].Index7Bits = pPipeDesc->frame_num_list[i];
 
-         // USHORT FrameNumList[16];
+         // uint16_t FrameNumList[16];
          // 	 FrameNumList
          // For each entry in RefFrameList, the corresponding entry in FrameNumList
          // contains the value of FrameNum or LongTermFrameIdx, depending on the value of
@@ -327,7 +327,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
                pPipeDesc->frame_num_list[i] :
                0;
 
-         // INT    FieldOrderCntList[16][2];
+         // int32_t    FieldOrderCntList[16][2];
          // Contains the picture order counts for the reference frames listed in RefFrameList.
          // For each entry i in the RefFrameList array, FieldOrderCntList[i][0] contains the
          // value of TopFieldOrderCnt for entry i, and FieldOrderCntList[i][1] contains the
@@ -394,7 +394,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // from the reference list...if frame doesn't use any references, it should be an I frame.
    dxvaStructure.IntraPicFlag = !frameUsesAnyRefPicture;
 
-   // UCHAR  pic_order_present_flag; /* Renamed to bottom_field_pic_order_in_frame_present_flag in newer standard
+   // uint8_t  pic_order_present_flag; /* Renamed to bottom_field_pic_order_in_frame_present_flag in newer standard
    // versions. */
    dxvaStructure.pic_order_present_flag = pPipeDesc->pps->bottom_field_pic_order_in_frame_present_flag;
 
@@ -416,7 +416,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // flag is 0, the structure might be truncated at this point in the buffer, or the remaining fields may be set to 0
    // and shall be ignored by the accelerator. The remaining members of this structure are needed only for off-host
    // bitstream parsing. If the host decoder parses the bitstream, the decoder can truncate the picture parameters data
-   // structure buffer after the ContinuationFlag or set the remaining members to zero. UCHAR  ContinuationFlag;
+   // structure buffer after the ContinuationFlag or set the remaining members to zero. uint8_t  ContinuationFlag;
    dxvaStructure.ContinuationFlag =
       1;   // DXVA destination struct does contain members from the slice section of pipeDesc...
 

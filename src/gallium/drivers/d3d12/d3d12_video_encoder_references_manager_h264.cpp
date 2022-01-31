@@ -32,10 +32,10 @@ using namespace std;
 d3d12_video_encoder_references_manager_h264::d3d12_video_encoder_references_manager_h264(
    bool                                       gopHasIorPFrames,
    d3d12_video_dpb_storage_manager_interface &rDpbStorageManager,
-   UINT                                       MaxL0ReferencesForP,
-   UINT                                       MaxL0ReferencesForB,
-   UINT                                       MaxL1ReferencesForB,
-   UINT                                       MaxDPBCapacity)
+   uint32_t                                   MaxL0ReferencesForP,
+   uint32_t                                   MaxL0ReferencesForB,
+   uint32_t                                   MaxL1ReferencesForB,
+   uint32_t                                   MaxDPBCapacity)
    : m_MaxL0ReferencesForP(MaxL0ReferencesForP),
      m_MaxL0ReferencesForB(MaxL0ReferencesForB),
      m_MaxL1ReferencesForB(MaxL1ReferencesForB),
@@ -68,8 +68,8 @@ d3d12_video_encoder_references_manager_h264::reset_gop_tracking_and_dpb()
    m_CurrentFrameReferencesData.ReconstructedPicTexture = { nullptr, 0 };
 
    // Reset DPB storage
-   UINT numPicsBeforeClearInDPB = m_rDPBStorageManager.get_number_of_pics_in_dpb();
-   UINT cFreedResources         = m_rDPBStorageManager.clear_decode_picture_buffer();
+   uint32_t numPicsBeforeClearInDPB = m_rDPBStorageManager.get_number_of_pics_in_dpb();
+   uint32_t cFreedResources         = m_rDPBStorageManager.clear_decode_picture_buffer();
    assert(numPicsBeforeClearInDPB == cFreedResources);
 
    // Initialize if needed the reconstructed picture allocation for the first IDR picture in the GOP
@@ -103,9 +103,9 @@ d3d12_video_encoder_references_manager_h264::get_current_frame_picture_control_d
                  m_curFrameState.PictureOrderCountNumber);
 
    // See casts below
-   assert(m_CurrentFrameReferencesData.pList0ReferenceFrames.size() < UINT_MAX);
-   assert(m_CurrentFrameReferencesData.pList1ReferenceFrames.size() < UINT_MAX);
-   assert(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size() < UINT_MAX);
+   assert(m_CurrentFrameReferencesData.pList0ReferenceFrames.size() < UINT32_MAX);
+   assert(m_CurrentFrameReferencesData.pList1ReferenceFrames.size() < UINT32_MAX);
+   assert(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size() < UINT32_MAX);
 
    bool needsL0List = (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME) ||
                       (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME);
@@ -114,15 +114,16 @@ d3d12_video_encoder_references_manager_h264::get_current_frame_picture_control_d
    assert(codecAllocation.DataSize == sizeof(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264));
 
    m_curFrameState.List0ReferenceFramesCount =
-      needsL0List ? static_cast<UINT>(m_CurrentFrameReferencesData.pList0ReferenceFrames.size()) : 0;
+      needsL0List ? static_cast<uint32_t>(m_CurrentFrameReferencesData.pList0ReferenceFrames.size()) : 0;
    m_curFrameState.pList0ReferenceFrames =
       needsL0List ? m_CurrentFrameReferencesData.pList0ReferenceFrames.data() : nullptr,
    m_curFrameState.List1ReferenceFramesCount =
-      needsL1List ? static_cast<UINT>(m_CurrentFrameReferencesData.pList1ReferenceFrames.size()) : 0,
+      needsL1List ? static_cast<uint32_t>(m_CurrentFrameReferencesData.pList1ReferenceFrames.size()) : 0,
    m_curFrameState.pList1ReferenceFrames =
       needsL1List ? m_CurrentFrameReferencesData.pList1ReferenceFrames.data() : nullptr,
    m_curFrameState.ReferenceFramesReconPictureDescriptorsCount =
-      needsL0List ? static_cast<UINT>(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size()) : 0,
+      needsL0List ? static_cast<uint32_t>(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size()) :
+                    0,
    m_curFrameState.pReferenceFramesReconPictureDescriptors =
       needsL0List ? m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.data() : nullptr,
 
@@ -214,17 +215,17 @@ d3d12_video_encoder_references_manager_h264::update_fifo_dpb_push_front_cur_reco
 
       // Prepare D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264 for added DPB member
       D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264 newDPBDescriptor = {
-         // UINT ReconstructedPictureResourceIndex;
+         // uint32_t ReconstructedPictureResourceIndex;
          0,   // the associated reconstructed picture is also being pushed_front in m_rDPBStorageManager
               // BOOL IsLongTermReference;
          false,
-         // UINT LongTermPictureIdx;
+         // uint32_t LongTermPictureIdx;
          0,
-         // UINT PictureOrderCountNumber;
+         // uint32_t PictureOrderCountNumber;
          m_curFrameState.PictureOrderCountNumber,
-         // UINT FrameDecodingOrderNumber;
+         // uint32_t FrameDecodingOrderNumber;
          m_curFrameState.FrameDecodingOrderNumber,
-         // UINT TemporalLayerIndex;
+         // uint32_t TemporalLayerIndex;
          0   // NO B-hierarchy in this impl of the picture manager
       };
 
@@ -236,7 +237,8 @@ d3d12_video_encoder_references_manager_h264::update_fifo_dpb_push_front_cur_reco
       // Update the indices for ReconstructedPictureResourceIndex in pReferenceFramesReconPictureDescriptors
       // to be in identity mapping with m_rDPBStorageManager indices
       // after pushing the elements to the right in the push_front operation
-      for (UINT dpbResIdx = 1; dpbResIdx < m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size();
+      for (uint32_t dpbResIdx = 1;
+           dpbResIdx < m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size();
            dpbResIdx++) {
          auto &dpbDesc = m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors[dpbResIdx];
          dpbDesc.ReconstructedPictureResourceIndex = dpbResIdx;
@@ -266,8 +268,8 @@ d3d12_video_encoder_references_manager_h264::prepare_current_frame_l0_l1_lists()
       // DPB and descriptors are stored in this exact way, so the L0 list of incremental indices into the
       // m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors
 
-      for (UINT refIdx = 0;
-           refIdx < static_cast<UINT>(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size());
+      for (uint32_t refIdx = 0;
+           refIdx < static_cast<uint32_t>(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size());
            refIdx++) {
          m_CurrentFrameReferencesData.pList0ReferenceFrames.push_back(refIdx);
       }
@@ -281,20 +283,20 @@ d3d12_video_encoder_references_manager_h264::prepare_current_frame_l0_l1_lists()
 
       // Copy DPB to tmp vector with pairs <dpbIdx, dpbObj> to preserve the initial indices position from
       // pReferenceFramesReconPictureDescriptors when doing sorting operation
-      std::vector<pair<UINT, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264>> dpbDescs;
+      std::vector<pair<uint32_t, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264>> dpbDescs;
       dpbDescs.resize(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size());
-      for (UINT dpbIdx = 0; dpbIdx < dpbDescs.size(); dpbIdx++) {
+      for (uint32_t dpbIdx = 0; dpbIdx < dpbDescs.size(); dpbIdx++) {
          dpbDescs[dpbIdx] =
             make_pair(dpbIdx, m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors[dpbIdx]);
       }
 
       // Partition the array in two groups -> Where x:dpbList x.POC < curFrame.POC and Where x:dpbList x.POC > curFrame.POC
-      UINT curFramePOC = m_curFrameState.PictureOrderCountNumber;
+      uint32_t curFramePOC = m_curFrameState.PictureOrderCountNumber;
       // partSplitIterator has the iterator in the vector to the first element of the second group
       auto partSplitIterator =
          std::partition(dpbDescs.begin(),
                         dpbDescs.end(),
-                        [curFramePOC](pair<UINT, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntry) {
+                        [curFramePOC](pair<uint32_t, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntry) {
                            return pairEntry.second.PictureOrderCountNumber > curFramePOC;
                         });
 
@@ -304,13 +306,14 @@ d3d12_video_encoder_references_manager_h264::prepare_current_frame_l0_l1_lists()
       // partial sort (unexpected order for elements outside of declared range)
       // by INCREASING POC order, take DPB Descriptors Where x:list0 x.POC > curFrame.POC
       // for the range of pics with POC earlier than current pic [partSplitIterator..dpbSize)
-      std::partial_sort(partSplitIterator,
-                        dpbDescs.end(),
-                        dpbDescs.end(),
-                        [curFramePOC](pair<UINT, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntryI,
-                                      pair<UINT, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntryJ) {
-                           return pairEntryI.second.PictureOrderCountNumber < pairEntryJ.second.PictureOrderCountNumber;
-                        });
+      std::partial_sort(
+         partSplitIterator,
+         dpbDescs.end(),
+         dpbDescs.end(),
+         [curFramePOC](pair<uint32_t, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntryI,
+                       pair<uint32_t, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntryJ) {
+            return pairEntryI.second.PictureOrderCountNumber < pairEntryJ.second.PictureOrderCountNumber;
+         });
 
       // Copy over to final list
       for (auto it = partSplitIterator; it != dpbDescs.end(); it++) {
@@ -320,16 +323,17 @@ d3d12_video_encoder_references_manager_h264::prepare_current_frame_l0_l1_lists()
       // partial sort (unexpected order for elements outside of declared range)
       // by DECREASING picture order count Where x:list0 x.POC < curFrame.POC
       // for the range of pics with POC later than current pic [0..partSplitIterator)
-      std::partial_sort(dpbDescs.begin(),
-                        partSplitIterator,
-                        dpbDescs.end(),
-                        [curFramePOC](pair<UINT, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntryI,
-                                      pair<UINT, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntryJ) {
-                           return pairEntryI.second.PictureOrderCountNumber > pairEntryJ.second.PictureOrderCountNumber;
-                        });
+      std::partial_sort(
+         dpbDescs.begin(),
+         partSplitIterator,
+         dpbDescs.end(),
+         [curFramePOC](pair<uint32_t, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntryI,
+                       pair<uint32_t, D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pairEntryJ) {
+            return pairEntryI.second.PictureOrderCountNumber > pairEntryJ.second.PictureOrderCountNumber;
+         });
 
       // Copy over to final list
-      UINT L0SecondPartSplitStartIdx = 0;
+      uint32_t L0SecondPartSplitStartIdx = 0;
       for (auto it = dpbDescs.begin(); it != partSplitIterator; it++) {
          m_CurrentFrameReferencesData.pList0ReferenceFrames.push_back(it->first);
          L0SecondPartSplitStartIdx++;
@@ -384,8 +388,8 @@ d3d12_video_encoder_references_manager_h264::print_l0_l1_lists()
    if (D3D12_LOG_DBG_ON && ((m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME) ||
                             (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME))) {
       std::string list0ContentsString;
-      for (UINT idx = 0; idx < m_CurrentFrameReferencesData.pList0ReferenceFrames.size(); idx++) {
-         UINT value = m_CurrentFrameReferencesData.pList0ReferenceFrames[idx];
+      for (uint32_t idx = 0; idx < m_CurrentFrameReferencesData.pList0ReferenceFrames.size(); idx++) {
+         uint32_t value = m_CurrentFrameReferencesData.pList0ReferenceFrames[idx];
          list0ContentsString += "{ DPBidx: ";
          list0ContentsString += std::to_string(value);
          list0ContentsString += " - POC: ";
@@ -404,8 +408,8 @@ d3d12_video_encoder_references_manager_h264::print_l0_l1_lists()
          list0ContentsString.c_str());
 
       std::string list1ContentsString;
-      for (UINT idx = 0; idx < m_CurrentFrameReferencesData.pList1ReferenceFrames.size(); idx++) {
-         UINT value = m_CurrentFrameReferencesData.pList1ReferenceFrames[idx];
+      for (uint32_t idx = 0; idx < m_CurrentFrameReferencesData.pList1ReferenceFrames.size(); idx++) {
+         uint32_t value = m_CurrentFrameReferencesData.pList1ReferenceFrames[idx];
          list1ContentsString += "{ DPBidx: ";
          list1ContentsString += std::to_string(value);
          list1ContentsString += " - POC: ";
@@ -430,7 +434,8 @@ d3d12_video_encoder_references_manager_h264::print_dpb()
 {
    if (D3D12_LOG_DBG_ON) {
       std::string dpbContents;
-      for (UINT dpbResIdx = 0; dpbResIdx < m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size();
+      for (uint32_t dpbResIdx = 0;
+           dpbResIdx < m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size();
            dpbResIdx++) {
          auto &dpbDesc  = m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors[dpbResIdx];
          auto  dpbEntry = m_rDPBStorageManager.get_reference_frame(dpbDesc.ReconstructedPictureResourceIndex);

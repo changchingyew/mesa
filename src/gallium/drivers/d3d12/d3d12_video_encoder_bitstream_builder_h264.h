@@ -39,40 +39,40 @@ class d3d12_video_bitstream_builder_h264 : public d3d12_video_bitstream_builder_
                   const DXGI_FORMAT &                                    inputFmt,
                   const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &   codecConfig,
                   const D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 &gopConfig,
-                  UINT                                                   seq_parameter_set_id,
-                  UINT                                                   max_num_ref_frames,
+                  uint32_t                                               seq_parameter_set_id,
+                  uint32_t                                               max_num_ref_frames,
                   D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC            sequenceTargetResolution,
-                  std::vector<BYTE> &                                    headerBitstream,
-                  std::vector<BYTE>::iterator                            placingPositionStart,
+                  std::vector<uint8_t> &                                 headerBitstream,
+                  std::vector<uint8_t>::iterator                         placingPositionStart,
                   size_t &                                               writtenBytes);
 
    void build_pps(const D3D12_VIDEO_ENCODER_PROFILE_H264 &                   profile,
                   const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &       codecConfig,
                   const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 &pictureControl,
-                  UINT                                                       pic_parameter_set_id,
-                  UINT                                                       seq_parameter_set_id,
-                  std::vector<BYTE> &                                        headerBitstream,
-                  std::vector<BYTE>::iterator                                placingPositionStart,
+                  uint32_t                                                   pic_parameter_set_id,
+                  uint32_t                                                   seq_parameter_set_id,
+                  std::vector<uint8_t> &                                     headerBitstream,
+                  std::vector<uint8_t>::iterator                             placingPositionStart,
                   size_t &                                                   writtenBytes);
 
-   void write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
-                                 std::vector<BYTE>::iterator placingPositionStart,
-                                 size_t &                    writtenBytes);
-   void write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
-                                   std::vector<BYTE>::iterator placingPositionStart,
-                                   size_t &                    writtenBytes);
+   void write_end_of_stream_nalu(std::vector<uint8_t> &         headerBitstream,
+                                 std::vector<uint8_t>::iterator placingPositionStart,
+                                 size_t &                       writtenBytes);
+   void write_end_of_sequence_nalu(std::vector<uint8_t> &         headerBitstream,
+                                   std::vector<uint8_t>::iterator placingPositionStart,
+                                   size_t &                       writtenBytes);
 
    void print_pps(const H264_PPS &pps);
    void print_sps(const H264_SPS &sps);
 
-   UINT m_writtenSPSCount = 0;
-   UINT m_writtenPPSCount = 0;
+   uint32_t m_writtenSPSCount = 0;
+   uint32_t m_writtenPPSCount = 0;
 
-   UINT get_sps_count()
+   uint32_t get_sps_count()
    {
       return m_writtenSPSCount;
    };
-   UINT get_pps_count()
+   uint32_t get_pps_count()
    {
       return m_writtenPPSCount;
    };

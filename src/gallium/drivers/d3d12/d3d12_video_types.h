@@ -125,11 +125,11 @@ typedef struct d3d12_video_decode_dpb_descriptor
 {
    DXGI_FORMAT Format          = DXGI_FORMAT_UNKNOWN;
    uint64_t    Width           = 0;
-   UINT        Height          = 0;
+   uint32_t    Height          = 0;
    bool        fArrayOfTexture = false;
    bool        fReferenceOnly  = false;
    uint16_t    dpbSize         = 0;
-   UINT        m_NodeMask      = 0;
+   uint32_t    m_NodeMask      = 0;
 } d3d12_video_decode_dpb_descriptor;
 
 typedef struct d3d12_video_decode_output_conversion_arguments
@@ -137,13 +137,13 @@ typedef struct d3d12_video_decode_output_conversion_arguments
    BOOL                  Enable;
    DXGI_COLOR_SPACE_TYPE OutputColorSpace;
    D3D12_VIDEO_SAMPLE    ReferenceInfo;
-   UINT                  ReferenceFrameCount;
+   uint32_t              ReferenceFrameCount;
 } d3d12_video_decode_output_conversion_arguments;
 
 void
 d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVELS_H264 level12,
-                                                  UINT &                          specLevel,
-                                                  UINT &                          constraint_set3_flag);
+                                                  uint32_t &                      specLevel,
+                                                  uint32_t &                      constraint_set3_flag);
 D3D12_VIDEO_ENCODER_PROFILE_H264
 d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(enum pipe_video_profile profile);
 D3D12_VIDEO_ENCODER_CODEC

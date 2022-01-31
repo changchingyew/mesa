@@ -43,17 +43,17 @@ D3D12_VIDEO_ENCODER_MOTION_ESTIMATION_PRECISION_MODE
 d3d12_video_encoder_convert_h264_motion_configuration(struct d3d12_video_encoder *pD3D12Enc,
                                                       pipe_h264_enc_picture_desc *picture);
 D3D12_VIDEO_ENCODER_LEVELS_H264
-d3d12_video_encoder_convert_level_h264(UINT h264SpecLevel);
+d3d12_video_encoder_convert_level_h264(uint32_t h264SpecLevel);
 D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264
 d3d12_video_encoder_convert_h264_codec_configuration(struct d3d12_video_encoder *pD3D12Enc,
                                                      pipe_h264_enc_picture_desc *picture);
 bool
-d3d12_video_encoder_is_gop_supported(UINT GOPLength,
-                                     UINT PPicturePeriod,
-                                     UINT MaxDPBCapacity,
-                                     UINT MaxL0ReferencesForP,
-                                     UINT MaxL0ReferencesForB,
-                                     UINT MaxL1ReferencesForB);
+d3d12_video_encoder_is_gop_supported(uint32_t GOPLength,
+                                     uint32_t PPicturePeriod,
+                                     uint32_t MaxDPBCapacity,
+                                     uint32_t MaxL0ReferencesForP,
+                                     uint32_t MaxL0ReferencesForB,
+                                     uint32_t MaxL1ReferencesForB);
 void
 d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video_encoder *pD3D12Enc,
                                                               struct pipe_video_buffer *  srcTexture,
@@ -61,7 +61,7 @@ d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video
                                                               D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &picParams);
 D3D12_VIDEO_ENCODER_FRAME_TYPE_H264
 d3d12_video_encoder_convert_frame_type(enum pipe_h2645_enc_picture_type picType);
-UINT
+uint32_t
 d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder *pD3D12Enc);
 bool
 d3d12_video_encoder_compare_slice_config_h264_hevc(

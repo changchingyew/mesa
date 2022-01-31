@@ -27,9 +27,6 @@
 
 #include "d3d12_video_types.h"
 
-typedef unsigned short USHORT;
-
-
 // From DXVA spec regarding DXVA_PicEntry_H264 entries:
 // Entries that will not be used for decoding the current picture, or any subsequent pictures,
 // are indicated by setting bPicEntry to 0xFF.
@@ -52,116 +49,119 @@ typedef struct _DXVA_PicEntry_H264
    {
       struct
       {
-         UCHAR Index7Bits : 7;
-         UCHAR AssociatedFlag : 1;
+         uint8_t Index7Bits : 7;
+         uint8_t AssociatedFlag : 1;
       };
-      UCHAR bPicEntry;
+      uint8_t bPicEntry;
    };
 } DXVA_PicEntry_H264, *LPDXVA_PicEntry_H264; /* 1 byte */
 
 /* H.264/AVC picture parameters structure */
 typedef struct _DXVA_PicParams_H264
 {
-   USHORT             wFrameWidthInMbsMinus1;
-   USHORT             wFrameHeightInMbsMinus1;
+   uint16_t           wFrameWidthInMbsMinus1;
+   uint16_t           wFrameHeightInMbsMinus1;
    DXVA_PicEntry_H264 CurrPic; /* flag is bot field flag */
-   UCHAR              num_ref_frames;
+   uint8_t            num_ref_frames;
 
    union
    {
       struct
       {
-         USHORT field_pic_flag : 1;
-         USHORT MbaffFrameFlag : 1;
-         USHORT residual_colour_transform_flag : 1;
-         USHORT sp_for_switch_flag : 1;
-         USHORT chroma_format_idc : 2;
-         USHORT RefPicFlag : 1;
-         USHORT constrained_intra_pred_flag : 1;
+         uint16_t field_pic_flag : 1;
+         uint16_t MbaffFrameFlag : 1;
+         uint16_t residual_colour_transform_flag : 1;
+         uint16_t sp_for_switch_flag : 1;
+         uint16_t chroma_format_idc : 2;
+         uint16_t RefPicFlag : 1;
+         uint16_t constrained_intra_pred_flag : 1;
 
-         USHORT weighted_pred_flag : 1;
-         USHORT weighted_bipred_idc : 2;
-         USHORT MbsConsecutiveFlag : 1;
-         USHORT frame_mbs_only_flag : 1;
-         USHORT transform_8x8_mode_flag : 1;
-         USHORT MinLumaBipredSize8x8Flag : 1;
-         USHORT IntraPicFlag : 1;
+         uint16_t weighted_pred_flag : 1;
+         uint16_t weighted_bipred_idc : 2;
+         uint16_t MbsConsecutiveFlag : 1;
+         uint16_t frame_mbs_only_flag : 1;
+         uint16_t transform_8x8_mode_flag : 1;
+         uint16_t MinLumaBipredSize8x8Flag : 1;
+         uint16_t IntraPicFlag : 1;
       };
-      USHORT wBitFields;
+      uint16_t wBitFields;
    };
-   UCHAR bit_depth_luma_minus8;
-   UCHAR bit_depth_chroma_minus8;
+   uint8_t bit_depth_luma_minus8;
+   uint8_t bit_depth_chroma_minus8;
 
-   USHORT Reserved16Bits;
-   UINT   StatusReportFeedbackNumber;
+   uint16_t Reserved16Bits;
+   uint32_t StatusReportFeedbackNumber;
 
    DXVA_PicEntry_H264 RefFrameList[16]; /* flag LT */
-   INT                CurrFieldOrderCnt[2];
-   INT                FieldOrderCntList[16][2];
+   int32_t            CurrFieldOrderCnt[2];
+   int32_t            FieldOrderCntList[16][2];
 
-   CHAR  pic_init_qs_minus26;
-   CHAR  chroma_qp_index_offset;        /* also used for QScb */
-   CHAR  second_chroma_qp_index_offset; /* also for QScr */
-   UCHAR ContinuationFlag;
+   char    pic_init_qs_minus26;
+   char    chroma_qp_index_offset;        /* also used for QScb */
+   char    second_chroma_qp_index_offset; /* also for QScr */
+   uint8_t ContinuationFlag;
 
    /* remainder for parsing */
-   CHAR  pic_init_qp_minus26;
-   UCHAR num_ref_idx_l0_active_minus1;
-   UCHAR num_ref_idx_l1_active_minus1;
-   UCHAR Reserved8BitsA;
+   char    pic_init_qp_minus26;
+   uint8_t num_ref_idx_l0_active_minus1;
+   uint8_t num_ref_idx_l1_active_minus1;
+   uint8_t Reserved8BitsA;
 
-   USHORT FrameNumList[16];
-   UINT   UsedForReferenceFlags;
-   USHORT NonExistingFrameFlags;
-   USHORT frame_num;
+   uint16_t FrameNumList[16];
+   uint32_t UsedForReferenceFlags;
+   uint16_t NonExistingFrameFlags;
+   uint16_t frame_num;
 
-   UCHAR log2_max_frame_num_minus4;
-   UCHAR pic_order_cnt_type;
-   UCHAR log2_max_pic_order_cnt_lsb_minus4;
-   UCHAR delta_pic_order_always_zero_flag;
+   uint8_t log2_max_frame_num_minus4;
+   uint8_t pic_order_cnt_type;
+   uint8_t log2_max_pic_order_cnt_lsb_minus4;
+   uint8_t delta_pic_order_always_zero_flag;
 
-   UCHAR direct_8x8_inference_flag;
-   UCHAR entropy_coding_mode_flag;
-   UCHAR pic_order_present_flag;
-   UCHAR num_slice_groups_minus1;
+   uint8_t direct_8x8_inference_flag;
+   uint8_t entropy_coding_mode_flag;
+   uint8_t pic_order_present_flag;
+   uint8_t num_slice_groups_minus1;
 
-   UCHAR slice_group_map_type;
-   UCHAR deblocking_filter_control_present_flag;
-   UCHAR redundant_pic_cnt_present_flag;
-   UCHAR Reserved8BitsB;
+   uint8_t slice_group_map_type;
+   uint8_t deblocking_filter_control_present_flag;
+   uint8_t redundant_pic_cnt_present_flag;
+   uint8_t Reserved8BitsB;
 
-   USHORT slice_group_change_rate_minus1;
+   uint16_t slice_group_change_rate_minus1;
 
-   UCHAR SliceGroupMap[810]; /* 4b/sgmu, Size BT.601 */
+   uint8_t SliceGroupMap[810]; /* 4b/sgmu, Size BT.601 */
 
 } DXVA_PicParams_H264, *LPDXVA_PicParams_H264;
 
 /* H.264/AVC quantization weighting matrix data structure */
 typedef struct _DXVA_Qmatrix_H264
 {
-   UCHAR bScalingLists4x4[6][16];
-   UCHAR bScalingLists8x8[2][64];
+   uint8_t bScalingLists4x4[6][16];
+   uint8_t bScalingLists8x8[2][64];
 
 } DXVA_Qmatrix_H264, *LPDXVA_Qmatrix_H264;
 
 /* H.264/AVC slice control data structure - short form */
 typedef struct _DXVA_Slice_H264_Short
 {
-   UINT   BSNALunitDataLocation; /* type 1..5 */
-   UINT   SliceBytesInBuffer;    /* for off-host parse */
-   USHORT wBadSliceChopping;     /* for off-host parse */
+   uint32_t BSNALunitDataLocation; /* type 1..5 */
+   uint32_t SliceBytesInBuffer;    /* for off-host parse */
+   uint16_t wBadSliceChopping;     /* for off-host parse */
 } DXVA_Slice_H264_Short, *LPDXVA_Slice_H264_Short;
 
 DXVA_PicParams_H264
-d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
-   UINT frameNum, pipe_video_profile profile, UINT frameWidth, UINT frameHeight, pipe_h264_picture_desc *pipeDesc);
+d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(uint32_t                frameNum,
+                                                            pipe_video_profile      profile,
+                                                            uint32_t                frameWidth,
+                                                            uint32_t                frameHeight,
+                                                            pipe_h264_picture_desc *pipeDesc);
 void
 d3d12_video_decoder_get_frame_info_h264(
-   struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, uint16_t *pMaxDPB, bool &isInterlaced);
+   struct d3d12_video_decoder *pD3D12Dec, uint32_t *pWidth, uint32_t *pHeight, uint16_t *pMaxDPB, bool &isInterlaced);
 void
 d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_decoder *pD3D12Dec,
                                                           ID3D12Resource *            pTexture2D,
-                                                          UINT                        subresourceIndex);
+                                                          uint32_t                    subresourceIndex);
 void
 d3d12_video_decoder_dxva_qmatrix_from_pipe_picparams_h264(pipe_h264_picture_desc *pPipeDesc,
                                                           DXVA_Qmatrix_H264 &     outMatrixBuffer,
@@ -169,12 +169,12 @@ d3d12_video_decoder_dxva_qmatrix_from_pipe_picparams_h264(pipe_h264_picture_desc
 void
 d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec);
 bool
-d3d12_video_decoder_get_slice_size_and_offset_h264(size_t             sliceIdx,
-                                                   size_t             numSlices,
-                                                   std::vector<BYTE> &buf,
-                                                   unsigned int       bufferOffset,
-                                                   UINT &             outSliceSize,
-                                                   UINT &             outSliceOffset);
+d3d12_video_decoder_get_slice_size_and_offset_h264(size_t                sliceIdx,
+                                                   size_t                numSlices,
+                                                   std::vector<uint8_t> &buf,
+                                                   unsigned int          bufferOffset,
+                                                   uint32_t &            outSliceSize,
+                                                   uint32_t &            outSliceOffset);
 void
 d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *        pD3D12Dec,
                                                      size_t                              numSlices,

@@ -66,7 +66,7 @@ d3d12_video_encoder_bitstream::get_exp_golomb0_code_len(uint32_t uiVal)
 void
 d3d12_video_encoder_bitstream::exp_Golomb_ue(uint32_t uiVal)
 {
-   if (uiVal != UINT_MAX) {
+   if (uiVal != UINT32_MAX) {
       int32_t iLen = get_exp_golomb0_code_len(uiVal);
       put_bits((iLen << 1) + 1, uiVal + 1);
    } else {
@@ -228,7 +228,7 @@ d3d12_video_encoder_bitstream::put_bits(int32_t uiBitsCount, uint32_t iBitsVal)
 void
 d3d12_video_encoder_bitstream::flush()
 {
-   bool isAligned = is_byte_aligned(); // causes side-effects in object state, don't put inside assert()
+   bool isAligned = is_byte_aligned();   // causes side-effects in object state, don't put inside assert()
    assert(isAligned);
 
    uint32_t temp = (uint32_t)(32 - m_iBitsToGo);
@@ -250,9 +250,10 @@ d3d12_video_encoder_bitstream::flush()
 void
 d3d12_video_encoder_bitstream::append_byte_stream(d3d12_video_encoder_bitstream *pStream)
 {
-   bool isStreamAligned = pStream->is_byte_aligned(); // causes side-effects in object state, don't put inside assert()
+   bool isStreamAligned =
+      pStream->is_byte_aligned();   // causes side-effects in object state, don't put inside assert()
    assert(isStreamAligned);
-   bool isThisAligned = is_byte_aligned(); // causes side-effects in object state, don't put inside assert()
+   bool isThisAligned = is_byte_aligned();   // causes side-effects in object state, don't put inside assert()
    assert(isThisAligned);
    assert(m_iBitsToGo == 32);
 

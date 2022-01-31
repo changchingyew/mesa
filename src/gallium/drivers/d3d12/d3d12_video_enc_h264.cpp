@@ -215,7 +215,7 @@ d3d12_video_encoder_convert_h264_motion_configuration(struct d3d12_video_encoder
 }
 
 D3D12_VIDEO_ENCODER_LEVELS_H264
-d3d12_video_encoder_convert_level_h264(UINT h264SpecLevel)
+d3d12_video_encoder_convert_level_h264(uint32_t h264SpecLevel)
 {
    switch (h264SpecLevel) {
       case 10:
@@ -303,8 +303,8 @@ d3d12_video_encoder_convert_level_h264(UINT h264SpecLevel)
 
 void
 d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVELS_H264 level12,
-                                                  UINT &                          specLevel,
-                                                  UINT &                          constraint_set3_flag)
+                                                  uint32_t &                      specLevel,
+                                                  uint32_t &                      constraint_set3_flag)
 {
    specLevel            = 0;
    constraint_set3_flag = 0;
@@ -399,12 +399,12 @@ d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVELS_H26
 }
 
 bool
-d3d12_video_encoder_is_gop_supported(UINT GOPLength,
-                                     UINT PPicturePeriod,
-                                     UINT MaxDPBCapacity,
-                                     UINT MaxL0ReferencesForP,
-                                     UINT MaxL0ReferencesForB,
-                                     UINT MaxL1ReferencesForB)
+d3d12_video_encoder_is_gop_supported(uint32_t GOPLength,
+                                     uint32_t PPicturePeriod,
+                                     uint32_t MaxDPBCapacity,
+                                     uint32_t MaxL0ReferencesForP,
+                                     uint32_t MaxL0ReferencesForB,
+                                     uint32_t MaxL1ReferencesForB)
 {
    bool bSupportedGOP = true;
    bool gopHasPFrames = (PPicturePeriod > 0) && ((GOPLength == 0) || (PPicturePeriod < GOPLength));
@@ -447,9 +447,9 @@ d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD
 {
    // Only update GOP when it begins
    if (picture->gop_cnt == 1) {
-      UINT GOPCoeff       = picture->i_remain;
-      UINT GOPLength      = picture->gop_size / GOPCoeff;
-      UINT PPicturePeriod = std::ceil(GOPLength / (double) (picture->p_remain / GOPCoeff)) - 1;
+      uint32_t GOPCoeff       = picture->i_remain;
+      uint32_t GOPLength      = picture->gop_size / GOPCoeff;
+      uint32_t PPicturePeriod = std::ceil(GOPLength / (double) (picture->p_remain / GOPCoeff)) - 1;
 
       if (picture->pic_order_cnt_type == 1u) {
          D3D12_LOG_ERROR("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video "
@@ -485,10 +485,10 @@ d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD
          }
       }
 
-      const UINT max_pic_order_cnt_lsb             = (GOPLength > 0) ? 256u : 16384u;
-      const UINT max_max_frame_num                 = (GOPLength > 0) ? 256u : 16384u;
-      double     log2_max_frame_num_minus4         = std::max(0.0, std::ceil(std::log2(max_max_frame_num)) - 4);
-      double     log2_max_pic_order_cnt_lsb_minus4 = std::max(0.0, std::ceil(std::log2(max_pic_order_cnt_lsb)) - 4);
+      const uint32_t max_pic_order_cnt_lsb             = (GOPLength > 0) ? 256u : 16384u;
+      const uint32_t max_max_frame_num                 = (GOPLength > 0) ? 256u : 16384u;
+      double         log2_max_frame_num_minus4         = std::max(0.0, std::ceil(std::log2(max_max_frame_num)) - 4);
+      double         log2_max_pic_order_cnt_lsb_minus4 = std::max(0.0, std::ceil(std::log2(max_pic_order_cnt_lsb)) - 4);
       assert(log2_max_frame_num_minus4 < UCHAR_MAX);
       assert(log2_max_pic_order_cnt_lsb_minus4 < UCHAR_MAX);
       assert(picture->pic_order_cnt_type < UCHAR_MAX);
@@ -498,9 +498,9 @@ d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD
       pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures = {
          GOPLength,
          PPicturePeriod,
-         static_cast<UCHAR>(picture->pic_order_cnt_type),
-         static_cast<UCHAR>(log2_max_frame_num_minus4),
-         static_cast<UCHAR>(log2_max_pic_order_cnt_lsb_minus4)
+         static_cast<uint8_t>(picture->pic_order_cnt_type),
+         static_cast<uint8_t>(log2_max_frame_num_minus4),
+         static_cast<uint8_t>(log2_max_pic_order_cnt_lsb_minus4)
       };
 
       if (memcmp(&previousGOPConfig,
@@ -902,7 +902,7 @@ d3d12_video_encoder_compare_slice_config_h264_hevc(
                   sizeof(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA_SLICES)) == 0);
 }
 
-UINT
+uint32_t
 d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder *pD3D12Enc)
 {
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA currentPicParams =
@@ -922,7 +922,7 @@ d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder *pD3D12E
       dynamic_cast<d3d12_video_bitstream_builder_h264 *>(pD3D12Enc->m_upBitstreamBuilder.get());
    assert(pH264BitstreamBuilder);
 
-   UINT active_seq_parameter_set_id = pH264BitstreamBuilder->get_sps_count();
+   uint32_t active_seq_parameter_set_id = pH264BitstreamBuilder->get_sps_count();
    if (active_seq_parameter_set_id > 0) {
       active_seq_parameter_set_id--;   // get_sps_count returns the count of SPS written, we want the zero-indexed range
                                        // for active_seq_parameter_set_id

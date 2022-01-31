@@ -28,7 +28,7 @@ void
 d3d12_video_nalu_writer_h264::rbsp_trailing(d3d12_video_encoder_bitstream *pBitstream)
 {
    pBitstream->put_bits(1, 1);
-   INT32 iLeft = pBitstream->get_num_bits_for_byte_align();
+   int32_t iLeft = pBitstream->get_num_bits_for_byte_align();
 
    if (iLeft) {
       pBitstream->put_bits(iLeft, 0);
@@ -41,7 +41,7 @@ d3d12_video_nalu_writer_h264::rbsp_trailing(d3d12_video_encoder_bitstream *pBits
 uint32_t
 d3d12_video_nalu_writer_h264::write_sps_bytes(d3d12_video_encoder_bitstream *pBitstream, H264_SPS *pSPS)
 {
-   INT32 iBytesWritten = pBitstream->get_byte_count();
+   int32_t iBytesWritten = pBitstream->get_byte_count();
 
    // Standard constraint to be between 0 and 31 inclusive
    assert(pSPS->seq_parameter_set_id >= 0);
@@ -116,7 +116,7 @@ d3d12_video_nalu_writer_h264::write_pps_bytes(d3d12_video_encoder_bitstream *pBi
                                               H264_PPS *                     pPPS,
                                               BOOL                           bIsHighProfile)
 {
-   INT32 iBytesWritten = pBitstream->get_byte_count();
+   int32_t iBytesWritten = pBitstream->get_byte_count();
 
    // Standard constraint to be between 0 and 31 inclusive
    assert(pPPS->seq_parameter_set_id >= 0);
@@ -174,7 +174,7 @@ d3d12_video_nalu_writer_h264::write_nalu_end(d3d12_video_encoder_bitstream *pNAL
 {
    pNALU->flush();
    pNALU->set_start_code_prevention(FALSE);
-   INT32 iNALUnitLen = pNALU->get_byte_count();
+   int32_t iNALUnitLen = pNALU->get_byte_count();
 
    if (FALSE == pNALU->m_bBufferOverflow && 0x00 == pNALU->get_bitstream_buffer()[iNALUnitLen - 1]) {
       pNALU->put_bits(8, 0x03);
@@ -185,13 +185,13 @@ d3d12_video_nalu_writer_h264::write_nalu_end(d3d12_video_encoder_bitstream *pNAL
 uint32_t
 d3d12_video_nalu_writer_h264::wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream *pNALU,
                                                   d3d12_video_encoder_bitstream *pRBSP,
-                                                  UINT                           iNaluIdc,
-                                                  UINT                           iNaluType)
+                                                  uint32_t                       iNaluIdc,
+                                                  uint32_t                       iNaluType)
 {
    bool isAligned = pRBSP->is_byte_aligned();   // causes side-effects in object state, don't put inside assert()
    assert(isAligned);
 
-   INT32 iBytesWritten = pNALU->get_byte_count();
+   int32_t iBytesWritten = pNALU->get_byte_count();
 
    pNALU->set_start_code_prevention(FALSE);
 
@@ -214,10 +214,10 @@ d3d12_video_nalu_writer_h264::wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream 
    } else {
       // Copy with start code prevention.
       pNALU->set_start_code_prevention(TRUE);
-      INT32 iLength = pRBSP->get_byte_count();
-      BYTE *pBuffer = pRBSP->get_bitstream_buffer();
+      int32_t  iLength = pRBSP->get_byte_count();
+      uint8_t *pBuffer = pRBSP->get_bitstream_buffer();
 
-      for (INT32 i = 0; i < iLength; i++) {
+      for (int32_t i = 0; i < iLength; i++) {
          pNALU->put_bits(8, pBuffer[i]);
       }
    }
@@ -233,10 +233,10 @@ d3d12_video_nalu_writer_h264::wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream 
 }
 
 void
-d3d12_video_nalu_writer_h264::sps_to_nalu_bytes(H264_SPS *                  pSPS,
-                                                std::vector<BYTE> &         headerBitstream,
-                                                std::vector<BYTE>::iterator placingPositionStart,
-                                                size_t &                    writtenBytes)
+d3d12_video_nalu_writer_h264::sps_to_nalu_bytes(H264_SPS *                     pSPS,
+                                                std::vector<uint8_t> &         headerBitstream,
+                                                std::vector<uint8_t>::iterator placingPositionStart,
+                                                size_t &                       writtenBytes)
 {
    // Wrap SPS into NALU and copy full NALU into output byte array
    d3d12_video_encoder_bitstream rbsp, nalu;
@@ -260,8 +260,8 @@ d3d12_video_nalu_writer_h264::sps_to_nalu_bytes(H264_SPS *                  pSPS
 
    // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer
    // memory.
-   BYTE * naluBytes    = nalu.get_bitstream_buffer();
-   size_t naluByteSize = nalu.get_byte_count();
+   uint8_t *naluBytes    = nalu.get_bitstream_buffer();
+   size_t   naluByteSize = nalu.get_byte_count();
 
    auto startDstIndex = std::distance(headerBitstream.begin(), placingPositionStart);
    if (headerBitstream.size() < (startDstIndex + naluByteSize)) {
@@ -274,11 +274,11 @@ d3d12_video_nalu_writer_h264::sps_to_nalu_bytes(H264_SPS *                  pSPS
 }
 
 void
-d3d12_video_nalu_writer_h264::pps_to_nalu_bytes(H264_PPS *                  pPPS,
-                                                std::vector<BYTE> &         headerBitstream,
-                                                BOOL                        bIsHighProfile,
-                                                std::vector<BYTE>::iterator placingPositionStart,
-                                                size_t &                    writtenBytes)
+d3d12_video_nalu_writer_h264::pps_to_nalu_bytes(H264_PPS *                     pPPS,
+                                                std::vector<uint8_t> &         headerBitstream,
+                                                BOOL                           bIsHighProfile,
+                                                std::vector<uint8_t>::iterator placingPositionStart,
+                                                size_t &                       writtenBytes)
 {
    // Wrap PPS into NALU and copy full NALU into output byte array
    d3d12_video_encoder_bitstream rbsp, nalu;
@@ -302,8 +302,8 @@ d3d12_video_nalu_writer_h264::pps_to_nalu_bytes(H264_PPS *                  pPPS
 
    // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer
    // memory.
-   BYTE * naluBytes    = nalu.get_bitstream_buffer();
-   size_t naluByteSize = nalu.get_byte_count();
+   uint8_t *naluBytes    = nalu.get_bitstream_buffer();
+   size_t   naluByteSize = nalu.get_byte_count();
 
    auto startDstIndex = std::distance(headerBitstream.begin(), placingPositionStart);
    if (headerBitstream.size() < (startDstIndex + naluByteSize)) {
@@ -316,9 +316,9 @@ d3d12_video_nalu_writer_h264::pps_to_nalu_bytes(H264_PPS *                  pPPS
 }
 
 void
-d3d12_video_nalu_writer_h264::write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
-                                                       std::vector<BYTE>::iterator placingPositionStart,
-                                                       size_t &                    writtenBytes)
+d3d12_video_nalu_writer_h264::write_end_of_stream_nalu(std::vector<uint8_t> &         headerBitstream,
+                                                       std::vector<uint8_t>::iterator placingPositionStart,
+                                                       size_t &                       writtenBytes)
 {
    d3d12_video_encoder_bitstream rbsp, nalu;
    if (!rbsp.create_bitstream(8)) {
@@ -336,8 +336,8 @@ d3d12_video_nalu_writer_h264::write_end_of_stream_nalu(std::vector<BYTE> &      
 
    // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer
    // memory.
-   BYTE * naluBytes    = nalu.get_bitstream_buffer();
-   size_t naluByteSize = nalu.get_byte_count();
+   uint8_t *naluBytes    = nalu.get_bitstream_buffer();
+   size_t   naluByteSize = nalu.get_byte_count();
 
    auto startDstIndex = std::distance(headerBitstream.begin(), placingPositionStart);
    if (headerBitstream.size() < (startDstIndex + naluByteSize)) {
@@ -350,9 +350,9 @@ d3d12_video_nalu_writer_h264::write_end_of_stream_nalu(std::vector<BYTE> &      
 }
 
 void
-d3d12_video_nalu_writer_h264::write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
-                                                         std::vector<BYTE>::iterator placingPositionStart,
-                                                         size_t &                    writtenBytes)
+d3d12_video_nalu_writer_h264::write_end_of_sequence_nalu(std::vector<uint8_t> &         headerBitstream,
+                                                         std::vector<uint8_t>::iterator placingPositionStart,
+                                                         size_t &                       writtenBytes)
 {
    d3d12_video_encoder_bitstream rbsp, nalu;
    if (!rbsp.create_bitstream(8)) {
@@ -372,8 +372,8 @@ d3d12_video_nalu_writer_h264::write_end_of_sequence_nalu(std::vector<BYTE> &    
 
    // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer
    // memory.
-   BYTE * naluBytes    = nalu.get_bitstream_buffer();
-   size_t naluByteSize = nalu.get_byte_count();
+   uint8_t *naluBytes    = nalu.get_bitstream_buffer();
+   size_t   naluByteSize = nalu.get_byte_count();
 
    auto startDstIndex = std::distance(headerBitstream.begin(), placingPositionStart);
    if (headerBitstream.size() < (startDstIndex + naluByteSize)) {

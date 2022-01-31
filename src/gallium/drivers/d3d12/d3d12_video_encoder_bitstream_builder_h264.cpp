@@ -53,16 +53,16 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
                                               const DXGI_FORMAT &                                    inputFmt,
                                               const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &   codecConfig,
                                               const D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 &gopConfig,
-                                              UINT                                        seq_parameter_set_id,
-                                              UINT                                        max_num_ref_frames,
+                                              uint32_t                                    seq_parameter_set_id,
+                                              uint32_t                                    max_num_ref_frames,
                                               D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC sequenceTargetResolution,
-                                              std::vector<BYTE> &                         headerBitstream,
-                                              std::vector<BYTE>::iterator                 placingPositionStart,
+                                              std::vector<uint8_t> &                      headerBitstream,
+                                              std::vector<uint8_t>::iterator              placingPositionStart,
                                               size_t &                                    writtenBytes)
 {
    H264_SPEC_PROFILES profile_idc          = Convert12ToSpecH264Profiles(profile);
-   UINT               constraint_set3_flag = 0;
-   UINT               level_idc            = 0;
+   uint32_t           constraint_set3_flag = 0;
+   uint32_t           level_idc            = 0;
    d3d12_video_encoder_convert_from_d3d12_level_h264(
       level,
       level_idc,
@@ -81,8 +81,8 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
    }
 
    // Assume NV12 YUV 420 8 bits
-   UINT bit_depth_luma_minus8   = 0;
-   UINT bit_depth_chroma_minus8 = 0;
+   uint32_t bit_depth_luma_minus8   = 0;
+   uint32_t bit_depth_chroma_minus8 = 0;
 
    // In case is 420 10 bits fix it
    if (inputFmt == DXGI_FORMAT_P010) {
@@ -92,19 +92,20 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
 
    // Calculate sequence resolution sizes in MBs
    // Always in MBs since we don't support interlace in D3D12 Encode
-   UINT pic_width_in_mbs_minus1        = static_cast<UINT>(std::ceil(sequenceTargetResolution.Width / 16.0)) - 1;
-   UINT pic_height_in_map_units_minus1 = static_cast<UINT>(std::ceil(sequenceTargetResolution.Height / 16.0)) - 1;
+   uint32_t pic_width_in_mbs_minus1 = static_cast<uint32_t>(std::ceil(sequenceTargetResolution.Width / 16.0)) - 1;
+   uint32_t pic_height_in_map_units_minus1 =
+      static_cast<uint32_t>(std::ceil(sequenceTargetResolution.Height / 16.0)) - 1;
 
    // Calculate macroblock aligned resolution
-   UINT alignedWidth  = static_cast<UINT>(std::ceil(sequenceTargetResolution.Width / 16.0)) * 16;
-   UINT alignedHeight = static_cast<UINT>(std::ceil(sequenceTargetResolution.Height / 16.0)) * 16;
+   uint32_t alignedWidth  = static_cast<uint32_t>(std::ceil(sequenceTargetResolution.Width / 16.0)) * 16;
+   uint32_t alignedHeight = static_cast<uint32_t>(std::ceil(sequenceTargetResolution.Height / 16.0)) * 16;
 
-   INT32 iCropRight  = alignedWidth - sequenceTargetResolution.Width;
-   INT32 iCropBottom = alignedHeight - sequenceTargetResolution.Height;
+   int32_t iCropRight  = alignedWidth - sequenceTargetResolution.Width;
+   int32_t iCropBottom = alignedHeight - sequenceTargetResolution.Height;
 
-   UINT frame_cropping_flag               = 0;
-   UINT frame_cropping_rect_right_offset  = 0;
-   UINT frame_cropping_rect_bottom_offset = 0;
+   uint32_t frame_cropping_flag               = 0;
+   uint32_t frame_cropping_rect_right_offset  = 0;
+   uint32_t frame_cropping_rect_bottom_offset = 0;
 
    if (iCropRight || iCropBottom) {
       frame_cropping_flag               = 1;
@@ -112,7 +113,7 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
       frame_cropping_rect_bottom_offset = iCropBottom / 2;
    }
 
-   H264_SPS spsStructure = { static_cast<UINT>(profile_idc),
+   H264_SPS spsStructure = { static_cast<uint32_t>(profile_idc),
                              constraint_set3_flag,
                              level_idc,
                              seq_parameter_set_id,
@@ -146,17 +147,17 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
 }
 
 void
-d3d12_video_bitstream_builder_h264::write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
-                                                             std::vector<BYTE>::iterator placingPositionStart,
-                                                             size_t &                    writtenBytes)
+d3d12_video_bitstream_builder_h264::write_end_of_stream_nalu(std::vector<uint8_t> &         headerBitstream,
+                                                             std::vector<uint8_t>::iterator placingPositionStart,
+                                                             size_t &                       writtenBytes)
 {
    m_h264Encoder.write_end_of_stream_nalu(headerBitstream, placingPositionStart, writtenBytes);
 }
 
 void
-d3d12_video_bitstream_builder_h264::write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
-                                                               std::vector<BYTE>::iterator placingPositionStart,
-                                                               size_t &                    writtenBytes)
+d3d12_video_bitstream_builder_h264::write_end_of_sequence_nalu(std::vector<uint8_t> &         headerBitstream,
+                                                               std::vector<uint8_t>::iterator placingPositionStart,
+                                                               size_t &                       writtenBytes)
 {
    m_h264Encoder.write_end_of_sequence_nalu(headerBitstream, placingPositionStart, writtenBytes);
 }
@@ -165,11 +166,11 @@ void
 d3d12_video_bitstream_builder_h264::build_pps(const D3D12_VIDEO_ENCODER_PROFILE_H264 &                   profile,
                                               const D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 &       codecConfig,
                                               const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 &pictureControl,
-                                              UINT                        pic_parameter_set_id,
-                                              UINT                        seq_parameter_set_id,
-                                              std::vector<BYTE> &         headerBitstream,
-                                              std::vector<BYTE>::iterator placingPositionStart,
-                                              size_t &                    writtenBytes)
+                                              uint32_t                       pic_parameter_set_id,
+                                              uint32_t                       seq_parameter_set_id,
+                                              std::vector<uint8_t> &         headerBitstream,
+                                              std::vector<uint8_t>::iterator placingPositionStart,
+                                              size_t &                       writtenBytes)
 {
    BOOL bIsHighProfile =
       ((profile == D3D12_VIDEO_ENCODER_PROFILE_H264_HIGH) || (profile == D3D12_VIDEO_ENCODER_PROFILE_H264_HIGH_10));
@@ -182,10 +183,10 @@ d3d12_video_bitstream_builder_h264::build_pps(const D3D12_VIDEO_ENCODER_PROFILE_
          0u,   // entropy_coding_mode_flag
       0,   // pic_order_present_flag (bottom_field_pic_order_in_frame_present_flag) - will use pic_cnt 0 or 2, always
            // off ; used with pic_cnt_type 1 and deltas.
-      static_cast<UINT>(
-         std::max(static_cast<INT>(pictureControl.List0ReferenceFramesCount) - 1, 0)),   // num_ref_idx_l0_active_minus1
-      static_cast<UINT>(
-         std::max(static_cast<INT>(pictureControl.List1ReferenceFramesCount) - 1, 0)),   // num_ref_idx_l1_active_minus1
+      static_cast<uint32_t>(std::max(static_cast<int32_t>(pictureControl.List0ReferenceFramesCount) - 1,
+                                     0)),   // num_ref_idx_l0_active_minus1
+      static_cast<uint32_t>(std::max(static_cast<int32_t>(pictureControl.List1ReferenceFramesCount) - 1,
+                                     0)),   // num_ref_idx_l1_active_minus1
       ((codecConfig.ConfigurationFlags &
         D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264_FLAG_USE_CONSTRAINED_INTRAPREDICTION) != 0) ?
          1u :
@@ -212,9 +213,9 @@ d3d12_video_bitstream_builder_h264::print_pps(const H264_PPS &pps)
    // Be careful that build_pps also wraps some other NALU bytes in pps_to_nalu_bytes so bitstream returned by build_pps
    // won't be exactly the bytes from the H264_PPS struct
 
-   static_assert(
-      sizeof(H264_PPS) ==
-      (sizeof(UINT) * 8));   // Update the number of UINT in struct in assert and add case below if structure changes
+   static_assert(sizeof(H264_PPS) ==
+                 (sizeof(uint32_t) *
+                  8));   // Update the number of uint32_t in struct in assert and add case below if structure changes
 
    // Declared fields from definition in d3d12_video_encoder_bitstream_builder_h264.h
 
@@ -238,9 +239,9 @@ d3d12_video_bitstream_builder_h264::print_sps(const H264_SPS &sps)
    // bitstream returned by build_sps won't be exactly the bytes from the H264_SPS struct From definition in
    // d3d12_video_encoder_bitstream_builder_h264.h
 
-   static_assert(
-      sizeof(H264_SPS) ==
-      (sizeof(UINT) * 19));   // Update the number of UINT in struct in assert and add case below if structure changes
+   static_assert(sizeof(H264_SPS) ==
+                 (sizeof(uint32_t) *
+                  19));   // Update the number of uint32_t in struct in assert and add case below if structure changes
 
    // Declared fields from definition in d3d12_video_encoder_bitstream_builder_h264.h
 

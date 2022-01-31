@@ -40,10 +40,10 @@ class d3d12_video_encoder_references_manager_h264 : public d3d12_video_encoder_r
 
    d3d12_video_encoder_references_manager_h264(bool                                       gopHasInterCodedFrames,
                                                d3d12_video_dpb_storage_manager_interface &rDpbStorageManager,
-                                               UINT                                       MaxL0ReferencesForP,
-                                               UINT                                       MaxL0ReferencesForB,
-                                               UINT                                       MaxL1ReferencesForB,
-                                               UINT                                       MaxDPBCapacity);
+                                               uint32_t                                   MaxL0ReferencesForP,
+                                               uint32_t                                   MaxL0ReferencesForB,
+                                               uint32_t                                   MaxL1ReferencesForB,
+                                               uint32_t                                   MaxDPBCapacity);
 
    ~d3d12_video_encoder_references_manager_h264()
    { }
@@ -59,15 +59,15 @@ class d3d12_video_encoder_references_manager_h264 : public d3d12_video_encoder_r
 
    // Class members
 
-   UINT m_MaxL0ReferencesForP = 0;
-   UINT m_MaxL0ReferencesForB = 0;
-   UINT m_MaxL1ReferencesForB = 0;
-   UINT m_MaxDPBCapacity      = 0;
+   uint32_t m_MaxL0ReferencesForP = 0;
+   uint32_t m_MaxL0ReferencesForB = 0;
+   uint32_t m_MaxL1ReferencesForB = 0;
+   uint32_t m_MaxDPBCapacity      = 0;
 
    typedef struct current_frame_references_data
    {
-      std::vector<UINT>                                                  pList0ReferenceFrames;
-      std::vector<UINT>                                                  pList1ReferenceFrames;
+      std::vector<uint32_t>                                              pList0ReferenceFrames;
+      std::vector<uint32_t>                                              pList1ReferenceFrames;
       std::vector<D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pReferenceFramesReconPictureDescriptors;
       D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE                          ReconstructedPicTexture;
    } current_frame_references_data;

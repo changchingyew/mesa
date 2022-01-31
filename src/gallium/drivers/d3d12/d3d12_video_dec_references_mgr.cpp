@@ -48,7 +48,7 @@ GetInvalidReferenceIndex(d3d12_video_decode_profile_type DecodeProfileType)
 ///
 void
 d3d12_video_decoder_references_manager::get_current_frame_decode_output_texture(ID3D12Resource **ppOutTexture2D,
-                                                                                UINT *           pOutSubresourceIndex)
+                                                                                uint32_t *       pOutSubresourceIndex)
 {
    if (is_reference_only()) {
       // When using clear DPB references (not ReferenceOnly) the decode output allocations come from
@@ -95,7 +95,7 @@ d3d12_video_decoder_references_manager::get_current_frame_decode_output_texture(
 _Use_decl_annotations_ void
 d3d12_video_decoder_references_manager::get_reference_only_output(
    ID3D12Resource **ppOutputReference,     // out -> new reference slot assigned or nullptr
-   UINT *           pOutputSubresource,    // out -> new reference slot assigned or nullptr
+   uint32_t *       pOutputSubresource,    // out -> new reference slot assigned or nullptr
    bool &outNeedsTransitionToDecodeWrite   // out -> indicates if output resource argument has to be transitioned to
                                            // D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
 )
@@ -123,7 +123,7 @@ d3d12_video_decoder_references_manager::get_current_reference_frames()
 
    // Convert generic IUnknown into the actual decoder heap object
    m_ppHeaps.resize(args.NumTexture2Ds, nullptr);
-   for (UINT i = 0; i < args.NumTexture2Ds; i++) {
+   for (uint32_t i = 0; i < args.NumTexture2Ds; i++) {
       if (args.ppHeaps[i]) {
          VERIFY_SUCCEEDED(args.ppHeaps[i]->QueryInterface(IID_PPV_ARGS(&m_ppHeaps[i])));
       } else {
@@ -145,7 +145,7 @@ d3d12_video_decoder_references_manager::get_current_reference_frames()
 _Use_decl_annotations_
 d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(
    const struct d3d12_screen *       pD3D12Screen,
-   UINT                              NodeMask,
+   uint32_t                          NodeMask,
    d3d12_video_decode_profile_type   DecodeProfileType,
    d3d12_video_decode_dpb_descriptor m_dpbDescriptor)
    : m_pD3D12Screen(pD3D12Screen),
@@ -156,7 +156,7 @@ d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(
 {
    VERIFY_SUCCEEDED(
       m_pD3D12Screen->dev->CheckFeatureSupport(D3D12_FEATURE_FORMAT_INFO, &m_formatInfo, sizeof(m_formatInfo)));
-   D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC targetFrameResolution = { static_cast<UINT>(m_dpbDescriptor.Width),
+   D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC targetFrameResolution = { static_cast<uint32_t>(m_dpbDescriptor.Width),
                                                                          m_dpbDescriptor.Height };
    D3D12_RESOURCE_FLAGS                        resourceAllocFlags =
       m_dpbDescriptor.fReferenceOnly ?
@@ -188,7 +188,7 @@ d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(
 
    d3d12_video_reconstructed_picture reconPicture = { nullptr, 0, nullptr };
 
-   for (UINT dpbIdx = 0; dpbIdx < m_dpbDescriptor.dpbSize; dpbIdx++) {
+   for (uint32_t dpbIdx = 0; dpbIdx < m_dpbDescriptor.dpbSize; dpbIdx++) {
       m_upD3D12TexturesStorageManager->insert_reference_frame(reconPicture, dpbIdx);
    }
 
@@ -215,7 +215,7 @@ uint16_t
 d3d12_video_decoder_references_manager::update_entry(
    uint16_t         index,                // in
    ID3D12Resource *&pOutputReference,     // out -> new reference slot assigned or nullptr
-   UINT &           OutputSubresource,    // out -> new reference slot assigned or 0
+   uint32_t &       OutputSubresource,    // out -> new reference slot assigned or 0
    bool &outNeedsTransitionToDecodeRead   // out -> indicates if output resource argument has to be transitioned to
                                           // D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
 )
@@ -248,7 +248,7 @@ _Use_decl_annotations_ uint16_t
 d3d12_video_decoder_references_manager::store_future_reference(uint16_t                        index,
                                                                ComPtr<ID3D12VideoDecoderHeap> &decoderHeap,
                                                                ID3D12Resource *                pTexture2D,
-                                                               UINT                            subresourceIndex)
+                                                               uint32_t                        subresourceIndex)
 {
    // Check if the index was in use.
    uint16_t remappedIndex = find_remapped_index(index);
@@ -301,7 +301,7 @@ d3d12_video_decoder_references_manager::mark_reference_in_use(uint16_t index)
 void
 d3d12_video_decoder_references_manager::release_unused_references_texture_memory()
 {
-   for (UINT index = 0; index < m_dpbDescriptor.dpbSize; index++) {
+   for (uint32_t index = 0; index < m_dpbDescriptor.dpbSize; index++) {
       if (!m_referenceDXVAIndices[index].fUsed) {
          d3d12_video_reconstructed_picture reconPicture = m_upD3D12TexturesStorageManager->get_reference_frame(index);
          if (reconPicture.pReconstructedPicture != nullptr) {
@@ -327,7 +327,7 @@ d3d12_video_decoder_references_manager::release_unused_references_texture_memory
 void
 d3d12_video_decoder_references_manager::mark_all_references_as_unused()
 {
-   for (UINT index = 0; index < m_dpbDescriptor.dpbSize; index++) {
+   for (uint32_t index = 0; index < m_dpbDescriptor.dpbSize; index++) {
       m_referenceDXVAIndices[index].fUsed = false;
    }
 }

@@ -31,7 +31,7 @@
 struct d3d12_video_decoder_references_manager
 {
    d3d12_video_decoder_references_manager(const struct d3d12_screen *       pD3D12Screen,
-                                          UINT                              NodeMask,
+                                          uint32_t                          NodeMask,
                                           d3d12_video_decode_profile_type   DecodeProfileType,
                                           d3d12_video_decode_dpb_descriptor dpbDescriptor);
 
@@ -54,7 +54,7 @@ struct d3d12_video_decoder_references_manager
    uint16_t store_future_reference(uint16_t index,
                                    _In_ ComPtr<ID3D12VideoDecoderHeap> &decoderHeap,
                                    ID3D12Resource *                     pTexture2D,
-                                   UINT                                 subresourceIndex);
+                                   uint32_t                             subresourceIndex);
 
    // Will clear() argument outNeededTransitions and fill it with the necessary transitions to perform by the caller
    // after the method returns
@@ -63,13 +63,13 @@ struct d3d12_video_decoder_references_manager
 
    void get_reference_only_output(
       ID3D12Resource **ppOutputReference,     // out -> new reference slot assigned or nullptr
-      UINT *           pOutputSubresource,    // out -> new reference slot assigned or nullptr
+      uint32_t *       pOutputSubresource,    // out -> new reference slot assigned or nullptr
       bool &outNeedsTransitionToDecodeWrite   // out -> indicates if output resource argument has to be transitioned to
                                               // D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE by the caller
    );
 
    // Gets the output texture for the current frame to be decoded
-   void get_current_frame_decode_output_texture(ID3D12Resource **ppOutTexture2D, UINT *pOutSubresourceIndex);
+   void get_current_frame_decode_output_texture(ID3D12Resource **ppOutTexture2D, uint32_t *pOutSubresourceIndex);
 
    D3D12_VIDEO_DECODE_REFERENCE_FRAMES get_current_reference_frames();
 
@@ -77,7 +77,7 @@ struct d3d12_video_decoder_references_manager
    uint16_t update_entry(
       uint16_t         index,                // in
       ID3D12Resource *&pOutputReference,     // out -> new reference slot assigned or nullptr
-      UINT &           OutputSubresource,    // out -> new reference slot assigned or 0
+      uint32_t &       OutputSubresource,    // out -> new reference slot assigned or 0
       bool &outNeedsTransitionToDecodeRead   // out -> indicates if output resource argument has to be transitioned to
                                              // D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
    );
@@ -103,7 +103,7 @@ struct d3d12_video_decoder_references_manager
    ComPtr<ID3D12Resource> m_pClearDecodedOutputTexture;
 
    const struct d3d12_screen *       m_pD3D12Screen;
-   UINT                              m_NodeMask;
+   uint32_t                          m_NodeMask;
    uint16_t                          m_invalidIndex;
    d3d12_video_decode_dpb_descriptor m_dpbDescriptor      = {};
    uint16_t                          m_currentOutputIndex = 0;
@@ -123,13 +123,13 @@ d3d12_video_decoder_references_manager::update_entries(T (&picEntries)[size],
       // uint16_t update_entry(
       //     uint16_t index, // in
       //     ID3D12Resource*& pOutputReference, // out -> new reference slot assigned or nullptr
-      //     UINT& OutputSubresource, // out -> new reference slot assigned or 0
+      //     uint32_t& OutputSubresource, // out -> new reference slot assigned or 0
       //     bool& outNeedsTransitionToDecodeRead // out -> indicates if output resource argument has to be transitioned
       //     to D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
       // );
 
       ID3D12Resource *pOutputReference               = {};
-      UINT            OutputSubresource              = 0u;
+      uint32_t        OutputSubresource              = 0u;
       bool            outNeedsTransitionToDecodeRead = false;
 
       picEntry.Index7Bits =
@@ -143,7 +143,7 @@ d3d12_video_decoder_references_manager::update_entries(T (&picEntries)[size],
          /// https://docs.microsoft.com/en-us/windows/win32/direct3d12/subresources
          ///
          CD3DX12_RESOURCE_DESC refDesc(pOutputReference->GetDesc());
-         UINT                  MipLevel, PlaneSlice, ArraySlice;
+         uint32_t              MipLevel, PlaneSlice, ArraySlice;
          D3D12DecomposeSubresource(OutputSubresource,
                                    refDesc.MipLevels,
                                    refDesc.ArraySize(),

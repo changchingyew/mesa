@@ -57,37 +57,37 @@ typedef enum
 
 typedef struct H264_SPS
 {
-   UINT profile_idc;
-   UINT constraint_set3_flag;
-   UINT level_idc;
-   UINT seq_parameter_set_id;
-   UINT bit_depth_luma_minus8;
-   UINT bit_depth_chroma_minus8;
-   UINT log2_max_frame_num_minus4;
-   UINT pic_order_cnt_type;
-   UINT log2_max_pic_order_cnt_lsb_minus4;
-   UINT max_num_ref_frames;
-   UINT gaps_in_frame_num_value_allowed_flag;
-   UINT pic_width_in_mbs_minus1;
-   UINT pic_height_in_map_units_minus1;
-   UINT direct_8x8_inference_flag;
-   UINT frame_cropping_flag;
-   UINT frame_cropping_rect_left_offset;
-   UINT frame_cropping_rect_right_offset;
-   UINT frame_cropping_rect_top_offset;
-   UINT frame_cropping_rect_bottom_offset;
+   uint32_t profile_idc;
+   uint32_t constraint_set3_flag;
+   uint32_t level_idc;
+   uint32_t seq_parameter_set_id;
+   uint32_t bit_depth_luma_minus8;
+   uint32_t bit_depth_chroma_minus8;
+   uint32_t log2_max_frame_num_minus4;
+   uint32_t pic_order_cnt_type;
+   uint32_t log2_max_pic_order_cnt_lsb_minus4;
+   uint32_t max_num_ref_frames;
+   uint32_t gaps_in_frame_num_value_allowed_flag;
+   uint32_t pic_width_in_mbs_minus1;
+   uint32_t pic_height_in_map_units_minus1;
+   uint32_t direct_8x8_inference_flag;
+   uint32_t frame_cropping_flag;
+   uint32_t frame_cropping_rect_left_offset;
+   uint32_t frame_cropping_rect_right_offset;
+   uint32_t frame_cropping_rect_top_offset;
+   uint32_t frame_cropping_rect_bottom_offset;
 } H264_SPS;
 
 typedef struct H264_PPS
 {
-   UINT pic_parameter_set_id;
-   UINT seq_parameter_set_id;
-   UINT entropy_coding_mode_flag;
-   UINT pic_order_present_flag;
-   UINT num_ref_idx_l0_active_minus1;
-   UINT num_ref_idx_l1_active_minus1;
-   UINT constrained_intra_pred_flag;
-   UINT transform_8x8_mode_flag;
+   uint32_t pic_parameter_set_id;
+   uint32_t seq_parameter_set_id;
+   uint32_t entropy_coding_mode_flag;
+   uint32_t pic_order_present_flag;
+   uint32_t num_ref_idx_l0_active_minus1;
+   uint32_t num_ref_idx_l1_active_minus1;
+   uint32_t constrained_intra_pred_flag;
+   uint32_t transform_8x8_mode_flag;
 } H264_PPS;
 
 typedef enum H264_SPEC_PROFILES
@@ -111,25 +111,25 @@ class d3d12_video_nalu_writer_h264
 
    // Writes the H264 SPS structure into a bitstream passed in headerBitstream
    // Function resizes bitstream accordingly and puts result in byte vector
-   void sps_to_nalu_bytes(H264_SPS *                  pSPS,
-                          std::vector<BYTE> &         headerBitstream,
-                          std::vector<BYTE>::iterator placingPositionStart,
-                          size_t &                    writtenBytes);
+   void sps_to_nalu_bytes(H264_SPS *                     pSPS,
+                          std::vector<uint8_t> &         headerBitstream,
+                          std::vector<uint8_t>::iterator placingPositionStart,
+                          size_t &                       writtenBytes);
 
    // Writes the H264 PPS structure into a bitstream passed in headerBitstream
    // Function resizes bitstream accordingly and puts result in byte vector
-   void pps_to_nalu_bytes(H264_PPS *                  pPPS,
-                          std::vector<BYTE> &         headerBitstream,
-                          BOOL                        bIsFREXTProfile,
-                          std::vector<BYTE>::iterator placingPositionStart,
-                          size_t &                    writtenBytes);
+   void pps_to_nalu_bytes(H264_PPS *                     pPPS,
+                          std::vector<uint8_t> &         headerBitstream,
+                          BOOL                           bIsFREXTProfile,
+                          std::vector<uint8_t>::iterator placingPositionStart,
+                          size_t &                       writtenBytes);
 
-   void write_end_of_stream_nalu(std::vector<BYTE> &         headerBitstream,
-                                 std::vector<BYTE>::iterator placingPositionStart,
-                                 size_t &                    writtenBytes);
-   void write_end_of_sequence_nalu(std::vector<BYTE> &         headerBitstream,
-                                   std::vector<BYTE>::iterator placingPositionStart,
-                                   size_t &                    writtenBytes);
+   void write_end_of_stream_nalu(std::vector<uint8_t> &         headerBitstream,
+                                 std::vector<uint8_t>::iterator placingPositionStart,
+                                 size_t &                       writtenBytes);
+   void write_end_of_sequence_nalu(std::vector<uint8_t> &         headerBitstream,
+                                   std::vector<uint8_t>::iterator placingPositionStart,
+                                   size_t &                       writtenBytes);
 
  private:
    // Writes from structure into bitstream with RBSP trailing but WITHOUT NAL unit wrap (eg. nal_idc_type, etc)
@@ -145,8 +145,8 @@ class d3d12_video_nalu_writer_h264
    void     rbsp_trailing(d3d12_video_encoder_bitstream *pBitstream);
    uint32_t wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream *pNALU,
                                 d3d12_video_encoder_bitstream *pRBSP,
-                                UINT                           iNaluIdc,
-                                UINT                           iNaluType);
+                                uint32_t                       iNaluIdc,
+                                uint32_t                       iNaluType);
 };
 
 #endif
