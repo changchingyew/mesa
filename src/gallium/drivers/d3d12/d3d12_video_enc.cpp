@@ -224,14 +224,15 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
 
       D3D12_RESOURCE_FLAGS resourceAllocFlags =
          D3D12_RESOURCE_FLAG_VIDEO_ENCODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-      bool   fArrayOfTextures = ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags &
+      bool fArrayOfTextures = ((pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags &
                                 D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RECONSTRUCTED_FRAMES_REQUIRE_TEXTURE_ARRAYS) == 0);
-      UINT16 texturePoolSize  = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc) +
-                               1u;   // adding an extra slot as we also need to count the current frame output recon
-                                     // allocation along max reference frame allocations
+      UINT texturePoolSize  = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc) +
+                             1u;   // adding an extra slot as we also need to count the current frame output recon
+                                   // allocation along max reference frame allocations
+      assert(texturePoolSize < UINT16_MAX);
       if (fArrayOfTextures) {
          pD3D12Enc->m_upDPBStorageManager = std::make_unique<d3d12_array_of_textures_dpb_manager>(
-            texturePoolSize,
+            static_cast<uint16_t>(texturePoolSize),
             pD3D12Enc->m_pD3D12Screen->dev,
             pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
             pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
@@ -240,7 +241,7 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
             pD3D12Enc->m_NodeMask);
       } else {
          pD3D12Enc->m_upDPBStorageManager = std::make_unique<d3d12_texture_array_dpb_manager>(
-            texturePoolSize,
+            static_cast<uint16_t>(texturePoolSize),
             pD3D12Enc->m_pD3D12Screen->dev,
             pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
             pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
@@ -1270,7 +1271,7 @@ d3d12_video_encoder_extract_encode_metadata(
       1                                         // depth
    };
    struct pipe_transfer *mapTransfer;
-   void *pMetadataBufferSrc = pD3D12Enc->base.context->buffer_map(pD3D12Enc->base.context,
+   void *                pMetadataBufferSrc = pD3D12Enc->base.context->buffer_map(pD3D12Enc->base.context,
                                                                   pPipeResolvedMetadataBuffer,
                                                                   0,
                                                                   PIPE_MAP_READ,

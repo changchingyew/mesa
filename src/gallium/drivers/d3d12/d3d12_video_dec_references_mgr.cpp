@@ -28,7 +28,7 @@
 #include "d3d12_screen.h"
 
 //----------------------------------------------------------------------------------------------------------------------------------
-static UINT16
+static uint16_t
 GetInvalidReferenceIndex(d3d12_video_decode_profile_type DecodeProfileType)
 {
    assert(DecodeProfileType <= d3d12_video_decode_profile_type_max_valid);
@@ -197,11 +197,11 @@ d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
-UINT16
-d3d12_video_decoder_references_manager::find_remapped_index(UINT16 originalIndex)
+uint16_t
+d3d12_video_decoder_references_manager::find_remapped_index(uint16_t originalIndex)
 {
    // Check if the index is already mapped.
-   for (UINT16 remappedIndex = 0; remappedIndex < m_dpbDescriptor.dpbSize; remappedIndex++) {
+   for (uint16_t remappedIndex = 0; remappedIndex < m_dpbDescriptor.dpbSize; remappedIndex++) {
       if (m_referenceDXVAIndices[remappedIndex].originalIndex == originalIndex) {
          return remappedIndex;
       }
@@ -211,16 +211,16 @@ d3d12_video_decoder_references_manager::find_remapped_index(UINT16 originalIndex
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
-UINT16
+uint16_t
 d3d12_video_decoder_references_manager::update_entry(
-   UINT16           index,                // in
+   uint16_t         index,                // in
    ID3D12Resource *&pOutputReference,     // out -> new reference slot assigned or nullptr
    UINT &           OutputSubresource,    // out -> new reference slot assigned or 0
    bool &outNeedsTransitionToDecodeRead   // out -> indicates if output resource argument has to be transitioned to
                                           // D3D12_RESOURCE_STATE_VIDEO_DECODE_READ by the caller
 )
 {
-   UINT16 remappedIndex           = m_invalidIndex;
+   uint16_t remappedIndex         = m_invalidIndex;
    outNeedsTransitionToDecodeRead = false;
 
    if (index != m_invalidIndex) {
@@ -244,14 +244,14 @@ d3d12_video_decoder_references_manager::update_entry(
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
-_Use_decl_annotations_ UINT16
-d3d12_video_decoder_references_manager::store_future_reference(UINT16                          index,
+_Use_decl_annotations_ uint16_t
+d3d12_video_decoder_references_manager::store_future_reference(uint16_t                        index,
                                                                ComPtr<ID3D12VideoDecoderHeap> &decoderHeap,
                                                                ID3D12Resource *                pTexture2D,
                                                                UINT                            subresourceIndex)
 {
    // Check if the index was in use.
-   UINT16 remappedIndex = find_remapped_index(index);
+   uint16_t remappedIndex = find_remapped_index(index);
 
    if (remappedIndex == m_invalidIndex) {
       // If not already mapped, see if the same index in the remapped space is available.
@@ -287,10 +287,10 @@ d3d12_video_decoder_references_manager::store_future_reference(UINT16           
 
 //----------------------------------------------------------------------------------------------------------------------------------
 void
-d3d12_video_decoder_references_manager::mark_reference_in_use(UINT16 index)
+d3d12_video_decoder_references_manager::mark_reference_in_use(uint16_t index)
 {
    if (index != m_invalidIndex) {
-      UINT16 remappedIndex = find_remapped_index(index);
+      uint16_t remappedIndex = find_remapped_index(index);
       if (remappedIndex != m_invalidIndex) {
          m_referenceDXVAIndices[remappedIndex].fUsed = true;
       }

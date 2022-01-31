@@ -41,7 +41,7 @@
 
 void
 d3d12_texture_array_dpb_manager::create_reconstructed_picture_allocations(ID3D12Resource **ppResource,
-                                                                          UINT16           texArraySize)
+                                                                          uint16_t         texArraySize)
 {
    if (texArraySize > 0) {
       D3D12_HEAP_PROPERTIES Properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, m_nodeMask, m_nodeMask);
@@ -67,7 +67,7 @@ d3d12_texture_array_dpb_manager::~d3d12_texture_array_dpb_manager()
 { }
 
 d3d12_texture_array_dpb_manager::d3d12_texture_array_dpb_manager(
-   UINT16                                      dpbTextureArraySize,
+   uint16_t                                    dpbTextureArraySize,
    ID3D12Device *                              pDevice,
    DXGI_FORMAT                                 encodeSessionFormat,
    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
@@ -84,7 +84,7 @@ d3d12_texture_array_dpb_manager::d3d12_texture_array_dpb_manager(
    assert(0u == clear_decode_picture_buffer());
 
    // Implement a reusable pool of D3D12 Resources as an array of textures
-   UINT16 poolFixedSize = m_dpbTextureArraySize;
+   uint16_t poolFixedSize = m_dpbTextureArraySize;
    m_ResourcesPool.resize(poolFixedSize);
 
    // Build resource pool with commitedresources with a d3ddevice and the encoding session settings (eg. resolution) and

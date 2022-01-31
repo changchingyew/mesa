@@ -124,11 +124,11 @@ typedef enum
 typedef struct d3d12_video_decode_dpb_descriptor
 {
    DXGI_FORMAT Format          = DXGI_FORMAT_UNKNOWN;
-   UINT64      Width           = 0;
+   uint64_t    Width           = 0;
    UINT        Height          = 0;
    bool        fArrayOfTexture = false;
    bool        fReferenceOnly  = false;
-   UINT16      dpbSize         = 0;
+   uint16_t    dpbSize         = 0;
    UINT        m_NodeMask      = 0;
 } d3d12_video_decode_dpb_descriptor;
 

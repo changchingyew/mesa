@@ -34,7 +34,7 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
 
 void
 d3d12_video_decoder_get_frame_info_h264(
-   struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB, bool &isInterlaced)
+   struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, uint16_t *pMaxDPB, bool &isInterlaced)
 {
    auto pPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
    // wFrameWidthInMbsMinus1 Width of the frame containing this picture, in units of macroblocks, minus 1. (The width in

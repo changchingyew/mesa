@@ -38,7 +38,7 @@ d3d12_video_nalu_writer_h264::rbsp_trailing(d3d12_video_encoder_bitstream *pBits
    assert(isAligned);
 }
 
-UINT32
+uint32_t
 d3d12_video_nalu_writer_h264::write_sps_bytes(d3d12_video_encoder_bitstream *pBitstream, H264_SPS *pSPS)
 {
    INT32 iBytesWritten = pBitstream->get_byte_count();
@@ -108,10 +108,10 @@ d3d12_video_nalu_writer_h264::write_sps_bytes(d3d12_video_encoder_bitstream *pBi
    pBitstream->flush();
 
    iBytesWritten = pBitstream->get_byte_count() - iBytesWritten;
-   return (UINT32) iBytesWritten;
+   return (uint32_t) iBytesWritten;
 }
 
-UINT32
+uint32_t
 d3d12_video_nalu_writer_h264::write_pps_bytes(d3d12_video_encoder_bitstream *pBitstream,
                                               H264_PPS *                     pPPS,
                                               BOOL                           bIsHighProfile)
@@ -154,16 +154,16 @@ d3d12_video_nalu_writer_h264::write_pps_bytes(d3d12_video_encoder_bitstream *pBi
    pBitstream->flush();
 
    iBytesWritten = pBitstream->get_byte_count() - iBytesWritten;
-   return (UINT32) iBytesWritten;
+   return (uint32_t) iBytesWritten;
 }
 
-UINT32
+uint32_t
 d3d12_video_nalu_writer_h264::wrap_sps_nalu(d3d12_video_encoder_bitstream *pNALU, d3d12_video_encoder_bitstream *pRBSP)
 {
    return wrap_rbsp_into_nalu(pNALU, pRBSP, NAL_REFIDC_REF, NAL_TYPE_SPS);
 }
 
-UINT32
+uint32_t
 d3d12_video_nalu_writer_h264::wrap_pps_nalu(d3d12_video_encoder_bitstream *pNALU, d3d12_video_encoder_bitstream *pRBSP)
 {
    return wrap_rbsp_into_nalu(pNALU, pRBSP, NAL_REFIDC_REF, NAL_TYPE_PPS);
@@ -182,7 +182,7 @@ d3d12_video_nalu_writer_h264::write_nalu_end(d3d12_video_encoder_bitstream *pNAL
    }
 }
 
-UINT32
+uint32_t
 d3d12_video_nalu_writer_h264::wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream *pNALU,
                                                   d3d12_video_encoder_bitstream *pRBSP,
                                                   UINT                           iNaluIdc,
@@ -229,7 +229,7 @@ d3d12_video_nalu_writer_h264::wrap_rbsp_into_nalu(d3d12_video_encoder_bitstream 
    pNALU->flush();
 
    iBytesWritten = pNALU->get_byte_count() - iBytesWritten;
-   return (UINT32) iBytesWritten;
+   return (uint32_t) iBytesWritten;
 }
 
 void
@@ -366,7 +366,8 @@ d3d12_video_nalu_writer_h264::write_end_of_sequence_nalu(std::vector<BYTE> &    
    rbsp.set_start_code_prevention(TRUE);
    if (wrap_rbsp_into_nalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_SEQUENCE) <= 0u) {
 
-      D3D12_LOG_ERROR("wrap_rbsp_into_nalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_SEQUENCE) didn't write any bytes.\n")
+      D3D12_LOG_ERROR(
+         "wrap_rbsp_into_nalu(&nalu, &rbsp, NAL_REFIDC_REF, NAL_TYPE_END_OF_SEQUENCE) didn't write any bytes.\n")
    }
 
    // Deep copy nalu into headerBitstream, nalu gets out of scope here and its destructor frees the nalu object buffer

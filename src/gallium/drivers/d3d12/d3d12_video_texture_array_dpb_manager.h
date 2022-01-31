@@ -72,9 +72,9 @@ class d3d12_texture_array_dpb_manager : public d3d12_video_dpb_storage_manager_i
    // d3d12_texture_array_dpb_manager
  public:
    d3d12_texture_array_dpb_manager(
-      UINT16 dpbInitialSize,   // Maximum in use resources for a DPB of size x should be x+1 for cases when a P frame is
-                               // using the x references in the L0 list and also using an extra resource to output it's
-                               // own recon pic.
+      uint16_t dpbInitialSize,   // Maximum in use resources for a DPB of size x should be x+1 for cases when a P frame
+                                 // is using the x references in the L0 list and also using an extra resource to output
+                                 // it's own recon pic.
       ID3D12Device *                              pDevice,
       DXGI_FORMAT                                 encodeSessionFormat,
       D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
@@ -84,12 +84,12 @@ class d3d12_texture_array_dpb_manager : public d3d12_video_dpb_storage_manager_i
 
    // d3d12_texture_array_dpb_manager
  private:
-   void create_reconstructed_picture_allocations(ID3D12Resource **ppResource, UINT16 texArraySize);
+   void create_reconstructed_picture_allocations(ID3D12Resource **ppResource, uint16_t texArraySize);
 
    ID3D12Device *                              m_pDevice;
    DXGI_FORMAT                                 m_encodeFormat;
    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC m_encodeResolution;
-   UINT16                                      m_dpbTextureArraySize = 0;
+   uint16_t                                    m_dpbTextureArraySize = 0;
 
    // DPB with array of resources backing storage
 

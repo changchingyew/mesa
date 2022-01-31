@@ -386,7 +386,7 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    /* One-shot transfer operation with data supplied in a user
     * pointer.
     */
-   pipe_resource *pPipeCompressedBufferObj = 
+   pipe_resource *pPipeCompressedBufferObj =
       d3d12_resource_from_resource(&pD3D12Screen->base, pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get());
    assert(pPipeCompressedBufferObj);
    pD3D12Dec->base.context->buffer_subdata(pD3D12Dec->base.context,    // context
@@ -438,7 +438,9 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    d3d12InputArguments.CompressedBitstream.Size = pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize;
 
    D3D12_RESOURCE_BARRIER resourceBarrierCommonToDecode[1] = {
-      CD3DX12_RESOURCE_BARRIER::Transition(d3d12InputArguments.CompressedBitstream.pBuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_DECODE_READ),
+      CD3DX12_RESOURCE_BARRIER::Transition(d3d12InputArguments.CompressedBitstream.pBuffer,
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_VIDEO_DECODE_READ),
    };
    pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(1u, resourceBarrierCommonToDecode);
 
@@ -554,9 +556,12 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
 
    for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
       uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
-      
+
       D3D12_RESOURCE_BARRIER resourceBarrierCommonToDecode[1] = {
-         CD3DX12_RESOURCE_BARRIER::Transition(d3d12OutputArguments.pOutputTexture2D, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE, planeOutputSubresource),
+         CD3DX12_RESOURCE_BARRIER::Transition(d3d12OutputArguments.pOutputTexture2D,
+                                              D3D12_RESOURCE_STATE_COMMON,
+                                              D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
+                                              planeOutputSubresource),
       };
       pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(1u, resourceBarrierCommonToDecode);
    }
@@ -564,9 +569,12 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    // Schedule reverse (back to common) transitions before command list closes for current frame
    for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
       uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
-      
+
       D3D12_RESOURCE_BARRIER resourceBarrierDecodeToCommon[1] = {
-         CD3DX12_RESOURCE_BARRIER::Transition(d3d12OutputArguments.pOutputTexture2D, D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE, D3D12_RESOURCE_STATE_COMMON, planeOutputSubresource),
+         CD3DX12_RESOURCE_BARRIER::Transition(d3d12OutputArguments.pOutputTexture2D,
+                                              D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
+                                              D3D12_RESOURCE_STATE_COMMON,
+                                              planeOutputSubresource),
       };
       pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(1u, resourceBarrierDecodeToCommon);
    }
@@ -857,7 +865,7 @@ d3d12_video_decoder_create_video_state_buffers(const struct d3d12_screen * pD3D1
 bool
 d3d12_video_decoder_create_staging_bitstream_buffer(const struct d3d12_screen * pD3D12Screen,
                                                     struct d3d12_video_decoder *pD3D12Dec,
-                                                    UINT64                      bufSize)
+                                                    uint64_t                    bufSize)
 {
    assert(pD3D12Dec->m_spD3D12VideoDevice);
 
@@ -923,9 +931,12 @@ d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12D
 
       for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
          uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
-         
+
          D3D12_RESOURCE_BARRIER resourceBarrierCommonToDecode[1] = {
-            CD3DX12_RESOURCE_BARRIER::Transition(*ppRefOnlyOutTexture2D, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE, planeOutputSubresource),
+            CD3DX12_RESOURCE_BARRIER::Transition(*ppRefOnlyOutTexture2D,
+                                                 D3D12_RESOURCE_STATE_COMMON,
+                                                 D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
+                                                 planeOutputSubresource),
          };
          pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(1u, resourceBarrierCommonToDecode);
       }
@@ -933,9 +944,12 @@ d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12D
       // Schedule reverse (back to common) transitions before command list closes for current frame
       for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
          uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
-         
+
          D3D12_RESOURCE_BARRIER resourceBarrierDecodeToCommon[1] = {
-            CD3DX12_RESOURCE_BARRIER::Transition(*ppRefOnlyOutTexture2D, D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE, D3D12_RESOURCE_STATE_COMMON, planeOutputSubresource),
+            CD3DX12_RESOURCE_BARRIER::Transition(*ppRefOnlyOutTexture2D,
+                                                 D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
+                                                 D3D12_RESOURCE_STATE_COMMON,
+                                                 planeOutputSubresource),
          };
          pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(1u, resourceBarrierDecodeToCommon);
       }
@@ -968,10 +982,10 @@ d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *                
                                     struct d3d12_video_buffer *                           pD3D12VideoBuffer,
                                     const d3d12_video_decode_output_conversion_arguments &conversionArguments)
 {
-   UINT   width;
-   UINT   height;
-   UINT16 maxDPB;
-   bool   isInterlaced;
+   UINT     width;
+   UINT     height;
+   uint16_t maxDPB;
+   bool     isInterlaced;
    d3d12_video_decoder_get_frame_info(pD3D12Dec, &width, &height, &maxDPB, isInterlaced);
 
    ID3D12Resource *               pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
@@ -1006,9 +1020,9 @@ d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *                
        pD3D12Dec->m_decoderHeapDesc.DecodeHeight != height ||
        pD3D12Dec->m_decoderHeapDesc.MaxDecodePictureBufferCount < maxDPB) {
       // Detect the combination of AOT/ReferenceOnly to configure the DPB manager
-      UINT16 referenceCount = (conversionArguments.Enable) ? (UINT16) conversionArguments.ReferenceFrameCount +
-                                                                1 /*extra slot for current picture*/ :
-                                                             maxDPB;
+      uint16_t referenceCount = (conversionArguments.Enable) ? (uint16_t) conversionArguments.ReferenceFrameCount +
+                                                                  1 /*extra slot for current picture*/ :
+                                                               maxDPB;
       d3d12_video_decode_dpb_descriptor dpbDesc = {};
       dpbDesc.Width  = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Width : width;
       dpbDesc.Height = (conversionArguments.Enable) ? conversionArguments.ReferenceInfo.Height : height;
@@ -1086,7 +1100,7 @@ d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD
 
 void
 d3d12_video_decoder_get_frame_info(
-   struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB, bool &isInterlaced)
+   struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, uint16_t *pMaxDPB, bool &isInterlaced)
 {
    *pWidth      = 0;
    *pHeight     = 0;
@@ -1212,7 +1226,7 @@ d3d12_video_decoder_prepare_dxva_slices_control(
          d3d12_video_decoder_prepare_dxva_slices_control_h264(pD3D12Dec, numSlices, pOutSliceControlBuffers);
 
          assert(sizeof(pOutSliceControlBuffers.data()[0]) == sizeof(DXVA_Slice_H264_Short));
-         UINT64 DXVAStructSize = pOutSliceControlBuffers.size() * sizeof((pOutSliceControlBuffers.data()[0]));
+         uint64_t DXVAStructSize = pOutSliceControlBuffers.size() * sizeof((pOutSliceControlBuffers.data()[0]));
          assert((DXVAStructSize % sizeof(DXVA_Slice_H264_Short)) == 0);
          d3d12_video_decoder_store_dxva_slicecontrol_in_slicecontrol_buffer(pD3D12Dec,
                                                                             pOutSliceControlBuffers.data(),
@@ -1231,7 +1245,7 @@ d3d12_video_decoder_prepare_dxva_slices_control(
 void
 d3d12_video_decoder_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_video_decoder *pD3D12Dec,
                                                                    void *                      pDXVAStruct,
-                                                                   UINT64                      DXVAStructSize)
+                                                                   uint64_t                    DXVAStructSize)
 {
    if (pD3D12Dec->m_SliceControlBuffer.capacity() < DXVAStructSize) {
       pD3D12Dec->m_SliceControlBuffer.reserve(DXVAStructSize);
@@ -1244,7 +1258,7 @@ d3d12_video_decoder_store_dxva_slicecontrol_in_slicecontrol_buffer(struct d3d12_
 void
 d3d12_video_decoder_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_decoder *pD3D12Dec,
                                                          void *                      pDXVAStruct,
-                                                         UINT64                      DXVAStructSize)
+                                                         uint64_t                    DXVAStructSize)
 {
    if (pD3D12Dec->m_InverseQuantMatrixBuffer.capacity() < DXVAStructSize) {
       pD3D12Dec->m_InverseQuantMatrixBuffer.reserve(DXVAStructSize);
@@ -1257,7 +1271,7 @@ d3d12_video_decoder_store_dxva_qmatrix_in_qmatrix_buffer(struct d3d12_video_deco
 void
 d3d12_video_decoder_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *pD3D12Dec,
                                                              void *                      pDXVAStruct,
-                                                             UINT64                      DXVAStructSize)
+                                                             uint64_t                    DXVAStructSize)
 {
    if (pD3D12Dec->m_picParamsBuffer.capacity() < DXVAStructSize) {
       pD3D12Dec->m_picParamsBuffer.reserve(DXVAStructSize);

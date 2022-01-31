@@ -35,10 +35,10 @@ typedef unsigned short USHORT;
 // are indicated by setting bPicEntry to 0xFF.
 // If bPicEntry is not 0xFF, the entry may be used as a reference surface for decoding the current picture or
 // a subsequent picture (in decoding order).
-constexpr UINT16 DXVA_H264_INVALID_PICTURE_INDEX =
+constexpr uint16_t DXVA_H264_INVALID_PICTURE_INDEX =
    0x7F;   // This corresponds to DXVA_PicEntry_H264.Index7Bits ; Not to be confused with the invalid value for
            // DXVA_PicEntry_H264.bPicEntry full char value
-constexpr UINT16 DXVA_H264_INVALID_PICTURE_ENTRY_VALUE = 0xFF;   // This corresponds to DXVA_PicEntry_H264.bPicEntry
+constexpr uint16_t DXVA_H264_INVALID_PICTURE_ENTRY_VALUE = 0xFF;   // This corresponds to DXVA_PicEntry_H264.bPicEntry
 
 constexpr unsigned int DXVA_H264_START_CODE          = 0x000001;   // 3 byte start code
 constexpr unsigned int DXVA_H264_START_CODE_LEN_BITS = 24;         // 3 byte start code
@@ -157,7 +157,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    UINT frameNum, pipe_video_profile profile, UINT frameWidth, UINT frameHeight, pipe_h264_picture_desc *pipeDesc);
 void
 d3d12_video_decoder_get_frame_info_h264(
-   struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, UINT16 *pMaxDPB, bool &isInterlaced);
+   struct d3d12_video_decoder *pD3D12Dec, UINT *pWidth, UINT *pHeight, uint16_t *pMaxDPB, bool &isInterlaced);
 void
 d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_decoder *pD3D12Dec,
                                                           ID3D12Resource *            pTexture2D,
