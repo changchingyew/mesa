@@ -893,7 +893,7 @@ typedef struct d3d12_video_resolution_to_level_mapping_entry
 } d3d12_video_resolution_to_level_mapping_entry;
 
 
-inline d3d12_video_resolution_to_level_mapping_entry
+static d3d12_video_resolution_to_level_mapping_entry
 get_max_level_resolution_video_decode_support(D3D12_VIDEO_DECODE_CONFIGURATION         decoderConfig,
                                         DXGI_FORMAT                              format,
                                         struct pipe_screen *                     pscreen,
@@ -959,7 +959,7 @@ get_max_level_resolution_video_decode_support(D3D12_VIDEO_DECODE_CONFIGURATION  
    return supportedResult;
 }
 
-inline bool
+static bool
 d3d12_has_video_decode_support(struct pipe_screen *pscreen, enum pipe_video_profile profile)
 {
    ComPtr<ID3D12VideoDevice> spD3D12VideoDevice;
@@ -996,7 +996,7 @@ d3d12_has_video_decode_support(struct pipe_screen *pscreen, enum pipe_video_prof
    return VideoFeatureAreaSupport.VideoDecodeSupport && supportsProfile;
 }
 
-inline bool
+static bool
 d3d12_video_encode_max_supported_level_for_profile(const D3D12_VIDEO_ENCODER_CODEC &       argCodec,
                                                    const D3D12_VIDEO_ENCODER_PROFILE_DESC &argTargetProfile,
                                                    D3D12_VIDEO_ENCODER_LEVEL_SETTING &     minLvl,
@@ -1057,7 +1057,7 @@ d3d12_video_encode_max_supported_resolution(const D3D12_VIDEO_ENCODER_CODEC &   
    return true;
 }
 
-inline bool
+static bool
 d3d12_has_video_encode_support(struct pipe_screen *                         pscreen,
                                enum pipe_video_profile                      profile,
                                UINT &                                       maxLvlSpec,
