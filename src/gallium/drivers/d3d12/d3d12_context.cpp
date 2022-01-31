@@ -1907,16 +1907,11 @@ d3d12_replace_buffer_storage(struct pipe_context *pctx,
 struct pipe_video_codec* d3d12_video_create_codec( struct pipe_context *context,
                                                 const struct pipe_video_codec *templat )
 {
-    if (templat->entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE) 
-    {
+    if (templat->entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE) {
         return d3d12_video_encoder_create_encoder(context, templat);
-    }
-    else if (templat->entrypoint == PIPE_VIDEO_ENTRYPOINT_BITSTREAM)     
-    {
+    } else if (templat->entrypoint == PIPE_VIDEO_ENTRYPOINT_BITSTREAM) {
         return d3d12_video_create_decoder(context, templat);
-    }
-    else
-    {
+    } else {
         D3D12_LOG_ERROR("[d3d12_context] d3d12_video_create_codec - Unsupported entrypoint %d\n", templat->entrypoint);
         return nullptr;
     }
