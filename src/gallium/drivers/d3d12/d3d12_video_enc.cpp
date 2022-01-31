@@ -1018,6 +1018,33 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    /// Record Encode operation
    ///
 
+   ///
+   /// pInputVideoD3D12Res and pOutputBufferD3D12Res are unwrapped from pipe_resource objects that are passed externally
+   /// and could be tracked by pipe_context and have pending ops. Flush any work on them and transition to
+   /// D3D12_RESOURCE_STATE_COMMON before issuing work in Video command queue below. After the video work is done in the
+   /// GPU, transition back to D3D12_RESOURCE_STATE_COMMON
+   ///
+   /// Note that unlike the D3D12TranslationLayer codebase, the state tracker here doesn't (yet) have any kind of
+   /// multi-queue support, so it wouldn't implicitly synchronize when trying to transition between a graphics op and a
+   /// video op.
+   ///
+
+   d3d12_transition_resource_state(
+      d3d12_context(pD3D12Enc->base.context),
+      pInputVideoBuffer->m_pD3D12Resource,   // d3d12_resource wrapper for pInputVideoD3D12Res
+      D3D12_RESOURCE_STATE_COMMON,
+      D3D12_BIND_INVALIDATE_FULL);
+   d3d12_transition_resource_state(d3d12_context(pD3D12Enc->base.context),
+                                   pOutputBitstreamBuffer,   // d3d12_resource wrapped for pOutputBufferD3D12Res
+                                   D3D12_RESOURCE_STATE_COMMON,
+                                   D3D12_BIND_INVALIDATE_FULL);
+   d3d12_apply_resource_states(d3d12_context(pD3D12Enc->base.context));
+
+   d3d12_resource_wait_idle(d3d12_context(pD3D12Enc->base.context),
+                            pInputVideoBuffer->m_pD3D12Resource,
+                            false /*wantToWrite*/);
+   d3d12_resource_wait_idle(d3d12_context(pD3D12Enc->base.context), pOutputBitstreamBuffer, true /*wantToWrite*/);
+
    std::vector<D3D12_RESOURCE_BARRIER> rgCurrentFrameStateTransitions = {
       CD3DX12_RESOURCE_BARRIER::Transition(pInputVideoD3D12Res,
                                            D3D12_RESOURCE_STATE_COMMON,
@@ -1040,9 +1067,7 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAGS picCtrlFlags = D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_NONE;
 
    // Transition DPB reference pictures to read mode
-   // TODO: D3D12DecomposeSubresource in all transitions, take TextureArray case into account too. For resources managed
-   // by pipe/mesa (ie. not DPB resources or staging frame textures), do we want to use d3d12_transition_resource_state
-   // from d3d12_context?
+   // TODO: D3D12DecomposeSubresource in all transitions, take TextureArray case into account too.
    uint32_t                            maxReferences = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
    std::vector<D3D12_RESOURCE_BARRIER> rgReferenceTransitions(maxReferences);
    if ((referenceFramesDescriptor.NumTexture2Ds > 0) ||
@@ -1165,6 +1190,9 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
                                            D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ),
       CD3DX12_RESOURCE_BARRIER::Transition(pInputVideoD3D12Res,
                                            D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ,
+                                           D3D12_RESOURCE_STATE_COMMON),
+      CD3DX12_RESOURCE_BARRIER::Transition(pOutputBufferD3D12Res,
+                                           D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE,
                                            D3D12_RESOURCE_STATE_COMMON)
    };
 
