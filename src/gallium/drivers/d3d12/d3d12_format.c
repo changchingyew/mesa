@@ -444,8 +444,7 @@ d3d12_convert_pipe_video_profile_to_dxgi_format(enum pipe_video_profile profile)
          return DXGI_FORMAT_P010;
       default:
       {
-         debug_printf("[D3D12 Video Driver] Function d3d12_convert_pipe_video_profile_to_dxgi_format - Unsupported profile with value: %d", profile);
-         assert(0);
+         unreachable("[D3D12 Video Driver] Function d3d12_convert_pipe_video_profile_to_dxgi_format - Unsupported profile");
          return DXGI_FORMAT_UNKNOWN;
       } break;
    }
