@@ -5,8 +5,8 @@ IndentWidth: 3
 UseTab: Never
 SortIncludes: false
 
-AlignConsecutiveAssignments: true
-AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
 AlignAfterOpenBracket: Align
 AlignConsecutiveMacros: true
 AlignTrailingComments: true
