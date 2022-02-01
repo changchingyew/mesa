@@ -610,24 +610,24 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    // Copy all format subresources/texture planes
 
    for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
+      assert(d3d12OutputArguments.OutputSubresource < INT16_MAX);
       struct pipe_box box = { 0,
                               0,
-                              0,
+                              // src array slice, taken as Z for TEXTURE_2D_ARRAY
+                              static_cast<int16_t>(d3d12OutputArguments.OutputSubresource),
                               static_cast<int>(pPipeDstViews[PlaneSlice]->texture->width0),
                               static_cast<int16_t>(pPipeDstViews[PlaneSlice]->texture->height0),
                               1 };
 
-      pD3D12Dec->base.context->resource_array_copy_region(pD3D12Dec->base.context,
-                                                          pPipeDstViews[PlaneSlice]->texture,   // dst
-                                                          0,                                    // dst level
-                                                          0,                                    // dst array slice
-                                                          0,                                    // dstX
-                                                          0,                                    // dstY
-                                                          0,                                    // dstZ
-                                                          (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next,   // src
-                                                          0,                                               // src level
-                                                          d3d12OutputArguments.OutputSubresource,   // src array slice
-                                                          &box);
+      pD3D12Dec->base.context->resource_copy_region(pD3D12Dec->base.context,
+                                                    pPipeDstViews[PlaneSlice]->texture,              // dst
+                                                    0,                                               // dst level
+                                                    0,                                               // dstX
+                                                    0,                                               // dstY
+                                                    0,                                               // dstZ
+                                                    (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next,   // src
+                                                    0,                                               // src level
+                                                    &box);
    }
    // Flush resource_copy_region batch
    pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
