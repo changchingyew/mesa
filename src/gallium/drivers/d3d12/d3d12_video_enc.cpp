@@ -1067,39 +1067,82 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAGS picCtrlFlags = D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_NONE;
 
    // Transition DPB reference pictures to read mode
-   // TODO: D3D12DecomposeSubresource in all transitions, take TextureArray case into account too.
    uint32_t                            maxReferences = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
    std::vector<D3D12_RESOURCE_BARRIER> rgReferenceTransitions(maxReferences);
    if ((referenceFramesDescriptor.NumTexture2Ds > 0) ||
        (pD3D12Enc->m_upDPBManager->is_current_frame_used_as_reference())) {
       rgReferenceTransitions.clear();
       rgReferenceTransitions.reserve(maxReferences);
+
       // Check if array of textures vs texture array
+
       if (referenceFramesDescriptor.pSubresources == nullptr) {
-         // Array of resources mode
-         // Transition all subresources of each resource
+
+         // Array of resources mode for reference pictures
+
+         // Transition all subresources of each reference frame independent resource allocation
          for (uint32_t referenceIdx = 0; referenceIdx < referenceFramesDescriptor.NumTexture2Ds; referenceIdx++) {
             rgReferenceTransitions.push_back(
                CD3DX12_RESOURCE_BARRIER::Transition(referenceFramesDescriptor.ppTexture2Ds[referenceIdx],
                                                     D3D12_RESOURCE_STATE_COMMON,
                                                     D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ));
          }
+
+         // Transition all subresources the output recon pic independent resource allocation
+         if (reconPicOutputTextureDesc.pReconstructedPicture != nullptr) {
+            picCtrlFlags |= D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_USED_AS_REFERENCE_PICTURE;
+
+            rgReferenceTransitions.push_back(
+               CD3DX12_RESOURCE_BARRIER::Transition(reconPicOutputTextureDesc.pReconstructedPicture,
+                                                    D3D12_RESOURCE_STATE_COMMON,
+                                                    D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE));
+         }
       } else if (referenceFramesDescriptor.NumTexture2Ds > 0) {
-         // texture array mode
-         // Transition all subresources of the first resource containing subresources per each ref pic
-         rgReferenceTransitions.push_back(
-            CD3DX12_RESOURCE_BARRIER::Transition(referenceFramesDescriptor.ppTexture2Ds[0],
-                                                 D3D12_RESOURCE_STATE_COMMON,
-                                                 D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ));
-      }
 
-      if (reconPicOutputTextureDesc.pReconstructedPicture != nullptr) {
-         picCtrlFlags |= D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_USED_AS_REFERENCE_PICTURE;
+         // texture array mode for reference pictures
 
-         rgReferenceTransitions.push_back(
-            CD3DX12_RESOURCE_BARRIER::Transition(reconPicOutputTextureDesc.pReconstructedPicture,
-                                                 D3D12_RESOURCE_STATE_COMMON,
-                                                 D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE));
+         // In Texture array mode, the dpb storage allocator uses the same texture array for all the input
+         // reference pics in ppTexture2Ds and also for the pReconstructedPicture output allocations, just different
+         // subresources.
+
+         CD3DX12_RESOURCE_DESC referencesTexArrayDesc(referenceFramesDescriptor.ppTexture2Ds[0]->GetDesc());
+
+         for (uint32_t referenceSubresource = 0; referenceSubresource < referencesTexArrayDesc.DepthOrArraySize;
+              referenceSubresource++) {
+
+            // all reference frames inputs should be all the same texarray allocation
+            assert(referenceFramesDescriptor.ppTexture2Ds[0] ==
+                   referenceFramesDescriptor.ppTexture2Ds[referenceSubresource]);
+
+            // the reconpic output should be all the same texarray allocation
+            assert(referenceFramesDescriptor.ppTexture2Ds[0] == reconPicOutputTextureDesc.pReconstructedPicture);
+
+            uint32_t MipLevel, PlaneSlice, ArraySlice;
+            D3D12DecomposeSubresource(referenceSubresource,
+                                      referencesTexArrayDesc.MipLevels,
+                                      referencesTexArrayDesc.ArraySize(),
+                                      MipLevel,
+                                      ArraySlice,
+                                      PlaneSlice);
+
+            for (PlaneSlice = 0; PlaneSlice < pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.PlaneCount;
+                 PlaneSlice++) {
+
+               uint32_t planeOutputSubresource =
+                  referencesTexArrayDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
+
+               rgReferenceTransitions.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+                  // Always same allocation in texarray mode
+                  referenceFramesDescriptor.ppTexture2Ds[0],
+                  D3D12_RESOURCE_STATE_COMMON,
+                  // If this is the subresource for the reconpic output allocation, transition to ENCODE_WRITE
+                  // Otherwise, it's a subresource for an input reference picture, transition to ENCODE_READ
+                  (referenceSubresource == reconPicOutputTextureDesc.ReconstructedPictureSubresource) ?
+                     D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE :
+                     D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ,
+                  planeOutputSubresource));
+            }
+         }
       }
 
       if (rgReferenceTransitions.size() > 0) {
