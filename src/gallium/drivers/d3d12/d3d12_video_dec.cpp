@@ -569,14 +569,11 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    // Schedule reverse (back to common) transitions before command list closes for current frame
    for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
       uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
-
-      D3D12_RESOURCE_BARRIER resourceBarrierDecodeToCommon[1] = {
+      pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(
          CD3DX12_RESOURCE_BARRIER::Transition(d3d12OutputArguments.pOutputTexture2D,
                                               D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
                                               D3D12_RESOURCE_STATE_COMMON,
-                                              planeOutputSubresource),
-      };
-      pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(1u, resourceBarrierDecodeToCommon);
+                                              planeOutputSubresource));
    }
 
    // Record DecodeFrame
@@ -944,14 +941,11 @@ d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12D
       // Schedule reverse (back to common) transitions before command list closes for current frame
       for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
          uint planeOutputSubresource = outputDesc.CalcSubresource(MipLevel, ArraySlice, PlaneSlice);
-
-         D3D12_RESOURCE_BARRIER resourceBarrierDecodeToCommon[1] = {
+         pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(
             CD3DX12_RESOURCE_BARRIER::Transition(*ppRefOnlyOutTexture2D,
                                                  D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE,
                                                  D3D12_RESOURCE_STATE_COMMON,
-                                                 planeOutputSubresource),
-         };
-         pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(1u, resourceBarrierDecodeToCommon);
+                                                 planeOutputSubresource));
       }
    }
 
