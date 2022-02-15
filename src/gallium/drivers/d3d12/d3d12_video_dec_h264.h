@@ -43,6 +43,8 @@ constexpr unsigned int DXVA_H264_START_CODE_LEN_BITS = 24;         // 3 byte sta
 constexpr unsigned int D3D12_VIDEO_H264_MB_IN_PIXELS = 16;
 
 /* H.264/AVC picture entry data structure */
+/* If including new DXVA structs in this header, check the byte-alignment packing pragma declarations that need to be included with them */
+#pragma pack(push, BeforeDXVApacking, 1)
 typedef struct _DXVA_PicEntry_H264
 {
    union
@@ -55,8 +57,11 @@ typedef struct _DXVA_PicEntry_H264
       uint8_t bPicEntry;
    };
 } DXVA_PicEntry_H264, *LPDXVA_PicEntry_H264; /* 1 byte */
+#pragma pack(pop, BeforeDXVApacking)
 
 /* H.264/AVC picture parameters structure */
+/* If including new DXVA structs in this header, check the byte-alignment packing pragma declarations that need to be included with them */
+#pragma pack(push, BeforeDXVApacking, 1)
 typedef struct _DXVA_PicParams_H264
 {
    uint16_t           wFrameWidthInMbsMinus1;
@@ -132,22 +137,29 @@ typedef struct _DXVA_PicParams_H264
    uint8_t SliceGroupMap[810]; /* 4b/sgmu, Size BT.601 */
 
 } DXVA_PicParams_H264, *LPDXVA_PicParams_H264;
+#pragma pack(pop, BeforeDXVApacking)
 
 /* H.264/AVC quantization weighting matrix data structure */
+/* If including new DXVA structs in this header, check the byte-alignment packing pragma declarations that need to be included with them */
+#pragma pack(push, BeforeDXVApacking, 1)
 typedef struct _DXVA_Qmatrix_H264
 {
    uint8_t bScalingLists4x4[6][16];
    uint8_t bScalingLists8x8[2][64];
 
 } DXVA_Qmatrix_H264, *LPDXVA_Qmatrix_H264;
+#pragma pack(pop, BeforeDXVApacking)
 
 /* H.264/AVC slice control data structure - short form */
+/* If including new DXVA structs in this header, check the byte-alignment packing pragma declarations that need to be included with them */
+#pragma pack(push, BeforeDXVApacking, 1)
 typedef struct _DXVA_Slice_H264_Short
 {
    uint32_t BSNALunitDataLocation; /* type 1..5 */
    uint32_t SliceBytesInBuffer;    /* for off-host parse */
    uint16_t wBadSliceChopping;     /* for off-host parse */
 } DXVA_Slice_H264_Short, *LPDXVA_Slice_H264_Short;
+#pragma pack(pop, BeforeDXVApacking)
 
 DXVA_PicParams_H264
 d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(uint32_t                frameNum,
