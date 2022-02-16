@@ -73,6 +73,8 @@ struct d3d12_video_decoder_references_manager
 
    D3D12_VIDEO_DECODE_REFERENCE_FRAMES get_current_reference_frames();
 
+   void print_dpb();
+
  private:
    uint16_t update_entry(
       uint16_t         index,                // in
@@ -107,6 +109,8 @@ struct d3d12_video_decoder_references_manager
    uint16_t                          m_invalidIndex;
    d3d12_video_decode_dpb_descriptor m_dpbDescriptor      = {};
    uint16_t                          m_currentOutputIndex = 0;
+   uint16_t                          m_currentSubresourceIndex = 0;
+   ID3D12Resource*                   m_currentResource = nullptr;
    D3D12_FEATURE_DATA_FORMAT_INFO    m_formatInfo         = { m_dpbDescriptor.Format };
 };
 

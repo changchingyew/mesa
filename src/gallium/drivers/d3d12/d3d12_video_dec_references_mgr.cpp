@@ -281,6 +281,8 @@ d3d12_video_decoder_references_manager::store_future_reference(uint16_t         
 
    // Store the index to use for error handling when caller specifies and invalid reference index.
    m_currentOutputIndex = remappedIndex;
+   m_currentSubresourceIndex = subresourceIndex;
+   m_currentResource = pTexture2D;
 
    return remappedIndex;
 }
@@ -330,4 +332,59 @@ d3d12_video_decoder_references_manager::mark_all_references_as_unused()
    for (uint32_t index = 0; index < m_dpbDescriptor.dpbSize; index++) {
       m_referenceDXVAIndices[index].fUsed = false;
    }
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
+void
+d3d12_video_decoder_references_manager::print_dpb()
+{
+   // Resource backing storage always has to match dpbsize
+   assert(m_upD3D12TexturesStorageManager->get_number_of_tracked_allocations() == m_dpbDescriptor.dpbSize);
+
+   // get_current_reference_frames query-interfaces the pVideoHeap's.
+   D3D12_VIDEO_DECODE_REFERENCE_FRAMES curRefFrames = get_current_reference_frames();
+   std::string dpbContents;
+   for (uint32_t dpbResIdx = 0;dpbResIdx < curRefFrames.NumTexture2Ds;dpbResIdx++) {
+      dpbContents += "\t{ DPBidx: ";
+      dpbContents += std::to_string(dpbResIdx);
+      dpbContents += " - ResourcePtr: ";
+      char strBufTex[256];
+      memset(&strBufTex, '\0', 256);
+      sprintf(strBufTex, "%p", curRefFrames.ppTexture2Ds[dpbResIdx]);
+      dpbContents += std::string(strBufTex);
+      dpbContents += " - SubresourceIdx: ";
+      dpbContents += (curRefFrames.pSubresources ? std::to_string(curRefFrames.pSubresources[dpbResIdx]) : "0");
+      dpbContents += " - DecoderHeapPtr: ";
+      char strBufHeap[256];
+      memset(&strBufHeap, '\0', 256);
+      if(curRefFrames.ppHeaps && curRefFrames.ppHeaps[dpbResIdx]) {
+         sprintf(strBufHeap, "%p", curRefFrames.ppHeaps[dpbResIdx]);
+         dpbContents += std::string(strBufHeap);  
+      } else {
+         dpbContents += "(nil)";
+      }
+      dpbContents += " - Slot type: ";
+      dpbContents +=  ((m_currentResource == curRefFrames.ppTexture2Ds[dpbResIdx]) && (m_currentSubresourceIndex == curRefFrames.pSubresources[dpbResIdx])) ? "Current decoded frame output" : "Reference frame";
+      dpbContents += " - DXVA_PicParams Reference Index: ";
+      dpbContents += (m_referenceDXVAIndices[dpbResIdx].originalIndex != m_invalidIndex) ? std::to_string(m_referenceDXVAIndices[dpbResIdx].originalIndex) : "DXVA_UNUSED_PICENTRY";
+      dpbContents += "}\n";
+   }
+
+   D3D12_LOG_DBG("[D3D12 Video Decoder Picture Manager] Decode session information:\n"
+               "\tDPB Maximum Size (max_ref_count + one_slot_curpic): %d\n"
+               "\tDXGI_FORMAT: %d\n"
+               "\tTexture resolution: (%ld, %d)\n"
+               "\tD3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY enforced: %d\n"
+               "\tAllocation Mode: %s\n"
+               "\n ----------------------\n\tCurrent frame information:\n"
+               "\tD3D12_VIDEO_DECODE_REFERENCE_FRAMES.NumTexture2Ds: %d\n"
+               "\tDPB Contents Table:\n%s",
+               m_upD3D12TexturesStorageManager->get_number_of_tracked_allocations(),
+               m_dpbDescriptor.Format,
+               m_dpbDescriptor.Width,
+               m_dpbDescriptor.Height,
+               m_dpbDescriptor.fReferenceOnly,
+               (m_dpbDescriptor.fArrayOfTexture ? "ArrayOfTextures" : "TextureArray"),
+               m_upD3D12TexturesStorageManager->get_number_of_pics_in_dpb(),
+               dpbContents.c_str());
 }
