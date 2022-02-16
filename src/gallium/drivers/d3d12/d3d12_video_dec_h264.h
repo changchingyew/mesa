@@ -191,4 +191,8 @@ void
 d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *        pD3D12Dec,
                                                      size_t                              numSlices,
                                                      std::vector<DXVA_Slice_H264_Short> &pOutSliceControlBuffers);
+
+void
+d3d12_video_decoder_log_pic_params_h264(DXVA_PicParams_H264 * pPicParams);
+
 #endif

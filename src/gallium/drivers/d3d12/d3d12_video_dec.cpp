@@ -1181,6 +1181,9 @@ d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input(
                                                                         outputResourceDesc.Width,
                                                                         outputResourceDesc.Height,
                                                                         pPicControlH264);
+
+         D3D12_LOG_DBG("[d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input] DXVA_PicParams_H264 converted from pipe_h264_picture_desc (No reference index remapping)\n");
+         d3d12_video_decoder_log_pic_params_h264(&dxvaPicParamsH264);
          d3d12_video_decoder_store_dxva_picparams_in_picparams_buffer(codec,
                                                                       &dxvaPicParamsH264,
                                                                       dxvaPicParamsBufferSize);

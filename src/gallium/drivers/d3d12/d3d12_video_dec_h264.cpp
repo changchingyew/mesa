@@ -42,11 +42,11 @@ d3d12_video_decoder_get_frame_info_h264(
    // picture, in units of macroblocks, minus 1. (The height in macroblocks is wFrameHeightInMbsMinus1 plus 1.) When the
    // picture is a field, the height of the frame is twice the height of the picture and is an integer multiple of 2 in
    // units of macroblocks.
-   *pWidth      = (pPicParams->wFrameWidthInMbsMinus1 + 1) * 16;
-   *pHeight     = (pPicParams->wFrameHeightInMbsMinus1 + 1) / (pPicParams->frame_mbs_only_flag ? 1 : 2);
-   *pHeight     = (2 - pPicParams->frame_mbs_only_flag) * *pHeight;
-   *pHeight     = *pHeight * 16;
-   *pMaxDPB     = pPicParams->num_ref_frames + 1;
+   *pWidth = (pPicParams->wFrameWidthInMbsMinus1 + 1) * 16;
+   *pHeight = (pPicParams->wFrameHeightInMbsMinus1 + 1) / (pPicParams->frame_mbs_only_flag ? 1 : 2);
+   *pHeight = (2 - pPicParams->frame_mbs_only_flag) * *pHeight;
+   *pHeight = *pHeight * 16;
+   *pMaxDPB = pPicParams->num_ref_frames + 1;
    isInterlaced = !pPicParams->frame_mbs_only_flag;
 }
 
@@ -56,11 +56,11 @@ d3d12_video_decoder_get_frame_info_h264(
 ///
 void
 d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_decoder *pD3D12Dec,
-                                                          ID3D12Resource *            pTexture2D,
-                                                          uint32_t                    subresourceIndex)
+                                                          ID3D12Resource *pTexture2D,
+                                                          uint32_t subresourceIndex)
 {
    DXVA_PicParams_H264 *pPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
-   pPicParams->CurrPic.Index7Bits  = pD3D12Dec->m_spDPBManager->store_future_reference(pPicParams->CurrPic.Index7Bits,
+   pPicParams->CurrPic.Index7Bits = pD3D12Dec->m_spDPBManager->store_future_reference(pPicParams->CurrPic.Index7Bits,
                                                                                       pD3D12Dec->m_spVideoDecoderHeap,
                                                                                       pTexture2D,
                                                                                       subresourceIndex);
@@ -88,11 +88,14 @@ d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_dec
       std::swap(BarrierDesc.Transition.StateBefore, BarrierDesc.Transition.StateAfter);
       pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(BarrierDesc);
    }
+
+   D3D12_LOG_DBG("[d3d12_video_decoder_prepare_current_frame_references_h264] DXVA_PicParams_H264 after index remapping)\n");
+   d3d12_video_decoder_log_pic_params_h264(d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec));
 }
 
 void
-d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *        pD3D12Dec,
-                                                     size_t                              numSlices,
+d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *pD3D12Dec,
+                                                     size_t numSlices,
                                                      std::vector<DXVA_Slice_H264_Short> &pOutSliceControlBuffers)
 {
    pOutSliceControlBuffers.resize(numSlices);
@@ -125,12 +128,12 @@ d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder 
 }
 
 bool
-d3d12_video_decoder_get_slice_size_and_offset_h264(size_t                sliceIdx,
-                                                   size_t                numSlices,
+d3d12_video_decoder_get_slice_size_and_offset_h264(size_t sliceIdx,
+                                                   size_t numSlices,
                                                    std::vector<uint8_t> &buf,
-                                                   unsigned int          bufferOffset,
-                                                   uint32_t &            outSliceSize,
-                                                   uint32_t &            outSliceOffset)
+                                                   unsigned int bufferOffset,
+                                                   uint32_t &outSliceSize,
+                                                   uint32_t &outSliceOffset)
 {
    if (sliceIdx >= numSlices) {
       return false;
@@ -177,9 +180,43 @@ d3d12_video_decoder_get_slice_size_and_offset_h264(size_t                sliceId
    return true;
 }
 
+static void
+d3d12_video_decoder_log_pic_entry_h264(DXVA_PicEntry_H264 &picEntry)
+{
+   D3D12_LOG_DBG("\t\tIndex7Bits: %d\n"
+                 "\t\tAssociatedFlag: %d\n"
+                 "\t\tbPicEntry: %d\n",
+                 picEntry.Index7Bits,
+                 picEntry.AssociatedFlag,
+                 picEntry.bPicEntry);
+}
+
+void
+d3d12_video_decoder_log_pic_params_h264(DXVA_PicParams_H264 *pPicParams)
+{
+   if (D3D12_LOG_DBG_ON) {
+      const UINT16 RefPicListLength = _countof(DXVA_PicParams_H264::RefFrameList);
+
+      // RefPicList = pPicParams->RefFrameList;
+      // CurrPic = pPicParams->CurrPic;
+
+      D3D12_LOG_DBG("[D3D12 Video Decoder H264 DXVA PicParams info]\n"
+                    "\t[Current Picture Entry]\n");
+      d3d12_video_decoder_log_pic_entry_h264(pPicParams->CurrPic);
+
+      D3D12_LOG_DBG("[Decode RefFrameList Pic_Entry list] Entries where bPicEntry == DXVA_H264_INVALID_PICTURE_ENTRY_VALUE are not printed\n");
+      for (uint32_t refIdx = 0; refIdx < RefPicListLength; refIdx++) {
+         if (DXVA_H264_INVALID_PICTURE_ENTRY_VALUE != pPicParams->RefFrameList[refIdx].bPicEntry) {
+            D3D12_LOG_DBG("\t[Reference PicEntry %d]\n", refIdx);
+            d3d12_video_decoder_log_pic_entry_h264(pPicParams->RefFrameList[refIdx]);
+         }
+      }
+   }
+}
+
 DXVA_PicParams_H264
 d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
-   uint32_t           frameNum,
+   uint32_t frameNum,
    pipe_video_profile profile,
    uint32_t decodeWidth,    // pipe_h264_picture_desc doesn't have the size of the frame for H264, but it does for other
                             // codecs.
@@ -190,10 +227,10 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    DXVA_PicParams_H264 dxvaStructure = {};
 
    // uint16_t  wFrameWidthInMbsMinus1;
-   uint width_in_mb                     = decodeWidth / D3D12_VIDEO_H264_MB_IN_PIXELS;
+   uint width_in_mb = decodeWidth / D3D12_VIDEO_H264_MB_IN_PIXELS;
    dxvaStructure.wFrameWidthInMbsMinus1 = width_in_mb - 1;
    // uint16_t  wFrameHeightInMbsMinus1;
-   uint height_in_mb                     = static_cast<uint>(std::ceil(decodeHeight / D3D12_VIDEO_H264_MB_IN_PIXELS));
+   uint height_in_mb = static_cast<uint>(std::ceil(decodeHeight / D3D12_VIDEO_H264_MB_IN_PIXELS));
    dxvaStructure.wFrameHeightInMbsMinus1 = height_in_mb - 1;
    // CurrPic.Index7Bits
    dxvaStructure.CurrPic.Index7Bits = pPipeDesc->frame_num;
@@ -425,8 +462,8 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
 
 void
 d3d12_video_decoder_dxva_qmatrix_from_pipe_picparams_h264(pipe_h264_picture_desc *pPipeDesc,
-                                                          DXVA_Qmatrix_H264 &     outMatrixBuffer,
-                                                          bool &                  outSeq_scaling_matrix_present_flag)
+                                                          DXVA_Qmatrix_H264 &outMatrixBuffer,
+                                                          bool &outSeq_scaling_matrix_present_flag)
 {
    outSeq_scaling_matrix_present_flag = pPipeDesc->pps->sps->seq_scaling_matrix_present_flag;
    if (outSeq_scaling_matrix_present_flag) {
