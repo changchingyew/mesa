@@ -100,6 +100,7 @@ vl_drm_screen_create(int fd);
 struct vl_screen *
 vl_xlib_swrast_screen_create(Display *display, int screen);
 #else
+static struct vl_screen *
 vl_xlib_swrast_screen_create(Display *display, int screen) { return NULL; }
 #endif
 
