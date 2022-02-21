@@ -1,9 +1,9 @@
 #!/bin/bash
 
-set -x
+SCRIPT_DIR="$( cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 ; pwd -P )"
+. "${SCRIPT_DIR}/env.sh"
 
-export CC=/usr/bin/clang
-export CXX=/usr/bin/clang++
+set -x
 
 meson build -Dgallium-drivers=d3d12,swrast -Dplatforms=x11 -Dgallium-va=enabled
 
