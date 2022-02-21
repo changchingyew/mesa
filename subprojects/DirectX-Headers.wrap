@@ -2,4 +2,5 @@
 directory = DirectX-Headers-1.0
 
 url = https://github.com/microsoft/DirectX-Headers.git
-revision = head
+#revision = head
+revision = user/sivileri/add_d3d12_video_support_wsl
