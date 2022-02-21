@@ -1,0 +1,13 @@
+diff --git a/include/dxguids/dxguids.h b/include/dxguids/dxguids.h
+index bc35902..eaccf83 100644
+--- a/include/dxguids/dxguids.h
++++ b/include/dxguids/dxguids.h
+@@ -7,7 +7,7 @@
+ #error "This header requires C++"
+ #endif
+ 
+-#include <d3d12video.h>
++#include <directx/d3d12video.h>
+ 
+ constexpr inline bool ConstexprIsEqualGUID(REFGUID a, REFGUID b)
+ {
