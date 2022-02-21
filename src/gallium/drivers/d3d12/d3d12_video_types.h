@@ -34,6 +34,7 @@
 #include "d3d12_fence.h"
 
 #include <dxguids/dxguids.h>
+#include <directx/d3d12video.h>
 
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
