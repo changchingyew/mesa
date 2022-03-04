@@ -194,22 +194,62 @@ d3d12_video_decoder_log_pic_entry_h264(DXVA_PicEntry_H264 &picEntry)
 void
 d3d12_video_decoder_log_pic_params_h264(DXVA_PicParams_H264 *pPicParams)
 {
-   if (D3D12_LOG_DBG_ON) {
-      const UINT16 RefPicListLength = _countof(DXVA_PicParams_H264::RefFrameList);
+   D3D12_LOG_DBG("\n=============================================\n");
+   D3D12_LOG_DBG("wFrameWidthInMbsMinus1 = %d\n", pPicParams->wFrameWidthInMbsMinus1);
+   D3D12_LOG_DBG("wFrameHeightInMbsMinus1 = %d\n", pPicParams->wFrameHeightInMbsMinus1);
+   D3D12_LOG_DBG("CurrPic.Index7Bits = %d\n", pPicParams->CurrPic.Index7Bits);
+   D3D12_LOG_DBG("CurrPic.AssociatedFlag = %d\n", pPicParams->CurrPic.AssociatedFlag);
+   D3D12_LOG_DBG("num_ref_frames = %d\n", pPicParams->num_ref_frames);
+   D3D12_LOG_DBG("field_pic_flag = %d\n", pPicParams->field_pic_flag);
+   D3D12_LOG_DBG("MbaffFrameFlag = %d\n", pPicParams->MbaffFrameFlag);
+   D3D12_LOG_DBG("residual_colour_transform_flag = %d\n", pPicParams->residual_colour_transform_flag);
+   D3D12_LOG_DBG("chroma_format_idc = %d\n", pPicParams->chroma_format_idc);
+   D3D12_LOG_DBG("RefPicFlag = %d\n", pPicParams->RefPicFlag);
+   D3D12_LOG_DBG("IntraPicFlag = %d\n", pPicParams->IntraPicFlag);
+   D3D12_LOG_DBG("constrained_intra_pred_flag = %d\n", pPicParams->constrained_intra_pred_flag);
+   D3D12_LOG_DBG("weighted_pred_flag = %d\n", pPicParams->weighted_pred_flag);
+   D3D12_LOG_DBG("weighted_bipred_idc = %d\n", pPicParams->weighted_bipred_idc);
+   D3D12_LOG_DBG("MbsConsecutiveFlag = %d\n", pPicParams->MbsConsecutiveFlag);
+   D3D12_LOG_DBG("frame_mbs_only_flag = %d\n", pPicParams->frame_mbs_only_flag);
+   D3D12_LOG_DBG("transform_8x8_mode_flag = %d\n", pPicParams->transform_8x8_mode_flag);
+   D3D12_LOG_DBG("StatusReportFeedbackNumber = %d\n", pPicParams->StatusReportFeedbackNumber);
+   D3D12_LOG_DBG("CurrFieldOrderCnt[0] = %d\n", pPicParams->CurrFieldOrderCnt[0]);
+   D3D12_LOG_DBG("CurrFieldOrderCnt[1] = %d\n", pPicParams->CurrFieldOrderCnt[1]);
+   D3D12_LOG_DBG("chroma_qp_index_offset = %d\n", pPicParams->chroma_qp_index_offset);
+   D3D12_LOG_DBG("second_chroma_qp_index_offset = %d\n", pPicParams->second_chroma_qp_index_offset);
+   D3D12_LOG_DBG("ContinuationFlag = %d\n", pPicParams->ContinuationFlag);
+   D3D12_LOG_DBG("pic_init_qp_minus26 = %d\n", pPicParams->pic_init_qp_minus26);
+   D3D12_LOG_DBG("pic_init_qs_minus26 = %d\n", pPicParams->pic_init_qs_minus26);
+   D3D12_LOG_DBG("num_ref_idx_l0_active_minus1 = %d\n", pPicParams->num_ref_idx_l0_active_minus1);
+   D3D12_LOG_DBG("num_ref_idx_l1_active_minus1 = %d\n", pPicParams->num_ref_idx_l1_active_minus1);
+   D3D12_LOG_DBG("frame_num = %d\n", pPicParams->frame_num);
+   D3D12_LOG_DBG("log2_max_frame_num_minus4 = %d\n", pPicParams->log2_max_frame_num_minus4);
+   D3D12_LOG_DBG("pic_order_cnt_type = %d\n", pPicParams->pic_order_cnt_type);
+   D3D12_LOG_DBG("log2_max_pic_order_cnt_lsb_minus4 = %d\n", pPicParams->log2_max_pic_order_cnt_lsb_minus4);
+   D3D12_LOG_DBG("delta_pic_order_always_zero_flag = %d\n", pPicParams->delta_pic_order_always_zero_flag);
+   D3D12_LOG_DBG("direct_8x8_inference_flag = %d\n", pPicParams->direct_8x8_inference_flag);
+   D3D12_LOG_DBG("entropy_coding_mode_flag = %d\n", pPicParams->entropy_coding_mode_flag);
+   D3D12_LOG_DBG("pic_order_present_flag = %d\n", pPicParams->pic_order_present_flag);
+   D3D12_LOG_DBG("deblocking_filter_control_present_flag = %d\n", pPicParams->deblocking_filter_control_present_flag);
+   D3D12_LOG_DBG("redundant_pic_cnt_present_flag = %d\n", pPicParams->redundant_pic_cnt_present_flag);
+   D3D12_LOG_DBG("num_slice_groups_minus1 = %d\n", pPicParams->num_slice_groups_minus1);
+   D3D12_LOG_DBG("slice_group_map_type = %d\n", pPicParams->slice_group_map_type);
+   D3D12_LOG_DBG("slice_group_change_rate_minus1 = %d\n", pPicParams->slice_group_change_rate_minus1);
+   D3D12_LOG_DBG("Reserved8BitsB = %d\n", pPicParams->Reserved8BitsB);
+   D3D12_LOG_DBG("UsedForReferenceFlags 0x%08x\n", pPicParams->UsedForReferenceFlags);
+   D3D12_LOG_DBG("NonExistingFrameFlags 0x%08x\n", pPicParams->NonExistingFrameFlags);
 
-      // RefPicList = pPicParams->RefFrameList;
-      // CurrPic = pPicParams->CurrPic;
+   const UINT16 RefPicListLength = _countof(DXVA_PicParams_H264::RefFrameList);
 
-      D3D12_LOG_DBG("[D3D12 Video Decoder H264 DXVA PicParams info]\n"
-                    "\t[Current Picture Entry]\n");
-      d3d12_video_decoder_log_pic_entry_h264(pPicParams->CurrPic);
+   D3D12_LOG_DBG("[D3D12 Video Decoder H264 DXVA PicParams info]\n"
+                  "\t[Current Picture Entry]\n");
+   d3d12_video_decoder_log_pic_entry_h264(pPicParams->CurrPic);
 
-      D3D12_LOG_DBG("[Decode RefFrameList Pic_Entry list] Entries where bPicEntry == DXVA_H264_INVALID_PICTURE_ENTRY_VALUE are not printed\n");
-      for (uint32_t refIdx = 0; refIdx < RefPicListLength; refIdx++) {
-         if (DXVA_H264_INVALID_PICTURE_ENTRY_VALUE != pPicParams->RefFrameList[refIdx].bPicEntry) {
-            D3D12_LOG_DBG("\t[Reference PicEntry %d]\n", refIdx);
-            d3d12_video_decoder_log_pic_entry_h264(pPicParams->RefFrameList[refIdx]);
-         }
+   D3D12_LOG_DBG("[Decode RefFrameList Pic_Entry list] Entries where bPicEntry == DXVA_H264_INVALID_PICTURE_ENTRY_VALUE are not printed\n");
+   for (uint32_t refIdx = 0; refIdx < RefPicListLength; refIdx++) {
+      if (DXVA_H264_INVALID_PICTURE_ENTRY_VALUE != pPicParams->RefFrameList[refIdx].bPicEntry) {
+         D3D12_LOG_DBG("\t[Reference PicEntry %d]\n", refIdx);
+         d3d12_video_decoder_log_pic_entry_h264(pPicParams->RefFrameList[refIdx]);
       }
    }
 }
@@ -314,6 +354,8 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // in RefFrameList for a subsequent picture. In addition, surfaces that contain only pictures marked as "unused for
    // reference" shall not appear in RefFrameList for a subsequent picture.
 
+   dxvaStructure.UsedForReferenceFlags = 0;   // initialize to zero and set only the appropiate values below
+
    bool frameUsesAnyRefPicture = false;
    for (uint i = 0; i < 16; i++) {
       // If both top and bottom reference flags are false, this is an invalid entry
@@ -324,6 +366,9 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
          // setting bPicEntry to 0xFF. If bPicEntry is not 0xFF, the entry may be used as a reference surface for
          // decoding the current picture or a subsequent picture (in decoding order).
          dxvaStructure.RefFrameList[i].bPicEntry = DXVA_H264_INVALID_PICTURE_ENTRY_VALUE;
+         dxvaStructure.FieldOrderCntList[i][0] = 0;
+         dxvaStructure.FieldOrderCntList[i][1] = 0;
+         dxvaStructure.FrameNumList[i] = 0;
       } else {
          frameUsesAnyRefPicture = true;
          // From DXVA spec:
@@ -359,10 +404,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
          // entry in RefFrameList is empty or is marked as "not used for reference"), the value
          // of the FrameNumList entry shall be 0. Accelerators can rely on this constraint being
          // fulfilled.
-         dxvaStructure.FrameNumList[i] =
-            (dxvaStructure.RefFrameList[i].bPicEntry != DXVA_H264_INVALID_PICTURE_ENTRY_VALUE) ?
-               pPipeDesc->frame_num_list[i] :
-               0;
+         dxvaStructure.FrameNumList[i] = pPipeDesc->frame_num_list[i];
 
          // int32_t    FieldOrderCntList[16][2];
          // Contains the picture order counts for the reference frames listed in RefFrameList.
@@ -375,15 +417,8 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
          // TopFieldOrderCnt or BottomFieldOrderCnt in FieldOrderCntList shall be 0.
          // Accelerators can rely on this constraint being fulfilled.
 
-         for (uint i = 0; i < 16; i++) {
-            for (uint j = 0; j < 2; j++) {
-               if (dxvaStructure.RefFrameList[i].bPicEntry != DXVA_H264_INVALID_PICTURE_ENTRY_VALUE) {
-                  dxvaStructure.FieldOrderCntList[i][j] = pPipeDesc->field_order_cnt_list[i][j];
-               } else {
-                  dxvaStructure.FieldOrderCntList[i][j] = 0;
-               }
-            }
-         }
+         dxvaStructure.FieldOrderCntList[i][0] = pPipeDesc->field_order_cnt_list[i][0];
+         dxvaStructure.FieldOrderCntList[i][1] = pPipeDesc->field_order_cnt_list[i][1];
 
          // From DXVA spec
          // UsedForReferenceFlags
@@ -396,7 +431,6 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
          // empty), the value of both flags for that entry shall be 0. Accelerators may rely on this constraint being
          // fulfilled.
 
-         dxvaStructure.UsedForReferenceFlags = 0;   // initialize to zero and set only the appropiate values
          if (pPipeDesc->top_is_reference[i]) {
             dxvaStructure.UsedForReferenceFlags |= (1 << (2 * i));
          }
