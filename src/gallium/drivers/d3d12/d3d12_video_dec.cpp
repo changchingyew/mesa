@@ -316,17 +316,6 @@ d3d12_video_decoder_decode_bitstream(struct pipe_video_codec * codec,
          dstOffset += sizes[bufferIdx];
       }
 
-      ///
-      /// Codec header picture parameters buffers
-      ///
-
-      // Only load the picture params on the first call to decode_bitstream for this frame, the subsequent calls should
-      // have the same pic params/qmatrix.
-      if (pD3D12Dec->m_numConsecutiveDecodeFrame == 0) {
-         d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input(pD3D12Dec, picture, pD3D12VideoBuffer);
-         assert(pD3D12Dec->m_picParamsBuffer.size() > 0);
-      }
-
       pD3D12Dec->m_numConsecutiveDecodeFrame++;
 
       D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream finalized for fenceValue: %d\n",
@@ -354,6 +343,13 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    assert(pD3D12Dec->m_spDecodeCommandQueue);
    struct d3d12_video_buffer *pD3D12VideoBuffer = (struct d3d12_video_buffer *) target;
    assert(pD3D12VideoBuffer);
+
+   ///
+   /// Codec header picture parameters buffers
+   ///
+
+   d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input(pD3D12Dec, picture, pD3D12VideoBuffer);
+   assert(pD3D12Dec->m_picParamsBuffer.size() > 0);
 
    ///
    /// Prepare Slice control buffers before clearing staging buffer
@@ -1182,8 +1178,6 @@ d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input(
                                                                         outputResourceDesc.Height,
                                                                         pPicControlH264);
 
-         D3D12_LOG_DBG("[d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input] DXVA_PicParams_H264 converted from pipe_h264_picture_desc (No reference index remapping)\n");
-         d3d12_video_decoder_log_pic_params_h264(&dxvaPicParamsH264);
          d3d12_video_decoder_store_dxva_picparams_in_picparams_buffer(codec,
                                                                       &dxvaPicParamsH264,
                                                                       dxvaPicParamsBufferSize);

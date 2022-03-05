@@ -27,9 +27,31 @@
 void
 d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec)
 {
+   // Assign DXVA original Index7Bits indices to current frame and references
+   DXVA_PicParams_H264* pCurrPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
+   pCurrPicParams->CurrPic.Index7Bits = pD3D12Dec->m_spDPBManager->get_fresh_index7bits(pCurrPicParams->CurrFieldOrderCnt[0], pCurrPicParams->CurrFieldOrderCnt[1]);
+   for(uint8_t i=0;i<16;i++) {
+      // From H264 DXVA spec:
+      // Index7Bits
+      //     An index that identifies an uncompressed surface for the CurrPic or RefFrameList member of the picture
+      //     parameters structure(section 4.0) or the RefPicList member of the slice control data
+      //     structure(section 6.0) When Index7Bits is used in the CurrPic and RefFrameList members of the picture
+      //     parameters structure, the value directly specifies the DXVA index of an uncompressed surface. When
+      //     Index7Bits is used in the RefPicList member of the slice control data structure, the value identifies
+      //     the surface indirectly, as an index into the RefFrameList array of the associated picture parameters
+      //     structure.For more information, see section 6.2. In all cases, when Index7Bits does not contain a valid
+      //     index, the value is 127.
+      if(pCurrPicParams->RefFrameList[i].bPicEntry != DXVA_H264_INVALID_PICTURE_ENTRY_VALUE)
+      {
+         pCurrPicParams->RefFrameList[i].Index7Bits = pD3D12Dec->m_spDPBManager->get_reference_index7bits(pCurrPicParams->FieldOrderCntList[i][0], pCurrPicParams->FieldOrderCntList[i][1]);
+      }      
+   }
+
+   D3D12_LOG_DBG("[d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input] DXVA_PicParams_H264 converted from pipe_h264_picture_desc (No reference index remapping)\n");
+   d3d12_video_decoder_log_pic_params_h264(pCurrPicParams);
+
    pD3D12Dec->m_spDPBManager->mark_all_references_as_unused();
-   pD3D12Dec->m_spDPBManager->mark_references_in_use(
-      d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec)->RefFrameList);
+   pD3D12Dec->m_spDPBManager->mark_references_in_use(pCurrPicParams->RefFrameList);
 }
 
 void
@@ -272,8 +294,9 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // uint16_t  wFrameHeightInMbsMinus1;
    uint height_in_mb = static_cast<uint>(std::ceil(decodeHeight / D3D12_VIDEO_H264_MB_IN_PIXELS));
    dxvaStructure.wFrameHeightInMbsMinus1 = height_in_mb - 1;
-   // CurrPic.Index7Bits
-   dxvaStructure.CurrPic.Index7Bits = pPipeDesc->frame_num;
+
+   // CurrPic.Index7Bits is handled by d3d12_video_decoder_refresh_dpb_active_references_h264
+
    // uint8_t   num_ref_frames;
    dxvaStructure.num_ref_frames = pPipeDesc->num_ref_frames;
    // union {
@@ -380,18 +403,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
          // reference field pair.
          dxvaStructure.RefFrameList[i].AssociatedFlag = pPipeDesc->is_long_term[i] ? 1u : 0u;
 
-         // From H264 DXVA spec:
-         // Index7Bits
-         //     An index that identifies an uncompressed surface for the CurrPic or RefFrameList member of the picture
-         //     parameters structure(section 4.0) or the RefPicList member of the slice control data
-         //     structure(section 6.0) When Index7Bits is used in the CurrPic and RefFrameList members of the picture
-         //     parameters structure, the value directly specifies the DXVA index of an uncompressed surface. When
-         //     Index7Bits is used in the RefPicList member of the slice control data structure, the value identifies
-         //     the surface indirectly, as an index into the RefFrameList array of the associated picture parameters
-         //     structure.For more information, see section 6.2. In all cases, when Index7Bits does not contain a valid
-         //     index, the value is 127.
-
-         dxvaStructure.RefFrameList[i].Index7Bits = pPipeDesc->frame_num_list[i];
+         // dxvaStructure.RefFrameList[i].Index7Bits is handled by d3d12_video_decoder_refresh_dpb_active_references_h264
 
          // uint16_t FrameNumList[16];
          // 	 FrameNumList
@@ -480,6 +492,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // feedback data. The value should not equal 0, and should be different in each call to
    // Execute. For more information, see section 12.0, Status Report Data Structure.
    dxvaStructure.StatusReportFeedbackNumber = frameNum;
+   assert(dxvaStructure.StatusReportFeedbackNumber > 0);
 
    // from DXVA spec
    // ContinuationFlag
