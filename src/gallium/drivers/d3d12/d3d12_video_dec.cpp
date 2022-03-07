@@ -1065,13 +1065,6 @@ d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *                
 void
 d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD3D12Dec)
 {
-   // Method overview
-   // 1. Codec specific strategy in switch statement regarding reference frames eviction policy. Should only mark active
-   // DPB references, leaving evicted ones as unused
-   // 2. Call release_unused_references_texture_memory(); at the end of this method. Any references (and texture
-   // allocations associated)
-   //    that were left not marked as used in m_spDPBManager by step (2) are lost.
-
    switch (pD3D12Dec->m_d3d12DecProfileType) {
       case d3d12_video_decode_profile_type_h264:
       {
@@ -1085,10 +1078,6 @@ d3d12_video_decoder_refresh_dpb_active_references(struct d3d12_video_decoder *pD
                                                   pD3D12Dec->m_d3d12DecProfileType);
       } break;
    }
-
-   // Releases the underlying reference picture texture objects of all references that were not marked as used in this
-   // method.
-   pD3D12Dec->m_spDPBManager->release_unused_references_texture_memory();
 }
 
 void

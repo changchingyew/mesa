@@ -27,9 +27,15 @@
 void
 d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec)
 {
+   // Method overview
+   // 1. Codec specific strategy in switch statement regarding reference frames eviction policy. Should only mark active
+   // DPB references, leaving evicted ones as unused
+   // 2. Call release_unused_references_texture_memory(); at the end of this method. Any references (and texture
+   // allocations associated)
+   //    that were left not marked as used in m_spDPBManager by step (2) are lost.
+
    // Assign DXVA original Index7Bits indices to current frame and references
    DXVA_PicParams_H264* pCurrPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
-   pCurrPicParams->CurrPic.Index7Bits = pD3D12Dec->m_spDPBManager->get_fresh_index7bits(pCurrPicParams->CurrFieldOrderCnt[0], pCurrPicParams->CurrFieldOrderCnt[1]);
    for(uint8_t i=0;i<16;i++) {
       // From H264 DXVA spec:
       // Index7Bits
@@ -47,11 +53,17 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
       }      
    }
 
-   D3D12_LOG_DBG("[d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input] DXVA_PicParams_H264 converted from pipe_h264_picture_desc (No reference index remapping)\n");
-   d3d12_video_decoder_log_pic_params_h264(pCurrPicParams);
-
    pD3D12Dec->m_spDPBManager->mark_all_references_as_unused();
    pD3D12Dec->m_spDPBManager->mark_references_in_use(pCurrPicParams->RefFrameList);
+
+   // Releases the underlying reference picture texture objects of all references that were not marked as used in this
+   // method.
+   pD3D12Dec->m_spDPBManager->release_unused_references_texture_memory();
+
+   pCurrPicParams->CurrPic.Index7Bits = pD3D12Dec->m_spDPBManager->get_fresh_index7bits(pCurrPicParams->CurrFieldOrderCnt[0], pCurrPicParams->CurrFieldOrderCnt[1]);
+
+   D3D12_LOG_DBG("[d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input] DXVA_PicParams_H264 converted from pipe_h264_picture_desc (No reference index remapping)\n");
+   d3d12_video_decoder_log_pic_params_h264(pCurrPicParams);
 }
 
 void
