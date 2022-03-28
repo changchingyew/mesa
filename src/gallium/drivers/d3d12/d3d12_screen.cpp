@@ -910,11 +910,11 @@ get_max_level_resolution_video_decode_support(D3D12_VIDEO_DECODE_CONFIGURATION d
       return supportedResult;
    }
 
-   d3d12_video_resolution_to_level_mapping_entry resolutionsLevelList[10] = {
-      { { 8192, 4320 }, 61 },   // 8k
-      { { 7680, 4800 }, 61 },   // 8k - alternative
-      { { 7680, 4320 }, 61 },   // 8k - alternative
-      { { 4096, 2304 }, 52 },   // 2160p (4K)
+   d3d12_video_resolution_to_level_mapping_entry resolutionsLevelList[6] = {
+   //   { { 8192, 4320 }, 61 },   // 8k
+   //   { { 7680, 4800 }, 61 },   // 8k - alternative
+   //   { { 7680, 4320 }, 61 },   // 8k - alternative
+   //   { { 4096, 2304 }, 52 },   // 2160p (4K)
       { { 4096, 2160 }, 52 },   // 2160p (4K) - alternative
       { { 2560, 1440 }, 51 },   // 1440p
       { { 1920, 1200 }, 5 },    // 1200p
