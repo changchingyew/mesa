@@ -166,8 +166,8 @@ d3d12_video_decoder_get_next_slice_size_and_offset_h264(std::vector<uint8_t> &bu
                                                       uint32_t &outSliceSize,
                                                       uint32_t &outSliceOffset)
 {
-   uint numBitsToSearchIntoBuffer =
-      buf.size() - bufferOffset;   // Search the rest of the full frame buffer after the offset
+   // Search the rest of the full frame buffer after the offset
+   uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset;      
    int currentSlicePosition = d3d12_video_decoder_get_next_startcode_offset(buf,
                                                                             bufferOffset,
                                                                             DXVA_H264_START_CODE,
@@ -180,22 +180,24 @@ d3d12_video_decoder_get_next_slice_size_and_offset_h264(std::vector<uint8_t> &bu
       return false;
    }
    else
-   { // We did find a next slice based on the bufferOffset parameter
+   {  // We did find a next slice based on the bufferOffset parameter
 
       // Save the absolute buffer offset until the next slice in the output param
       outSliceOffset = currentSlicePosition + bufferOffset;
       
       // Skip current start code, to get the slice after this, to calculate its size
       bufferOffset += DXVA_H264_START_CODE_LEN_BITS;
+      numBitsToSearchIntoBuffer = buf.size() - bufferOffset;
 
       int nextSlicePosition =
-         DXVA_H264_START_CODE_LEN_BITS + d3d12_video_decoder_get_next_startcode_offset(buf,
+         DXVA_H264_START_CODE_LEN_BITS // Takes into account the skipped start code 
+         + d3d12_video_decoder_get_next_startcode_offset(buf,
                                                                                        bufferOffset,
                                                                                        DXVA_H264_START_CODE,
                                                                                        DXVA_H264_START_CODE_LEN_BITS,
                                                                                        numBitsToSearchIntoBuffer);
 
-      if(nextSlicePosition < 0)
+      if(nextSlicePosition < DXVA_H264_START_CODE_LEN_BITS) // if no slice found, d3d12_video_decoder_get_next_startcode_offset returns - 1
       {
          // This means currentSlicePosition points to the last slice in the buffer
          outSliceSize = buf.size() - outSliceOffset;
