@@ -143,7 +143,6 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
 
    // Convert the H264 SPS structure into bytes
    m_h264Encoder.sps_to_nalu_bytes(&spsStructure, headerBitstream, placingPositionStart, writtenBytes);
-   m_writtenSPSCount++;
 }
 
 void
@@ -204,7 +203,6 @@ d3d12_video_bitstream_builder_h264::build_pps(const D3D12_VIDEO_ENCODER_PROFILE_
 
    // Convert the H264 SPS structure into bytes
    m_h264Encoder.pps_to_nalu_bytes(&ppsStructure, headerBitstream, bIsHighProfile, placingPositionStart, writtenBytes);
-   m_writtenPPSCount++;
 }
 
 void

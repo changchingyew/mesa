@@ -65,16 +65,27 @@ class d3d12_video_bitstream_builder_h264 : public d3d12_video_bitstream_builder_
    void print_pps(const H264_PPS &pps);
    void print_sps(const H264_SPS &sps);
 
-   uint32_t m_writtenSPSCount = 0;
-   uint32_t m_writtenPPSCount = 0;
+   uint32_t m_activeSPSIndex = 0;
+   uint32_t m_activePPSIndex = 0;
 
-   uint32_t get_sps_count()
+   uint32_t get_active_sps_id()
    {
-      return m_writtenSPSCount;
+      return m_activeSPSIndex;
    };
-   uint32_t get_pps_count()
+   uint32_t get_active_pps_id()
    {
-      return m_writtenPPSCount;
+      return m_activePPSIndex;
+   };
+
+   void set_active_sps_id(uint32_t active_sps_id)
+   {
+      m_activeSPSIndex = active_sps_id;
+      D3D12_LOG_DBG("[d3d12_video_bitstream_builder_h264] Setting new active SPS ID: %d ", m_activeSPSIndex);
+   };
+   void set_active_pps_id(uint32_t active_pps_id)
+   {
+      m_activePPSIndex = active_pps_id;
+      D3D12_LOG_DBG("[d3d12_video_bitstream_builder_h264] Setting new active PPS ID: %d ", m_activePPSIndex);
    };
 
  private:

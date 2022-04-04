@@ -143,7 +143,7 @@ d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video
       dynamic_cast<d3d12_video_bitstream_builder_h264 *>(pD3D12Enc->m_upBitstreamBuilder.get());
    assert(pH264BitstreamBuilder != nullptr);
 
-   picParams.pH264PicData->pic_parameter_set_id     = pH264BitstreamBuilder->get_pps_count();
+   picParams.pH264PicData->pic_parameter_set_id     = pH264BitstreamBuilder->get_active_pps_id();
    picParams.pH264PicData->idr_pic_id               = h264Pic->idr_pic_id;
    picParams.pH264PicData->FrameType                = d3d12_video_encoder_convert_frame_type(h264Pic->picture_type);
    picParams.pH264PicData->PictureOrderCountNumber  = h264Pic->pic_order_cnt;
@@ -914,21 +914,24 @@ d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder *pD3D12E
    auto MaxDPBCapacity  = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
 
    size_t writtenSPSBytesCount = 0;
-   bool   writeNewSPS          = (pD3D12Enc->m_fenceValue == 1);   // on first frame
-   writeNewSPS |= ((pD3D12Enc->m_currentEncodeConfig.m_seqFlags &
-                    D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_RESOLUTION_CHANGE) != 0);   // also on resolution change
+   bool isFirstFrame = (pD3D12Enc->m_fenceValue == 1);
+   bool writeNewSPS = isFirstFrame                                         // on first frame
+                     || ((pD3D12Enc->m_currentEncodeConfig.m_seqFlags &    // also on resolution change
+                        D3D12_VIDEO_ENCODER_SEQUENCE_CONTROL_FLAG_RESOLUTION_CHANGE) != 0);
 
    d3d12_video_bitstream_builder_h264 *pH264BitstreamBuilder =
       dynamic_cast<d3d12_video_bitstream_builder_h264 *>(pD3D12Enc->m_upBitstreamBuilder.get());
    assert(pH264BitstreamBuilder);
 
-   uint32_t active_seq_parameter_set_id = pH264BitstreamBuilder->get_sps_count();
-   if (active_seq_parameter_set_id > 0) {
-      active_seq_parameter_set_id--;   // get_sps_count returns the count of SPS written, we want the zero-indexed range
-                                       // for active_seq_parameter_set_id
-   }
+   uint32_t active_seq_parameter_set_id = pH264BitstreamBuilder->get_active_sps_id();
 
    if (writeNewSPS) {
+      // For every new SPS for reconfiguration, increase the active_sps_id
+      if(!isFirstFrame)
+      {
+         active_seq_parameter_set_id++;
+         pH264BitstreamBuilder->set_active_sps_id(active_seq_parameter_set_id);
+      }
       pH264BitstreamBuilder->build_sps(*profDesc.pH264Profile,
                                        *levelDesc.pH264LevelSetting,
                                        pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format,
