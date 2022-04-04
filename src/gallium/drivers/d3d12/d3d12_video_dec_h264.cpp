@@ -129,50 +129,43 @@ d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_dec
 
 void
 d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *pD3D12Dec,
-                                                     size_t numSlices,
                                                      std::vector<DXVA_Slice_H264_Short> &pOutSliceControlBuffers)
 {
-   pOutSliceControlBuffers.resize(numSlices);
    size_t processedBitstreamBytes = 0u;
-   for (size_t sliceIdx = 0; sliceIdx < numSlices; sliceIdx++) {
+   size_t sliceIdx = 0;
+   bool sliceFound = false;
+   do {
+      DXVA_Slice_H264_Short currentSliceEntry = { };
       // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
-      pOutSliceControlBuffers[sliceIdx].wBadSliceChopping = 0u;
-      bool sliceFound =
-         d3d12_video_decoder_get_slice_size_and_offset_h264(sliceIdx,
-                                                            numSlices,
-                                                            pD3D12Dec->m_stagingDecodeBitstream,
-                                                            processedBitstreamBytes,
-                                                            pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer,
-                                                            pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation);
-      if (!sliceFound) {
-         D3D12_LOG_ERROR("[d3d12_video_decoder_h264] Slice NOT FOUND with index %ld for frame with fenceValue: %d\n",
-                         sliceIdx,
-                         pD3D12Dec->m_fenceValue);
-      }
+      currentSliceEntry.wBadSliceChopping = 0u;
+      sliceFound =
+         d3d12_video_decoder_get_next_slice_size_and_offset_h264(pD3D12Dec->m_stagingDecodeBitstream,
+                                                               processedBitstreamBytes,
+                                                               currentSliceEntry.SliceBytesInBuffer,
+                                                               currentSliceEntry.BSNALunitDataLocation);
 
-      D3D12_LOG_INFO("[d3d12_video_decoder_h264] Detected slice index %ld with size %d and offset %d for frame with "
+      if(sliceFound)
+      {
+         D3D12_LOG_INFO("[d3d12_video_decoder_h264] Detected slice index %ld with size %d and offset %d for frame with "
                      "fenceValue: %d\n",
                      sliceIdx,
-                     pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer,
-                     pOutSliceControlBuffers[sliceIdx].BSNALunitDataLocation,
+                     currentSliceEntry.SliceBytesInBuffer,
+                     currentSliceEntry.BSNALunitDataLocation,
                      pD3D12Dec->m_fenceValue);
 
-      processedBitstreamBytes += pOutSliceControlBuffers[sliceIdx].SliceBytesInBuffer;
-   }
+         sliceIdx++;
+         processedBitstreamBytes += currentSliceEntry.SliceBytesInBuffer;
+         pOutSliceControlBuffers.push_back(currentSliceEntry);
+      }      
+   } while(sliceFound);
 }
 
 bool
-d3d12_video_decoder_get_slice_size_and_offset_h264(size_t sliceIdx,
-                                                   size_t numSlices,
-                                                   std::vector<uint8_t> &buf,
-                                                   unsigned int bufferOffset,
-                                                   uint32_t &outSliceSize,
-                                                   uint32_t &outSliceOffset)
+d3d12_video_decoder_get_next_slice_size_and_offset_h264(std::vector<uint8_t> &buf,
+                                                      unsigned int bufferOffset,
+                                                      uint32_t &outSliceSize,
+                                                      uint32_t &outSliceOffset)
 {
-   if (sliceIdx >= numSlices) {
-      return false;
-   }
-
    uint numBitsToSearchIntoBuffer =
       buf.size() - bufferOffset;   // Search the rest of the full frame buffer after the offset
    int currentSlicePosition = d3d12_video_decoder_get_next_startcode_offset(buf,
@@ -180,24 +173,18 @@ d3d12_video_decoder_get_slice_size_and_offset_h264(size_t sliceIdx,
                                                                             DXVA_H264_START_CODE,
                                                                             DXVA_H264_START_CODE_LEN_BITS,
                                                                             numBitsToSearchIntoBuffer);
-   assert(currentSlicePosition >= 0);
-
-   // Save the offset until the next slice in the output param
-   outSliceOffset = currentSlicePosition + bufferOffset;
-
-   if (sliceIdx == (numSlices - 1))   // If this is the last slice on the bitstream
+   
+   // Return false now if we didn't find a next slice based on the bufferOffset parameter
+   if(currentSlicePosition < 0)
    {
-      // Save the offset until the next slice in the output param
+      return false;
+   }
+   else
+   { // We did find a next slice based on the bufferOffset parameter
+
+      // Save the absolute buffer offset until the next slice in the output param
       outSliceOffset = currentSlicePosition + bufferOffset;
-
-      // As there is not another slice after this one, the size will be the difference between the bitsteam total size
-      // and the offset current slice
-
-      outSliceSize = buf.size() - outSliceOffset;
-   } else   // If it's not the last slice on the bitstream
-   {
-      // As there's another slice after this one, look for it and calculate the size based on the next one's offset.
-
+      
       // Skip current start code, to get the slice after this, to calculate its size
       bufferOffset += DXVA_H264_START_CODE_LEN_BITS;
 
@@ -207,11 +194,19 @@ d3d12_video_decoder_get_slice_size_and_offset_h264(size_t sliceIdx,
                                                                                        DXVA_H264_START_CODE,
                                                                                        DXVA_H264_START_CODE_LEN_BITS,
                                                                                        numBitsToSearchIntoBuffer);
-      assert(nextSlicePosition >= 0);   // if currentSlicePosition was the last slice, this might fail
 
-      outSliceSize = nextSlicePosition - currentSlicePosition;
-   }
-   return true;
+      if(nextSlicePosition < 0)
+      {
+         // This means currentSlicePosition points to the last slice in the buffer
+         outSliceSize = buf.size() - outSliceOffset;
+      }
+      else
+      {
+         // This means there are more slices after the one pointed by currentSlicePosition
+         outSliceSize = nextSlicePosition - currentSlicePosition;
+      }      
+      return true;
+   }   
 }
 
 static void

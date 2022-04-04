@@ -241,8 +241,7 @@ d3d12_video_decoder_decode_bitstream(struct pipe_video_codec * codec,
    // least for formats employing start codes to delimit slice data" if we ever get an issue with VDPAU start codes we
    // should consider adding the code that handles this in the VDPAU layer above the gallium driver like mesa VA does.
 
-   // To handle the multi-slice case where multiple slices mean multiple decode_bitstream calls, end_frame already takes
-   // care of this assuming numSlices = pD3D12Dec->m_numConsecutiveDecodeFrame; and parsing the start codes from the
+   // To handle the multi-slice case end_frame already takes care of this by parsing the start codes from the
    // combined bitstream of all decode_bitstream calls.
 
    // VAAPI seems to send one decode_bitstream command per slice, but we should also support the VDPAU case where the
@@ -1203,10 +1202,8 @@ d3d12_video_decoder_prepare_dxva_slices_control(
    switch (profileType) {
       case d3d12_video_decode_profile_type_h264:
       {
-         size_t                             numSlices = pD3D12Dec->m_numConsecutiveDecodeFrame;
-         std::vector<DXVA_Slice_H264_Short> pOutSliceControlBuffers(numSlices);
-
-         d3d12_video_decoder_prepare_dxva_slices_control_h264(pD3D12Dec, numSlices, pOutSliceControlBuffers);
+         std::vector<DXVA_Slice_H264_Short> pOutSliceControlBuffers;
+         d3d12_video_decoder_prepare_dxva_slices_control_h264(pD3D12Dec, pOutSliceControlBuffers);
 
          assert(sizeof(pOutSliceControlBuffers.data()[0]) == sizeof(DXVA_Slice_H264_Short));
          uint64_t DXVAStructSize = pOutSliceControlBuffers.size() * sizeof((pOutSliceControlBuffers.data()[0]));

@@ -181,15 +181,16 @@ d3d12_video_decoder_dxva_qmatrix_from_pipe_picparams_h264(pipe_h264_picture_desc
 void
 d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decoder *pD3D12Dec);
 bool
-d3d12_video_decoder_get_slice_size_and_offset_h264(size_t                sliceIdx,
-                                                   size_t                numSlices,
-                                                   std::vector<uint8_t> &buf,
+d3d12_video_decoder_get_next_slice_size_and_offset_h264(std::vector<uint8_t> &buf,
                                                    unsigned int          bufferOffset,
                                                    uint32_t &            outSliceSize,
                                                    uint32_t &            outSliceOffset);
+
+uint 
+d3d12_video_decoder_get_slice_count_h264(std::vector<uint8_t> &buf);
+
 void
 d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *        pD3D12Dec,
-                                                     size_t                              numSlices,
                                                      std::vector<DXVA_Slice_H264_Short> &pOutSliceControlBuffers);
 
 void
