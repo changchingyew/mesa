@@ -305,6 +305,16 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    dxvaStructure.wFrameHeightInMbsMinus1 = height_in_mb - 1;
 
    // CurrPic.Index7Bits is handled by d3d12_video_decoder_refresh_dpb_active_references_h264
+   // CurrPic.AssociatedFlag
+      // If field_pic_flag is 1, the AssociatedFlag field in CurrPic is interpreted as follows:
+      // 0 -> The current picture is the top field of the uncompressed destination frame surface.
+      // 1 -> The current picture is the bottom field of the uncompressed destination frame surface.
+      // If field_pic_flag is 0, AssociatedFlag has no meaning and shall be 0, and the accelerator shall ignore the value.
+   if(pPipeDesc->field_pic_flag) {
+      dxvaStructure.CurrPic.AssociatedFlag = (pPipeDesc->bottom_field_flag == 0) ? 0 : 1;
+   } else {
+      dxvaStructure.CurrPic.AssociatedFlag = 0;
+   }
 
    // uint8_t   num_ref_frames;
    dxvaStructure.num_ref_frames = pPipeDesc->num_ref_frames;
