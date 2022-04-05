@@ -281,6 +281,12 @@ d3d12_video_decoder_log_pic_params_h264(DXVA_PicParams_H264 *pPicParams)
       if (DXVA_H264_INVALID_PICTURE_ENTRY_VALUE != pPicParams->RefFrameList[refIdx].bPicEntry) {
          D3D12_LOG_DBG("\t[Reference PicEntry %d]\n", refIdx);
          d3d12_video_decoder_log_pic_entry_h264(pPicParams->RefFrameList[refIdx]);
+         D3D12_LOG_DBG("\t\tFrameNumList: %d\n"
+               "\t\tFieldOrderCntList[0]: %d\n"
+               "\t\tFieldOrderCntList[1]: %d\n",
+               pPicParams->FrameNumList[refIdx],
+               pPicParams->FieldOrderCntList[refIdx][0],
+               pPicParams->FieldOrderCntList[refIdx][1]);
       }
    }
 }
