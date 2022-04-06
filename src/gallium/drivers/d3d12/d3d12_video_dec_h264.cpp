@@ -305,6 +305,8 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // uint16_t  RefPicFlag                     : 1;
    dxvaStructure.RefPicFlag = pPipeDesc->is_reference;
 
+   dxvaStructure.UsedForReferenceFlags = 0;            // initialize to zero and set only the appropiate values
+
    // DXVA_PicEntry_H264  RefFrameList[16]; /* DXVA_PicEntry_H264.AssociatedFlag 1 means LongTermRef */
    // From DXVA spec:
    // RefFrameList
@@ -396,7 +398,6 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
          // empty), the value of both flags for that entry shall be 0. Accelerators may rely on this constraint being
          // fulfilled.
 
-         dxvaStructure.UsedForReferenceFlags = 0;   // initialize to zero and set only the appropiate values
          if (pPipeDesc->top_is_reference[i]) {
             dxvaStructure.UsedForReferenceFlags |= (1 << (2 * i));
          }
