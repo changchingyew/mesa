@@ -42,6 +42,42 @@ constexpr unsigned int DXVA_H264_START_CODE_LEN_BITS = 24;         // 3 byte sta
 
 constexpr unsigned int D3D12_VIDEO_H264_MB_IN_PIXELS = 16;
 
+enum d3d12_video_decoder_nal_unit_type_h264
+{
+    type_unspecified = 0,
+    type_slice = 1,
+    type_slice_part_A = 2,
+    type_slice_part_B = 3,
+    type_slice_part_C = 4,
+    type_slice_IDR = 5,
+    type_SEI = 6,
+    type_SPS = 7,
+    type_PPS = 8,
+    type_acces_delimiter = 9,
+    type_EOSeq = 10,
+    type_EOStr = 11,
+    type_EOData = 12,
+    type_SPSxt = 13,
+    type_prefix_nal_unit = 14,
+    type_subset_SPS = 15,
+    type_reserved16 = 16,
+    type_reserved17 = 17,
+    type_reserved18 = 18,
+    type_slice_aux = 19,
+    type_slice_layer_ext = 20,
+    type_reserved21 = 21,
+    type_reserved22 = 22,
+    type_reserved23 = 23,
+    type_unspecified24 = 24,
+    type_unspecified25 = 25,
+    type_unspecified26 = 26,
+    type_unspecified27 = 27,
+    type_unspecified28 = 28,
+    type_unspecified29 = 29,
+    type_unspecified30 = 30,
+    type_unspecified31 = 31
+};
+
 /* H.264/AVC picture entry data structure */
 /* If including new DXVA structs in this header, check the byte-alignment packing pragma declarations that need to be included with them */
 #pragma pack(push, BeforeDXVApacking, 1)
