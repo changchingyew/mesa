@@ -128,6 +128,11 @@ struct d3d12_video_decoder
    // Tracks DPB and reference picture textures
    std::unique_ptr<d3d12_video_decoder_references_manager> m_spDPBManager;
 
+   // Holds pointers to current decode output target texture and reference textures from upper layer
+   struct pipe_video_buffer *m_pCurrentDecodeTarget;
+   struct pipe_video_buffer **m_pCurrentReferenceTargets;
+   uint8_t m_currentReferenceTargetsCount;
+
    // Holds the input bitstream buffer while it's being constructed in decode_bitstream calls
    std::vector<uint8_t> m_stagingDecodeBitstream;
 
@@ -183,6 +188,10 @@ bool
 d3d12_video_decoder_create_staging_bitstream_buffer(const struct d3d12_screen * pD3D12Screen,
                                                     struct d3d12_video_decoder *pD3D12Dec,
                                                     uint64_t                    bufSize);
+void
+d3d12_video_decoder_store_upper_layer_references(struct d3d12_video_decoder *pD3D12Dec,
+                                                struct pipe_video_buffer *target,
+                                                struct pipe_picture_desc *picture);
 void
 d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12Dec,
                                              struct d3d12_video_buffer * pD3D12VideoBuffer,

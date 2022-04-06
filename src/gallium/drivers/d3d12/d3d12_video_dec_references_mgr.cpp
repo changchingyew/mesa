@@ -319,16 +319,16 @@ d3d12_video_decoder_references_manager::release_unused_references_texture_memory
             // Mark the unused refpic as null/empty in the DPB
             m_upD3D12TexturesStorageManager->assign_reference_frame(nullReconPic, index);
 
-            // Remove the entry in m_FrameDisplayIndexToOriginalIndex7Bits
+            // Remove the entry in m_DecodeTargetToOriginalIndex7Bits
             auto value = m_referenceDXVAIndices[index].originalIndex;
-            auto it = std::find_if(m_FrameDisplayIndexToOriginalIndex7Bits.begin(), m_FrameDisplayIndexToOriginalIndex7Bits.end(),
-               [&value](const std::pair< std::pair<int64_t, int64_t>, uint8_t > &p) {
+            auto it = std::find_if(m_DecodeTargetToOriginalIndex7Bits.begin(), m_DecodeTargetToOriginalIndex7Bits.end(),
+               [&value](const std::pair< struct pipe_video_buffer*, uint8_t > &p) {
                   return p.second == value;
                });
 
-            assert(it != m_FrameDisplayIndexToOriginalIndex7Bits.end());
+            assert(it != m_DecodeTargetToOriginalIndex7Bits.end());
 
-            m_FrameDisplayIndexToOriginalIndex7Bits.erase(it);
+            m_DecodeTargetToOriginalIndex7Bits.erase(it);
          }
 
 

@@ -36,6 +36,7 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
 
    // Assign DXVA original Index7Bits indices to current frame and references
    DXVA_PicParams_H264* pCurrPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
+   assert(pD3D12Dec->m_currentReferenceTargetsCount == 16);
    for(uint8_t i=0;i<16;i++) {
       // From H264 DXVA spec:
       // Index7Bits
@@ -49,7 +50,7 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
       //     index, the value is 127.
       if(pCurrPicParams->RefFrameList[i].bPicEntry != DXVA_H264_INVALID_PICTURE_ENTRY_VALUE)
       {
-         pCurrPicParams->RefFrameList[i].Index7Bits = pD3D12Dec->m_spDPBManager->get_reference_index7bits(pCurrPicParams->FieldOrderCntList[i][0], pCurrPicParams->FieldOrderCntList[i][1]);
+         pCurrPicParams->RefFrameList[i].Index7Bits = pD3D12Dec->m_spDPBManager->get_index7bits(pD3D12Dec->m_pCurrentReferenceTargets[i]);
       }      
    }
 
@@ -60,7 +61,7 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
    // method.
    pD3D12Dec->m_spDPBManager->release_unused_references_texture_memory();
 
-   pCurrPicParams->CurrPic.Index7Bits = pD3D12Dec->m_spDPBManager->get_fresh_index7bits(pCurrPicParams->CurrFieldOrderCnt[0], pCurrPicParams->CurrFieldOrderCnt[1]);
+   pCurrPicParams->CurrPic.Index7Bits = pD3D12Dec->m_spDPBManager->get_index7bits(pD3D12Dec->m_pCurrentDecodeTarget);
 
    D3D12_LOG_DBG("[d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input] DXVA_PicParams_H264 converted from pipe_h264_picture_desc (No reference index remapping)\n");
    d3d12_video_decoder_log_pic_params_h264(pCurrPicParams);
@@ -406,6 +407,21 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
 
    bool frameUsesAnyRefPicture = false;
    for (uint i = 0; i < 16; i++) {
+      // Fix ad-hoc behaviour from the VA upper layer which always marks short term references as top_is_reference and bottom_is_reference as true
+      // and then differenciates using INT_MAX in field_order_cnt_list[i][0]/[1] to indicate not used
+      // convert to expected
+      if(pPipeDesc->field_order_cnt_list[i][0] == INT_MAX)
+      {
+         pPipeDesc->top_is_reference[i] = false;
+         pPipeDesc->field_order_cnt_list[i][0] = 0; // DXVA Spec says this has to be zero if unused
+      }
+
+      if(pPipeDesc->field_order_cnt_list[i][1] == INT_MAX)
+      {
+         pPipeDesc->bottom_is_reference[i] = false;
+         pPipeDesc->field_order_cnt_list[i][1] = 0; // DXVA Spec says this has to be zero if unused
+      }
+      
       // If both top and bottom reference flags are false, this is an invalid entry
       bool validEntry = (pPipeDesc->top_is_reference[i] || pPipeDesc->bottom_is_reference[i]);
       if (!validEntry) {

@@ -27,6 +27,7 @@
 #include "d3d12_video_types.h"
 #include "d3d12_video_dpb_storage_manager.h"
 #include <directx/d3dx12.h>
+#include <algorithm>
 #include <map>
 
 struct d3d12_video_decoder_references_manager
@@ -76,15 +77,35 @@ struct d3d12_video_decoder_references_manager
 
    void print_dpb();
 
-   // Maps between <UniqueKey1, UniqueKey2> -> DXVA Index7Bits unique frame index
-   // In different codecs the key has different semantics, for H264 for example it's <POC_TopField, POC_BottomField>
-   uint8_t get_reference_index7bits(int64_t key1, int64_t key2) { return m_FrameDisplayIndexToOriginalIndex7Bits[std::make_pair(key1, key2)]; }   
-   
-   // Gets an unused Index7Bits for a new frame given it's combined key pair
-   uint8_t get_fresh_index7bits(int64_t key1, int64_t key2) {
-      m_FrameDisplayIndexToOriginalIndex7Bits[std::make_pair(key1, key2)] = m_CurrentIndex7BitsAvailable;      
-      m_CurrentIndex7BitsAvailable = (++m_CurrentIndex7BitsAvailable % 127);
-      return get_reference_index7bits(key1, key2);
+   ///
+   /// Get the Index7Bits associated with this decode target
+   /// If there isn't one assigned yet, gives out a fresh/unused Index7Bits
+   ///
+   uint8_t get_index7bits(struct pipe_video_buffer * pDecodeTarget) {
+      bool bDecodeTargetAlreadyHasIndex = (m_DecodeTargetToOriginalIndex7Bits.count(pDecodeTarget) > 0);
+      if(bDecodeTargetAlreadyHasIndex)
+      {
+         return m_DecodeTargetToOriginalIndex7Bits[pDecodeTarget];
+      } else {
+         uint8_t freshIdx = m_CurrentIndex7BitsAvailable;
+         
+         // Make sure next "available" index is not already used. Should be cleaned up and there shouldn't be never 127 in flight used indices
+            #if DEBUG
+               auto it = std::find_if(m_DecodeTargetToOriginalIndex7Bits.begin(), m_DecodeTargetToOriginalIndex7Bits.end(),
+                  [&freshIdx](const std::pair< struct pipe_video_buffer*, uint8_t > &p) {
+                     return p.second == freshIdx;
+                  });
+
+               assert(it == m_DecodeTargetToOriginalIndex7Bits.end());
+            #endif
+
+         // Point to next circular index for next call
+         m_CurrentIndex7BitsAvailable = (++m_CurrentIndex7BitsAvailable % 127);
+
+         // Assign freshIdx to pDecodeTarget
+         m_DecodeTargetToOriginalIndex7Bits[pDecodeTarget] = freshIdx;
+         return freshIdx;
+      }
    }
 
  private:
@@ -114,10 +135,7 @@ struct d3d12_video_decoder_references_manager
    // Holds the mapping between DXVA PicParams indices and the D3D12 indices
    std::vector<ReferenceData> m_referenceDXVAIndices;
    
-   // Maps between <UniqueKey1, UniqueKey2> -> DXVA Index7Bits unique frame index (before D3D12 textures remapping in m_referenceDXVAIndices)
-   // Values of this map will return Index7Bits to be looked up by ReferenceData.originalIndex
-   // In different codecs the key has different semantics, for H264 for example it's <POC_TopField, POC_BottomField>
-   std::map<std::pair<int64_t, int64_t>, uint8_t> m_FrameDisplayIndexToOriginalIndex7Bits = { };
+   std::map<struct pipe_video_buffer *, uint8_t> m_DecodeTargetToOriginalIndex7Bits = { };
    uint8_t m_CurrentIndex7BitsAvailable = 0;
  
    ComPtr<ID3D12Resource> m_pClearDecodedOutputTexture;

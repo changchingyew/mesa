@@ -323,6 +323,29 @@ d3d12_video_decoder_decode_bitstream(struct pipe_video_codec * codec,
    VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
 }
 
+void
+d3d12_video_decoder_store_upper_layer_references(struct d3d12_video_decoder *pD3D12Dec,
+                                                struct pipe_video_buffer *target,
+                                                struct pipe_picture_desc *picture)
+{
+   switch (pD3D12Dec->m_d3d12DecProfileType) {
+      case d3d12_video_decode_profile_type_h264:
+      {
+         pipe_h264_picture_desc *pPicControlH264 = (pipe_h264_picture_desc *) picture;
+         pD3D12Dec->m_pCurrentDecodeTarget = target;
+         pD3D12Dec->m_pCurrentReferenceTargets = pPicControlH264->ref;
+         pD3D12Dec->m_currentReferenceTargetsCount = 16;
+      } break;
+
+      default:
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_store_upper_layer_references",
+                                                  "Unsupported profile",
+                                                  pD3D12Dec->m_d3d12DecProfileType);
+      } break;
+   }
+}
+
 /**
  * end decoding of the current frame
  */
@@ -342,6 +365,11 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    assert(pD3D12Dec->m_spDecodeCommandQueue);
    struct d3d12_video_buffer *pD3D12VideoBuffer = (struct d3d12_video_buffer *) target;
    assert(pD3D12VideoBuffer);
+
+   ///
+   /// Store current decode output target texture and reference textures from upper layer
+   ///
+   d3d12_video_decoder_store_upper_layer_references(pD3D12Dec, target, picture);
 
    ///
    /// Codec header picture parameters buffers
