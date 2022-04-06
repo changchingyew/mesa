@@ -488,6 +488,7 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    uint            refOnlyOutputD3D12Subresource = 0;
 
    d3d12_video_decoder_prepare_for_decode_frame(pD3D12Dec,
+                                                target,
                                                 pD3D12VideoBuffer,
                                                 &pOutputD3D12Texture,             // output
                                                 &outputD3D12Subresource,          // output
@@ -918,6 +919,7 @@ d3d12_video_decoder_create_staging_bitstream_buffer(const struct d3d12_screen * 
 
 void
 d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12Dec,
+                                             struct pipe_video_buffer *  pCurrentDecodeTarget,
                                              struct d3d12_video_buffer * pD3D12VideoBuffer,
                                              ID3D12Resource **           ppOutTexture2D,
                                              uint32_t *                  pOutSubresourceIndex,
@@ -931,14 +933,15 @@ d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12D
    d3d12_video_decoder_refresh_dpb_active_references(pD3D12Dec);
 
    // Get the output texture for the current frame to be decoded
-   pD3D12Dec->m_spDPBManager->get_current_frame_decode_output_texture(ppOutTexture2D, pOutSubresourceIndex);
+   pD3D12Dec->m_spDPBManager->get_current_frame_decode_output_texture(pCurrentDecodeTarget, ppOutTexture2D, pOutSubresourceIndex);
 
    // Get the reference only texture for the current frame to be decoded (if applicable)
    bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags &
                           d3d12_video_decode_config_specific_flag_reference_only_textures_required) != 0;
    if (fReferenceOnly) {
       bool needsTransitionToDecodeWrite = false;
-      pD3D12Dec->m_spDPBManager->get_reference_only_output(ppRefOnlyOutTexture2D,
+      pD3D12Dec->m_spDPBManager->get_reference_only_output(pCurrentDecodeTarget,
+                                                           ppRefOnlyOutTexture2D,
                                                            pRefOnlyOutSubresourceIndex,
                                                            needsTransitionToDecodeWrite);
       assert(needsTransitionToDecodeWrite);

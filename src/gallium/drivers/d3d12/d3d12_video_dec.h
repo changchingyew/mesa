@@ -194,6 +194,7 @@ d3d12_video_decoder_store_upper_layer_references(struct d3d12_video_decoder *pD3
                                                 struct pipe_picture_desc *picture);
 void
 d3d12_video_decoder_prepare_for_decode_frame(struct d3d12_video_decoder *pD3D12Dec,
+                                             struct pipe_video_buffer *  pCurrentDecodeTarget,
                                              struct d3d12_video_buffer * pD3D12VideoBuffer,
                                              ID3D12Resource **           ppOutTexture2D,
                                              uint32_t *                  pOutSubresourceIndex,
