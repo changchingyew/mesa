@@ -64,7 +64,6 @@ struct d3d12_video_decoder_references_manager
    void update_entries(T (&picEntries)[size], std::vector<D3D12_RESOURCE_BARRIER> &outNeededTransitions);
 
    void get_reference_only_output(
-      struct pipe_video_buffer *  pCurrentDecodeTarget, // in -> target decode output to be associated with (ie. interlace needs to match the same for bottom/top)
       ID3D12Resource **ppOutputReference,     // out -> new reference slot assigned or nullptr
       uint32_t *       pOutputSubresource,    // out -> new reference slot assigned or nullptr
       bool &outNeedsTransitionToDecodeWrite   // out -> indicates if output resource argument has to be transitioned to
@@ -72,7 +71,7 @@ struct d3d12_video_decoder_references_manager
    );
 
    // Gets the output texture for the current frame to be decoded
-   void get_current_frame_decode_output_texture(struct pipe_video_buffer *  pCurrentDecodeTarget, ID3D12Resource **ppOutTexture2D, uint32_t *pOutSubresourceIndex);
+   void get_current_frame_decode_output_texture(ID3D12Resource **ppOutTexture2D, uint32_t *pOutSubresourceIndex);
 
    D3D12_VIDEO_DECODE_REFERENCE_FRAMES get_current_reference_frames();
 
