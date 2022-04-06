@@ -40,7 +40,7 @@ using Microsoft::WRL::ComPtr;
 
 // The following defines can be tweaked for better code performance or debug verbosity
 
-#define D3D12_VIDEO_ENHANCED_DEBUGGING true
+#define D3D12_VIDEO_ENHANCED_DEBUGGING DEBUG
 
 #if D3D12_VIDEO_ENHANCED_DEBUGGING
 #define D3D12_LOG_DBG_ON              true
