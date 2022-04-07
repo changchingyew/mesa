@@ -383,22 +383,16 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    assert(pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize <=
           pD3D12Dec->m_curFrameCompressedBitstreamBufferAllocatedSize);
 
-   /* One-shot transfer operation with data supplied in a user
-    * pointer.
-    */
-   pipe_resource *pPipeCompressedBufferObj =
-      d3d12_resource_from_resource(&pD3D12Screen->base, pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get());
-   assert(pPipeCompressedBufferObj);
-   pD3D12Dec->base.context->buffer_subdata(pD3D12Dec->base.context,    // context
-                                           pPipeCompressedBufferObj,   // dst buffer
-                                           PIPE_MAP_WRITE,             // usage PIPE_MAP_x
-                                           0,                          // offset
-                                           sizeof(*sliceDataStagingBufferPtr) * sliceDataStagingBufferSize,   // size
-                                           sliceDataStagingBufferPtr                                          // data
-   );
+   void* pMappedBitstreamBuf = NULL;
+   auto hr = pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get()->Map(0, nullptr, reinterpret_cast<void**>(&pMappedBitstreamBuf));
 
-   // Flush buffer_subdata batch
-   pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
+   if (hr != 0)
+      D3D12_LOG_ERROR("pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get()->Map(0, nullptr, "
+                      "reinterpret_cast<void**>(&pMappedBitstreamBuf)); Failed!!!!!!");
+
+   memcpy((void*)pMappedBitstreamBuf, sliceDataStagingBufferPtr, sliceDataStagingBufferSize);
+
+   pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Get()->Unmap(0, nullptr);
 
    // Clear CPU staging buffer now that end_frame is called and was uploaded to GPU for DecodeFrame call.
    pD3D12Dec->m_stagingDecodeBitstream.resize(0);
@@ -436,19 +430,6 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
          d3d12BitstreamOffsetAlignment);
    }
    d3d12InputArguments.CompressedBitstream.Size = pD3D12Dec->m_curFrameCompressedBitstreamBufferPayloadSize;
-
-   D3D12_RESOURCE_BARRIER resourceBarrierCommonToDecode[1] = {
-      CD3DX12_RESOURCE_BARRIER::Transition(d3d12InputArguments.CompressedBitstream.pBuffer,
-                                           D3D12_RESOURCE_STATE_COMMON,
-                                           D3D12_RESOURCE_STATE_VIDEO_DECODE_READ),
-   };
-   pD3D12Dec->m_spDecodeCommandList->ResourceBarrier(1u, resourceBarrierCommonToDecode);
-
-   // Schedule reverse (back to common) transitions before command list closes for current frame
-   pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(
-      CD3DX12_RESOURCE_BARRIER::Transition(d3d12InputArguments.CompressedBitstream.pBuffer,
-                                           D3D12_RESOURCE_STATE_VIDEO_DECODE_READ,
-                                           D3D12_RESOURCE_STATE_COMMON));
 
    ///
    /// Clear texture (no reference only flags in resource allocation) to use as decode output to send downstream for
@@ -873,13 +854,13 @@ d3d12_video_decoder_create_staging_bitstream_buffer(const struct d3d12_screen * 
       pD3D12Dec->m_curFrameCompressedBitstreamBuffer.Reset();
    }
 
-   auto    descHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, pD3D12Dec->m_NodeMask, pD3D12Dec->m_NodeMask);
+   auto    descHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD, pD3D12Dec->m_NodeMask, pD3D12Dec->m_NodeMask);
    auto    descResource = CD3DX12_RESOURCE_DESC::Buffer(bufSize);
    HRESULT hr           = pD3D12Screen->dev->CreateCommittedResource(
       &descHeap,
       D3D12_HEAP_FLAG_NONE,
       &descResource,
-      D3D12_RESOURCE_STATE_COMMON,
+      D3D12_RESOURCE_STATE_GENERIC_READ,
       nullptr,
       IID_PPV_ARGS(pD3D12Dec->m_curFrameCompressedBitstreamBuffer.GetAddressOf()));
    if (FAILED(hr)) {
