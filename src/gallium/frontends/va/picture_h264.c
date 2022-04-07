@@ -154,6 +154,7 @@ void vlVaHandleIQMatrixBufferH264(vlVaContext *context, vlVaBuffer *buf)
    VAIQMatrixBufferH264 *h264 = buf->data;
 
    assert(buf->size >= sizeof(VAIQMatrixBufferH264) && buf->num_elements == 1);
+   context->desc.h264.pps->sps->seq_scaling_matrix_present_flag = 1;
    memcpy(&context->desc.h264.pps->ScalingList4x4, h264->ScalingList4x4, 6 * 16);
    memcpy(&context->desc.h264.pps->ScalingList8x8, h264->ScalingList8x8, 2 * 64);
 }
