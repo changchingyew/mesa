@@ -50,12 +50,13 @@ using Microsoft::WRL::ComPtr;
 #define D3D12_VALIDATE_DEVICE_REMOVED false
 #endif
 
+#define D3D12_DEVICE_REMOVED_EXITCODE 10 // Special process exit code to inform device removed
 #define VERIFY_DEVICE_NOT_REMOVED(videoObj)                                                                            \
    {                                                                                                                   \
       if (D3D12_VALIDATE_DEVICE_REMOVED) {                                                                             \
          HRESULT hr = videoObj->m_pD3D12Screen->dev->GetDeviceRemovedReason();                                         \
          if (FAILED(hr)) {                                                                                             \
-            D3D12_LOG_ERROR("D3D12 Device was removed with HR %x\n", hr);                                              \
+            D3D12_LOG_ERROR_WITH_EXIT_CODE(D3D12_DEVICE_REMOVED_EXITCODE, "D3D12 Device was removed with HR %x\n", hr);\
          }                                                                                                             \
       }                                                                                                                \
    }
@@ -68,15 +69,18 @@ using Microsoft::WRL::ComPtr;
    if (D3D12_LOG_DBG_ON)                                                                                               \
       debug_printf(args);
 #define D3D12_LOG_INFO(args...) debug_printf(args);
-#define D3D12_LOG_ERROR(args...)                                                                                       \
+
+#define D3D12_LOG_ERROR(args...) D3D12_LOG_ERROR_WITH_EXIT_CODE(EXIT_FAILURE, args)
+
+#define D3D12_LOG_ERROR_WITH_EXIT_CODE(exitcode, args...)                                                              \
    {                                                                                                                   \
       D3D12_LOG_INFO("\n\t");                                                                                          \
       D3D12_LOG_INFO(args);                                                                                            \
       D3D12_LOG_INFO("\t[D3D12 Video Driver Error] - Exiting program execution with code %d after error in %s:%d]\n",  \
-                     EXIT_FAILURE,                                                                                     \
+                     exitcode,                                                                                         \
                      __FILE__,                                                                                         \
                      __LINE__);                                                                                        \
-      exit(EXIT_FAILURE);                                                                                              \
+      exit(exitcode);                                                                                                  \
    }
 #define VERIFY_SUCCEEDED(x)                                                                                            \
    {                                                                                                                   \

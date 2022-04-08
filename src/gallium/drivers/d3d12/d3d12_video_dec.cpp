@@ -679,8 +679,9 @@ d3d12_video_decoder_flush(struct pipe_video_codec *codec)
    } else {
       HRESULT hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if (hr != S_OK) {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_flush - D3D12Device was removed BEFORE commandlist "
-                         "execution with HR %x.\n",
+         D3D12_LOG_ERROR_WITH_EXIT_CODE(D3D12_DEVICE_REMOVED_EXITCODE, "[d3d12_video_decoder] d3d12_video_decoder_flush"
+                        " - D3D12Device was removed BEFORE commandlist "
+                        "execution with HR %x.\n",
                          hr);
       }
 
@@ -723,9 +724,10 @@ d3d12_video_decoder_flush(struct pipe_video_codec *codec)
       // Validate device was not removed
       hr = pD3D12Dec->m_pD3D12Screen->dev->GetDeviceRemovedReason();
       if (hr != S_OK) {
-         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_flush - D3D12Device was removed AFTER commandlist "
-                         "execution with HR %x, but wasn't before.\n",
-                         hr);
+         D3D12_LOG_ERROR_WITH_EXIT_CODE(D3D12_DEVICE_REMOVED_EXITCODE, "[d3d12_video_decoder] d3d12_video_decoder_flush"
+                        " - D3D12Device was removed AFTER commandlist "
+                        "execution with HR %x, but wasn't before.\n",
+                        hr);
       }
 
       D3D12_LOG_INFO(
