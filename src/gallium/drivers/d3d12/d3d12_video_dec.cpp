@@ -400,6 +400,11 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    // Flush buffer_subdata batch
    pD3D12Dec->base.context->flush(pD3D12Dec->base.context, NULL, 0);
 
+   auto ctx = ((struct d3d12_context*)(pD3D12Dec->base.context));
+   struct d3d12_screen *screen = d3d12_screen(ctx->base.screen);
+   auto cmdQueue = screen->cmdqueue;
+   cmdQueue->Signal(pD3D12Dec->m_spFenceSync.Get(), pD3D12Dec->m_fenceSyncValue);
+
    // Clear CPU staging buffer now that end_frame is called and was uploaded to GPU for DecodeFrame call.
    pD3D12Dec->m_stagingDecodeBitstream.resize(0);
 
@@ -579,6 +584,10 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
                                               planeOutputSubresource));
    }
 
+   pD3D12Dec->m_spDecodeCommandQueue->Wait(pD3D12Dec->m_spFenceSync.Get(), pD3D12Dec->m_fenceSyncValue);
+
+   pD3D12Dec->m_fenceSyncValue++;
+
    // Record DecodeFrame
 
    pD3D12Dec->m_spDecodeCommandList->DecodeFrame1(pD3D12Dec->m_spVideoDecoder.Get(),
@@ -736,6 +745,14 @@ d3d12_video_decoder_create_command_objects(const struct d3d12_screen * pD3D12Scr
          "[d3d12_video_decoder] d3d12_video_decoder_create_command_objects - Call to CreateFence failed with HR %x\n",
          hr);
       return false;
+   }
+
+   VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
+   hr = pD3D12Screen->dev->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pD3D12Dec->m_spFenceSync));
+   if (FAILED(hr)) {
+      D3D12_LOG_ERROR(
+         "[d3d12_video_decoder] d3d12_video_decoder_create_command_objects - Call to CreateFence failed with HR %x\n",
+         hr);
    }
 
    VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);
