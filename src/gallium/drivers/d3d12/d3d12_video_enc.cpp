@@ -59,6 +59,19 @@ d3d12_video_encoder_flush(struct pipe_video_codec *codec)
    assert(pD3D12Enc->m_spD3D12VideoDevice);
    assert(pD3D12Enc->m_spEncodeCommandQueue);
 
+   // Flush buffer_subdata batch and Wait the m_spEncodeCommandQueue for GPU upload completion
+   // before recording EncodeFrame below.
+   struct pipe_fence_handle *pCompletionFence = NULL;
+   D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_flush - Flushing pD3D12Enc->base.context and GPU sync between Video/Context queues before flushing Video Encode Queue.\n");
+   pD3D12Enc->base.context->flush(pD3D12Enc->base.context, &pCompletionFence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
+   if (pCompletionFence) {
+      struct d3d12_fence *pCastedCompletionFence = d3d12_fence(pCompletionFence);
+      pD3D12Enc->m_spEncodeCommandQueue->Wait(pCastedCompletionFence->cmdqueue_fence, pCastedCompletionFence->value);
+      pD3D12Enc->m_pD3D12Screen->base.fence_reference(&pD3D12Enc->m_pD3D12Screen->base, &pCompletionFence, NULL);
+   } else {
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_flush - pD3D12Enc->base.context->flush(...) returned a nullptr completion fence \n");
+   }
+
    if (!pD3D12Enc->m_needsGPUFlush) {
       D3D12_LOG_DBG("[d3d12_video_encoder] d3d12_video_encoder_flush started. Nothing to flush, all up to date.\n");
    } else {
@@ -1201,19 +1214,10 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
       { pD3D12Enc->m_spMetadataOutputBuffer.Get(), 0 }
    };
 
-   // Record EncodeFrame
-   pD3D12Enc->m_spEncodeCommandList->EncodeFrame(pD3D12Enc->m_spVideoEncoder.Get(),
-                                                 pD3D12Enc->m_spVideoEncoderHeap.Get(),
-                                                 &inputStreamArguments,
-                                                 &outputStreamArguments);
-
    // Upload the CPU buffers with the bitstream headers to the compressed bitstream resource in the interval [0,
    // prefixGeneratedHeadersByteSize)
    assert(prefixGeneratedHeadersByteSize == pD3D12Enc->m_BitstreamHeadersBuffer.size());
 
-   /* One-shot transfer operation with data supplied in a user
-    * pointer.
-    */
    pD3D12Enc->base.context->buffer_subdata(
       pD3D12Enc->base.context,   // context
       destination,               // dst buffer - "destination" is the pipe_resource object
@@ -1223,15 +1227,14 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
       pD3D12Enc->m_BitstreamHeadersBuffer.size(),
       pD3D12Enc->m_BitstreamHeadersBuffer.data());
 
-   // Flush buffer_subdata batch and wait on this CPU thread for GPU work completion
-   struct pipe_fence_handle *pCompletionFence = NULL;
-   pD3D12Enc->base.context->flush(pD3D12Enc->base.context, &pCompletionFence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
-   if (pCompletionFence) {
-      pD3D12Enc->m_pD3D12Screen->base.fence_finish(&pD3D12Enc->m_pD3D12Screen->base, NULL, pCompletionFence, PIPE_TIMEOUT_INFINITE);
-      pD3D12Enc->m_pD3D12Screen->base.fence_reference(&pD3D12Enc->m_pD3D12Screen->base, &pCompletionFence, NULL);
-   } else {
-      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_encode_bitstream - pD3D12Enc->base.context->flush(...) returned a nullptr completion fence \n");
-   }
+   // Note: The buffer_subdata is queued in pD3D12Enc->base.context but doesn't execute immediately
+   // Will flush and sync this batch in d3d12_video_encoder_flush with the rest of the Video Encode Queue GPU work
+
+   // Record EncodeFrame
+   pD3D12Enc->m_spEncodeCommandList->EncodeFrame(pD3D12Enc->m_spVideoEncoder.Get(),
+                                                 pD3D12Enc->m_spVideoEncoderHeap.Get(),
+                                                 &inputStreamArguments,
+                                                 &outputStreamArguments);
 
    D3D12_RESOURCE_BARRIER rgResolveMetadataStateTransitions[] = {
       CD3DX12_RESOURCE_BARRIER::Transition(pD3D12Enc->m_spResolvedMetadataBuffer.Get(),
