@@ -208,15 +208,16 @@ d3d12_video_decoder_get_next_slice_size_and_offset_h264(std::vector<uint8_t> &bu
          bufferOffset += DXVA_H264_START_CODE_LEN_BITS;
          numBitsToSearchIntoBuffer = buf.size() - bufferOffset;
 
+         int c_signedStartCodeLen = DXVA_H264_START_CODE_LEN_BITS;
          int nextSlicePosition =
-            DXVA_H264_START_CODE_LEN_BITS // Takes into account the skipped start code 
+            c_signedStartCodeLen // Takes into account the skipped start code 
             + d3d12_video_decoder_get_next_startcode_offset(buf,
                                                                                           bufferOffset,
                                                                                           DXVA_H264_START_CODE,
                                                                                           DXVA_H264_START_CODE_LEN_BITS,
                                                                                           numBitsToSearchIntoBuffer);
 
-         if(nextSlicePosition < DXVA_H264_START_CODE_LEN_BITS) // if no slice found, d3d12_video_decoder_get_next_startcode_offset returns - 1
+         if(nextSlicePosition < c_signedStartCodeLen) // if no slice found, d3d12_video_decoder_get_next_startcode_offset returns - 1
          {
             // This means currentSlicePosition points to the last slice in the buffer
             outSliceSize = buf.size() - outSliceOffset;
