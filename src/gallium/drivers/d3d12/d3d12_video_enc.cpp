@@ -1223,8 +1223,15 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
       pD3D12Enc->m_BitstreamHeadersBuffer.size(),
       pD3D12Enc->m_BitstreamHeadersBuffer.data());
 
-   // Flush buffer_subdata batch
-   pD3D12Enc->base.context->flush(pD3D12Enc->base.context, NULL, 0);
+   // Flush buffer_subdata batch and wait on this CPU thread for GPU work completion
+   struct pipe_fence_handle *pCompletionFence = NULL;
+   pD3D12Enc->base.context->flush(pD3D12Enc->base.context, &pCompletionFence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
+   if (pCompletionFence) {
+      pD3D12Enc->m_pD3D12Screen->base.fence_finish(&pD3D12Enc->m_pD3D12Screen->base, NULL, pCompletionFence, PIPE_TIMEOUT_INFINITE);
+      pD3D12Enc->m_pD3D12Screen->base.fence_reference(&pD3D12Enc->m_pD3D12Screen->base, &pCompletionFence, NULL);
+   } else {
+      D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_encode_bitstream - pD3D12Enc->base.context->flush(...) returned a nullptr completion fence \n");
+   }
 
    D3D12_RESOURCE_BARRIER rgResolveMetadataStateTransitions[] = {
       CD3DX12_RESOURCE_BARRIER::Transition(pD3D12Enc->m_spResolvedMetadataBuffer.Get(),
@@ -1344,15 +1351,19 @@ d3d12_video_encoder_extract_encode_metadata(
       1                                         // depth
    };
    struct pipe_transfer *mapTransfer;
+   unsigned mapUsage = PIPE_MAP_READ;
    void *                pMetadataBufferSrc = pD3D12Enc->base.context->buffer_map(pD3D12Enc->base.context,
                                                                   pPipeResolvedMetadataBuffer,
                                                                   0,
-                                                                  PIPE_MAP_READ,
+                                                                  mapUsage,
                                                                   &box,
                                                                   &mapTransfer);
 
-   // Flush buffer_map batch
-   pD3D12Enc->base.context->flush(pD3D12Enc->base.context, NULL, 0);
+   assert(mapUsage & PIPE_MAP_READ);
+   assert(pPipeResolvedMetadataBuffer->usage == PIPE_USAGE_DEFAULT);
+   // Note: As we're calling buffer_map with PIPE_MAP_READ on a pPipeResolvedMetadataBuffer which has pipe_usage_default
+   // buffer_map itself will do all the synchronization and waits so once the function returns control here
+   // the contents of mapTransfer are ready to be accessed.
 
    // Clear output
    memset(&parsedMetadata, 0, sizeof(D3D12_VIDEO_ENCODER_OUTPUT_METADATA));
