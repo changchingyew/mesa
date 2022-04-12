@@ -910,7 +910,7 @@ get_max_level_resolution_video_decode_support(D3D12_VIDEO_DECODE_CONFIGURATION d
       return supportedResult;
    }
 
-   d3d12_video_resolution_to_level_mapping_entry resolutionsLevelList[10] = {
+   d3d12_video_resolution_to_level_mapping_entry resolutionsLevelList[] = {
       { { 8192, 4320 }, 61 },   // 8k
       { { 7680, 4800 }, 61 },   // 8k - alternative
       { { 7680, 4320 }, 61 },   // 8k - alternative
@@ -927,34 +927,28 @@ get_max_level_resolution_video_decode_support(D3D12_VIDEO_DECODE_CONFIGURATION d
    decodeSupport.Configuration = decoderConfig;
    decodeSupport.DecodeFormat = format;
 
-   for (uint32_t i = 0; i < ARRAY_SIZE(resolutionsLevelList); i++) {
-      decodeSupport.Width = resolutionsLevelList[i].resolution.Width;
-      decodeSupport.Height = resolutionsLevelList[i].resolution.Height;
-      if (FAILED(spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_DECODE_SUPPORT,
+   uint32_t idxResol = 0;
+   while ( (idxResol < ARRAY_SIZE(resolutionsLevelList)) && !outSupportAny) {
+
+      decodeSupport.Width = resolutionsLevelList[idxResol].resolution.Width;
+      decodeSupport.Height = resolutionsLevelList[idxResol].resolution.Height;
+
+      if (SUCCEEDED(spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_DECODE_SUPPORT,
                                                          &decodeSupport,
                                                          sizeof(decodeSupport)))) {
-         // Error checking cap
-         outSupportAny = false;
-         outSupportedConfig = {};
-         return supportedResult;
+         
+         if ( ((decodeSupport.SupportFlags & D3D12_VIDEO_DECODE_SUPPORT_FLAG_SUPPORTED) != 0 ) ||
+            decodeSupport.DecodeTier > D3D12_VIDEO_DECODE_TIER_NOT_SUPPORTED) {
+
+               outSupportAny = true;
+               outSupportedConfig = decodeSupport;
+               supportedResult = resolutionsLevelList[idxResol];
+         }
       }
 
-      if (!(decodeSupport.SupportFlags & D3D12_VIDEO_DECODE_SUPPORT_FLAG_SUPPORTED) ||
-          decodeSupport.DecodeTier == D3D12_VIDEO_DECODE_TIER_NOT_SUPPORTED) {
-         // Not supported
-         outSupportAny = false;
-         outSupportedConfig = {};
-         return supportedResult;
-      }
-
-      outSupportAny = true;
-      outSupportedConfig = decodeSupport;
-      return resolutionsLevelList[i];
+      idxResol++;
    }
 
-   // None of the resolutions were supported
-   outSupportAny = false;
-   outSupportedConfig = {};
    return supportedResult;
 }
 
