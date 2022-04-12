@@ -933,6 +933,10 @@ get_max_level_resolution_video_decode_support(D3D12_VIDEO_DECODE_CONFIGURATION d
       if (FAILED(spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_DECODE_SUPPORT,
                                                          &decodeSupport,
                                                          sizeof(decodeSupport)))) {
+
+         if (i < ARRAY_SIZE(resolutionsLevelList))
+            continue;
+
          // Error checking cap
          outSupportAny = false;
          outSupportedConfig = {};
@@ -941,6 +945,10 @@ get_max_level_resolution_video_decode_support(D3D12_VIDEO_DECODE_CONFIGURATION d
 
       if (!(decodeSupport.SupportFlags & D3D12_VIDEO_DECODE_SUPPORT_FLAG_SUPPORTED) ||
           decodeSupport.DecodeTier == D3D12_VIDEO_DECODE_TIER_NOT_SUPPORTED) {
+         
+         if (i < ARRAY_SIZE(resolutionsLevelList))
+            continue;
+
          // Not supported
          outSupportAny = false;
          outSupportedConfig = {};
