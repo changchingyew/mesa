@@ -50,6 +50,14 @@ d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder 
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.PeakBitRate =
             picture->rate_ctrl[0].peak_bitrate;
 
+         // These Rate control settings on this block below are not always supported in D3D12, and
+         // are under caps reported when querying D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT
+         // after filling as input to the cap, all the desired configuration
+         // For these specific RC settings, the associated cap flags to check for are
+         // D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_VBV_SIZE_CONFIG_AVAILABLE
+         // This d3d12_video_encoder will try to honor them
+         // but if the caps for them are not supported, will try to continue
+         // execution without them issuing a WARNING
          {
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |=
                D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
@@ -59,6 +67,14 @@ d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder 
                picture->rate_ctrl[0].vbv_buf_lv;
          }
 
+         // These Rate control settings on this block below are not always supported in D3D12, and
+         // are under caps reported when querying D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT
+         // after filling as input to the cap, all the desired configuration
+         // For these specific RC settings, the associated cap flags to check for are
+         // D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_MAX_FRAME_SIZE_AVAILABLE
+         // This d3d12_video_encoder will try to honor them
+         // but if the caps for them are not supported, will try to continue
+         // execution without them issuing a WARNING
          {
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |=
                D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
@@ -79,6 +95,14 @@ d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder 
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.TargetBitRate =
             picture->rate_ctrl[0].target_bitrate;
 
+         // These Rate control settings on this block below are not always supported in D3D12, and
+         // are under caps reported when querying D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT
+         // after filling as input to the cap, all the desired configuration
+         // For these specific RC settings, the associated cap flags to check for are
+         // D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_VBV_SIZE_CONFIG_AVAILABLE
+         // This d3d12_video_encoder will try to honor them
+         // but if the caps for them are not supported, will try to continue
+         // execution without them issuing a WARNING
          {
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |=
                D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
@@ -88,6 +112,14 @@ d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder 
                picture->rate_ctrl[0].vbv_buf_lv;
          }
 
+         // These Rate control settings on this block below are not always supported in D3D12, and
+         // are under caps reported when querying D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT
+         // after filling as input to the cap, all the desired configuration
+         // For these specific RC settings, the associated cap flags to check for are
+         // D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_MAX_FRAME_SIZE_AVAILABLE
+         // This d3d12_video_encoder will try to honor them
+         // but if the caps for them are not supported, will try to continue
+         // execution without them issuing a WARNING
          {
             pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |=
                D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
@@ -717,46 +749,13 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
    /// Check for video encode support detailed capabilities
    ///
 
-   D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT capEncoderSupportData = {};
-   capEncoderSupportData.NodeIndex                                = pD3D12Enc->m_NodeIndex;
-   capEncoderSupportData.Codec                                    = D3D12_VIDEO_ENCODER_CODEC_H264;
-   capEncoderSupportData.InputFormat            = pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format;
-   capEncoderSupportData.RateControl            = d3d12_video_encoder_get_current_rate_control_settings(pD3D12Enc);
-   capEncoderSupportData.IntraRefresh           = pD3D12Enc->m_currentEncodeConfig.m_IntraRefresh.Mode;
-   capEncoderSupportData.SubregionFrameEncoding = pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode;
-   capEncoderSupportData.ResolutionsListCount   = 1;
-   capEncoderSupportData.pResolutionList        = &pD3D12Enc->m_currentEncodeConfig.m_currentResolution;
-   capEncoderSupportData.CodecGopSequence       = d3d12_video_encoder_get_current_gop_desc(pD3D12Enc);
-   capEncoderSupportData.MaxReferenceFramesInDPB =
-      pD3D12Enc->base.max_references;   // Max number of frames to be used as a reference, without counting the current
-                                        // picture recon picture
-   capEncoderSupportData.CodecConfiguration = d3d12_video_encoder_get_current_codec_config_desc(pD3D12Enc);
-
-   capEncoderSupportData.SuggestedProfile.pH264Profile =
-      &pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile;
-   capEncoderSupportData.SuggestedProfile.DataSize =
-      sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile);
-   capEncoderSupportData.SuggestedLevel.pH264LevelSetting =
-      &pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting;
-   capEncoderSupportData.SuggestedLevel.DataSize =
-      sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting);
-
-   // prepare inout storage for the resolution dependent result.
-   capEncoderSupportData.pResolutionDependentSupport =
-      &pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps;
-
-   VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_SUPPORT,
-                                                                         &capEncoderSupportData,
-                                                                         sizeof(capEncoderSupportData)));
-
-   pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags    = capEncoderSupportData.SupportFlags;
-   pD3D12Enc->m_currentEncodeCapabilities.m_ValidationFlags = capEncoderSupportData.ValidationFlags;
-
-   // Check for general support
-   // Check for validation errors (some drivers return general support but also validation errors anyways, work around for those unexpected cases)
-   if (((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_GENERAL_SUPPORT_OK) == 0)
-   || (capEncoderSupportData.ValidationFlags != D3D12_VIDEO_ENCODER_VALIDATION_FLAG_NONE)) {
-
+   // Will call for d3d12 driver support based on the initial requested features, then
+   // try to fallback if any of them is not supported and return the negotiated d3d12 settings
+   D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT capEncoderSupportData = { };
+   if(!d3d12_video_encoder_negotiate_requested_features_and_d3d12_driver_caps(pD3D12Enc, capEncoderSupportData))
+   {
+      D3D12_LOG_INFO("[d3d12_video_encoder_h264] Cap negotiation failed, see more details below:\n");
+      
       if ((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_NOT_SUPPORTED) != 0) {
          D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested codec is not supported\n");
       }
@@ -796,13 +795,15 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
          D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested input dxgi format is not supported\n");
       }
 
-      D3D12_LOG_ERROR("[d3d12_video_encoder_h264] D3D12_FEATURE_VIDEO_ENCODER_SUPPORT arguments are not supported - "
+      D3D12_LOG_ERROR("[d3d12_video_encoder_h264] After negotiating caps, D3D12_FEATURE_VIDEO_ENCODER_SUPPORT arguments are not supported - "
                      "ValidationFlags: 0x%x - SupportFlags: 0x%x\n",
                      capEncoderSupportData.ValidationFlags,
                      capEncoderSupportData.SupportFlags);
    }
- 
-   // cache caps results
+
+   ///
+   // Calculate current settings based on the returned values from the caps query
+   //
    pD3D12Enc->m_currentEncodeCapabilities.m_MaxSlicesInOutput =
       d3d12_video_encoder_calculate_max_slices_count_in_output(
          pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode,
@@ -811,6 +812,9 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
          pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
          pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps.SubregionBlockPixelsSize);
 
+   //
+   // Validate caps support returned values against current settings
+   //
    if (pD3D12Enc->m_currentEncodeConfig.m_encoderProfileDesc.m_H264Profile !=
        pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile) {
       D3D12_LOG_DBG("[d3d12_video_encoder_h264] Warning: Requested D3D12_VIDEO_ENCODER_PROFILE_H264 by upper layer: %d "
@@ -891,6 +895,104 @@ d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(enum pipe_video_profile pro
          return static_cast<D3D12_VIDEO_ENCODER_CODEC>(0);
       } break;
    }
+}
+
+///
+/// Call d3d12_video_encoder_query_d3d12_driver_caps and see if any optional feature requested
+/// is not supported, disable it, query again until finding a negotiated cap/feature set
+/// Note that with fallbacks, the upper layer will not get exactly the encoding seetings they requested
+/// but for very particular settings it's better to continue with warnings than failing the whole encoding process
+///
+bool d3d12_video_encoder_negotiate_requested_features_and_d3d12_driver_caps(struct d3d12_video_encoder *pD3D12Enc, D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT &capEncoderSupportData) {
+
+
+   ///
+   /// Check for general support
+   /// Check for validation errors (some drivers return general support but also validation errors anyways, work around for those unexpected cases)
+   ///
+
+   d3d12_video_encoder_query_d3d12_driver_caps(pD3D12Enc, /*inout*/ capEncoderSupportData);
+   bool configSupported = (((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_GENERAL_SUPPORT_OK) != 0)
+                        && (capEncoderSupportData.ValidationFlags == D3D12_VIDEO_ENCODER_VALIDATION_FLAG_NONE));
+
+
+   ///
+   /// If rate control config is not supported, try falling back and check for caps again
+   ///   
+
+   if ((capEncoderSupportData.ValidationFlags & (D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_CONFIGURATION_NOT_SUPPORTED | D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_MODE_NOT_SUPPORTED)) != 0) {
+
+      D3D12_LOG_INFO("[d3d12_video_encoder_h264] WARNING: Requested rate control is not supported, trying fallback to unsetting optional features\n");
+
+      bool isRequestingVBVSizesSupported = ((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_VBV_SIZE_CONFIG_AVAILABLE) != 0);
+      bool isClientRequestingVBVSizes = ((pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags & D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES) != 0);
+      
+      if(isClientRequestingVBVSizes && !isRequestingVBVSizesSupported) {
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] WARNING: Requested D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES with VBVCapacity (bits): %ld and InitialVBVFullness (bits) %ld is not supported, will continue encoding unsetting this feature as fallback.\n",
+               pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.VBVCapacity,
+               pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.InitialVBVFullness);
+
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags &= ~D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.VBVCapacity = 0;
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.InitialVBVFullness = 0;
+      }
+      
+      bool isRequestingPeakFrameSizeSupported = ((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_MAX_FRAME_SIZE_AVAILABLE) != 0);
+      bool isClientRequestingPeakFrameSize = ((pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags & D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE) != 0);
+
+      if(isClientRequestingPeakFrameSize && !isRequestingPeakFrameSizeSupported) {
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] WARNING: Requested D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE with MaxFrameBitSize %ld but the feature is not supported, will continue encoding unsetting this feature as fallback.\n",
+            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.MaxFrameBitSize);
+
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags &= ~D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.MaxFrameBitSize = 0;
+      }
+
+      ///
+      /// Try fallback configuration
+      ///
+      d3d12_video_encoder_query_d3d12_driver_caps(pD3D12Enc, /*inout*/ capEncoderSupportData);
+      configSupported = (((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_GENERAL_SUPPORT_OK) != 0)
+                        && (capEncoderSupportData.ValidationFlags == D3D12_VIDEO_ENCODER_VALIDATION_FLAG_NONE));
+   }
+
+   return configSupported;
+}
+
+void d3d12_video_encoder_query_d3d12_driver_caps(struct d3d12_video_encoder *pD3D12Enc, D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT &capEncoderSupportData) {
+   capEncoderSupportData.NodeIndex                                = pD3D12Enc->m_NodeIndex;
+   capEncoderSupportData.Codec                                    = D3D12_VIDEO_ENCODER_CODEC_H264;
+   capEncoderSupportData.InputFormat            = pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format;
+   capEncoderSupportData.RateControl            = d3d12_video_encoder_get_current_rate_control_settings(pD3D12Enc);
+   capEncoderSupportData.IntraRefresh           = pD3D12Enc->m_currentEncodeConfig.m_IntraRefresh.Mode;
+   capEncoderSupportData.SubregionFrameEncoding = pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode;
+   capEncoderSupportData.ResolutionsListCount   = 1;
+   capEncoderSupportData.pResolutionList        = &pD3D12Enc->m_currentEncodeConfig.m_currentResolution;
+   capEncoderSupportData.CodecGopSequence       = d3d12_video_encoder_get_current_gop_desc(pD3D12Enc);
+   capEncoderSupportData.MaxReferenceFramesInDPB =
+      pD3D12Enc->base.max_references;   // Max number of frames to be used as a reference, without counting the current
+                                        // picture recon picture
+   capEncoderSupportData.CodecConfiguration = d3d12_video_encoder_get_current_codec_config_desc(pD3D12Enc);
+
+   capEncoderSupportData.SuggestedProfile.pH264Profile =
+      &pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile;
+   capEncoderSupportData.SuggestedProfile.DataSize =
+      sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile);
+   capEncoderSupportData.SuggestedLevel.pH264LevelSetting =
+      &pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting;
+   capEncoderSupportData.SuggestedLevel.DataSize =
+      sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting);
+
+   // prepare inout storage for the resolution dependent result.
+   capEncoderSupportData.pResolutionDependentSupport =
+      &pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps;
+
+   VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_SUPPORT,
+                                                                         &capEncoderSupportData,
+                                                                         sizeof(capEncoderSupportData)));
+
+   pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags    = capEncoderSupportData.SupportFlags;
+   pD3D12Enc->m_currentEncodeCapabilities.m_ValidationFlags = capEncoderSupportData.ValidationFlags;
 }
 
 bool
