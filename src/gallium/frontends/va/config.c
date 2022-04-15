@@ -176,6 +176,24 @@ vlVaGetConfigAttributes(VADriverContextP ctx, VAProfile profile, VAEntrypoint en
          case VAConfigAttribEncMaxRefFrames:
             value = 1;
             break;
+         case VAConfigAttribEncMaxSlices:         
+         {
+            /**
+             * \brief Maximum number of slices per frame. Read-only.
+             *
+             * This attribute determines the maximum number of slices the
+             * driver can support to encode a single frame.
+             */
+            int maxSlicesPerEncodedPic = pscreen->get_video_param(pscreen, ProfileToPipe(profile),
+                                             PIPE_VIDEO_ENTRYPOINT_ENCODE,
+                                             PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME);
+            if(maxSlicesPerEncodedPic <= 0)
+            {
+               value = VA_ATTRIB_NOT_SUPPORTED;
+            } else {
+               value = maxSlicesPerEncodedPic;
+            }
+         } break;
          default:
             value = VA_ATTRIB_NOT_SUPPORTED;
             break;
