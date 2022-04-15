@@ -34,7 +34,7 @@ void
 d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder *pD3D12Enc,
                                                      pipe_h264_enc_picture_desc *picture);
 void
-d3d12_video_encoder_update_current_h264_slices_configuration(struct d3d12_video_encoder *pD3D12Enc,
+d3d12_video_encoder_negotiate_current_h264_slices_configuration(struct d3d12_video_encoder *pD3D12Enc,
                                                              pipe_h264_enc_picture_desc *picture);
 void
 d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD3D12Enc,

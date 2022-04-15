@@ -215,28 +215,53 @@ d3d12_video_encoder_convert_frame_type(enum pipe_h2645_enc_picture_type picType)
    }
 }
 
+///
+/// Tries to configurate the encoder using the requested slice configuration
+/// or falls back to single slice encoding.
+///
 void
-d3d12_video_encoder_update_current_h264_slices_configuration(struct d3d12_video_encoder *pD3D12Enc,
+d3d12_video_encoder_negotiate_current_h264_slices_configuration(struct d3d12_video_encoder *pD3D12Enc,
                                                              pipe_h264_enc_picture_desc *picture)
 {
-   // There's no config filled for this from above layers, so defaults for now.
-   D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE defaultSlicesMode =
-      D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME;
-   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA_SLICES defaultSlicesConfig = {};
-   defaultSlicesConfig.NumberOfSlicesPerFrame                                            = 4;
+   ///
+   /// Initialize single slice by default
+   ///
+   D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE requestedSlicesMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_FULL_FRAME;
+   D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA_SLICES requestedSlicesConfig = {};
+   requestedSlicesConfig.NumberOfSlicesPerFrame                                            = 1;
+   
+   ///
+   /// Try to see if can accomodate for multi-slice request by user
+   ///
+   if(picture->multiple_slices_ctrl_present && (picture->multi_slice_ctrl.num_slice_descriptors > 1))
+   {
+      bool bUniformSizeSlices = true; // Last slice can be less for rounding frame size
+      for(uint32_t sliceIdx = 1; sliceIdx < picture->multi_slice_ctrl.num_slice_descriptors - 1; sliceIdx++)
+      {
+         bUniformSizeSlices = bUniformSizeSlices && (picture->multi_slice_ctrl.slices_descriptors[sliceIdx].num_macroblocks == picture->multi_slice_ctrl.slices_descriptors[sliceIdx - 1].num_macroblocks);
+      }
+
+      if(!bUniformSizeSlices) {
+         // Not supported to have custom slice sizes in D3D12 Video Encode
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] WARNING: Requested slice control mode is not supported, falling back to single-slice frame encoding.\n");
+      } else {
+         requestedSlicesMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_SQUARE_UNITS_PER_SUBREGION_ROW_UNALIGNED;
+         requestedSlicesConfig.NumberOfCodingUnitsPerSlice = picture->multi_slice_ctrl.slices_descriptors[0].num_macroblocks;
+         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Using multi slice encoding mode: D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_SQUARE_UNITS_PER_SUBREGION_ROW_UNALIGNED with %d macroblocks per slice\n",
+            requestedSlicesConfig.NumberOfCodingUnitsPerSlice);
+      }
+   }
 
    if (!d3d12_video_encoder_compare_slice_config_h264_hevc(
           pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode,
           pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigDesc.m_SlicesPartition_H264,
-          defaultSlicesMode,
-          defaultSlicesConfig)) {
+          requestedSlicesMode,
+          requestedSlicesConfig)) {
       pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_slices;
    }
 
-   pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigDesc.m_SlicesPartition_H264                        = {};
-   pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigDesc.m_SlicesPartition_H264.NumberOfSlicesPerFrame = 4;
-   pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode =
-      D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME;
+   pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigDesc.m_SlicesPartition_H264 = requestedSlicesConfig;
+   pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode = requestedSlicesMode;
 }
 
 D3D12_VIDEO_ENCODER_MOTION_ESTIMATION_PRECISION_MODE
@@ -729,7 +754,7 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
    d3d12_video_encoder_update_current_rate_control_h264(pD3D12Enc, h264Pic);
 
    // Set slices config
-   d3d12_video_encoder_update_current_h264_slices_configuration(pD3D12Enc, h264Pic);
+   d3d12_video_encoder_negotiate_current_h264_slices_configuration(pD3D12Enc, h264Pic);
 
    // Set GOP config
    d3d12_video_encoder_update_h264_gop_configuration(pD3D12Enc, h264Pic);

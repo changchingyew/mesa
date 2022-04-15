@@ -1210,6 +1210,27 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
          return false;
       case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
          return true;
+      case PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME:
+      {
+         // This is dependent on more info about the encoding session for the D3D12 drivers and can be queried
+         // in D3D12_FEATURE_DATA_VIDEO_ENCODER_RESOLUTION_SUPPORT_LIMITS.MaxSubregionsNumber
+         // with more encoding session information (dpb size, rate control mode, max resolution, etc)
+         // and it's queried when the encoder is requested an operation with all the context info
+         // We don't have this info as input for the pipe query so let's default to the common minimum
+         // slice support across the ecosystem
+         enum pipe_video_format codec = u_reduce_video_profile(profile);
+         switch (codec) {
+            case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+            case PIPE_VIDEO_FORMAT_HEVC:
+            {
+               return 16;
+            } break;
+            default:
+            {
+               return 0;
+            } break;
+         }
+      } break;
       default:
          debug_printf("[d3d12_screen_get_video_param] unknown video param: %d\n", param);
          return 0;
