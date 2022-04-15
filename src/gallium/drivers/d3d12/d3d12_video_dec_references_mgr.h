@@ -101,7 +101,7 @@ struct d3d12_video_decoder_references_manager
             #endif
 
          // Point to next circular index for next call
-         m_CurrentIndex7BitsAvailable = (++m_CurrentIndex7BitsAvailable % 127);
+         m_CurrentIndex7BitsAvailable = ((m_CurrentIndex7BitsAvailable + 1) % 127);
 
          // Assign freshIdx to pDecodeTarget
          m_DecodeTargetToOriginalIndex7Bits[pDecodeTarget] = freshIdx;

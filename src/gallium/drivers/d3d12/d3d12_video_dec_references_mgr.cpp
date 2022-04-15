@@ -176,7 +176,9 @@ d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(
    uint32_t                          NodeMask,
    d3d12_video_decode_profile_type   DecodeProfileType,
    d3d12_video_decode_dpb_descriptor m_dpbDescriptor)
-   : m_pD3D12Screen(pD3D12Screen),
+   : m_DecodeTargetToOriginalIndex7Bits({ }),
+     m_CurrentIndex7BitsAvailable(0),
+     m_pD3D12Screen(pD3D12Screen),
      m_NodeMask(NodeMask),
      m_invalidIndex(GetInvalidReferenceIndex(DecodeProfileType)),
      m_dpbDescriptor(m_dpbDescriptor),
