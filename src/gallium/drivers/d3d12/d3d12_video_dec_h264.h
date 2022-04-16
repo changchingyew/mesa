@@ -40,8 +40,6 @@ constexpr uint16_t DXVA_H264_INVALID_PICTURE_ENTRY_VALUE = 0xFF;   // This corre
 constexpr unsigned int DXVA_H264_START_CODE          = 0x000001;   // 3 byte start code
 constexpr unsigned int DXVA_H264_START_CODE_LEN_BITS = 24;         // 3 byte start code
 
-constexpr unsigned int D3D12_VIDEO_H264_MB_IN_PIXELS = 16;
-
 enum d3d12_video_decoder_nal_unit_type_h264
 {
     type_unspecified = 0,

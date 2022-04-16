@@ -38,6 +38,8 @@
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 
+constexpr unsigned int D3D12_VIDEO_H264_MB_IN_PIXELS = 16;
+
 // The following defines can be tweaked for better code performance or debug verbosity
 
 #define D3D12_VIDEO_ENHANCED_DEBUGGING DEBUG
