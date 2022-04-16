@@ -1050,11 +1050,74 @@ d3d12_video_encode_max_supported_resolution(const D3D12_VIDEO_ENCODER_CODEC &arg
    return true;
 }
 
+bool
+d3d12_video_encode_max_supported_slices(const D3D12_VIDEO_ENCODER_CODEC &argTargetCodec,
+                                            D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC maxResolution,
+                                            DXGI_FORMAT encodeFormat,
+                                            uint32_t& outMaxSlices,
+                                            ID3D12VideoDevice3 *pD3D12VideoDevice)
+{
+   D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT capEncoderSupportData = { };
+   capEncoderSupportData.NodeIndex              = 0;
+   capEncoderSupportData.Codec                  = argTargetCodec;
+   capEncoderSupportData.InputFormat            = encodeFormat;
+   capEncoderSupportData.RateControl = { };
+   capEncoderSupportData.RateControl.Mode = D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_CQP;
+   D3D12_VIDEO_ENCODER_RATE_CONTROL_CQP rcCqp = { 25, 25, 25 };
+   capEncoderSupportData.RateControl.ConfigParams.pConfiguration_CQP = &rcCqp;
+   capEncoderSupportData.RateControl.ConfigParams.DataSize = sizeof(rcCqp);
+   capEncoderSupportData.IntraRefresh           = D3D12_VIDEO_ENCODER_INTRA_REFRESH_MODE_NONE;   
+   capEncoderSupportData.ResolutionsListCount   = 1;
+   capEncoderSupportData.pResolutionList        = &maxResolution;
+   capEncoderSupportData.MaxReferenceFramesInDPB = 1;   
+   capEncoderSupportData.SubregionFrameEncoding = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME;
+
+   D3D12_VIDEO_ENCODER_PROFILE_H264 h264prof = { };
+   D3D12_VIDEO_ENCODER_LEVELS_H264 h264lvl = { };
+   D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264 h264Gop = { 1, 0, 0, 0, 0 };
+   D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264 h264Config = { };
+   switch (argTargetCodec) {
+      case D3D12_VIDEO_ENCODER_CODEC_H264:
+      {
+         capEncoderSupportData.SuggestedProfile.pH264Profile = &h264prof;
+         capEncoderSupportData.SuggestedProfile.DataSize = sizeof(h264prof);
+         capEncoderSupportData.SuggestedLevel.pH264LevelSetting = &h264lvl;
+         capEncoderSupportData.SuggestedLevel.DataSize = sizeof(h264lvl);
+         capEncoderSupportData.CodecGopSequence.pH264GroupOfPictures = &h264Gop;
+         capEncoderSupportData.CodecGopSequence.DataSize = sizeof(h264Gop);
+         capEncoderSupportData.CodecConfiguration.DataSize = sizeof(h264Config);
+         capEncoderSupportData.CodecConfiguration.pH264Config = &h264Config;
+      } break;
+
+      default:
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encode_max_supported_slices",
+                                                  "Unsupported codec",
+                                                  argTargetCodec);
+      } break;
+   }
+
+   // prepare inout storage for the resolution dependent result.
+   D3D12_FEATURE_DATA_VIDEO_ENCODER_RESOLUTION_SUPPORT_LIMITS resolutionDepCaps = { };
+   capEncoderSupportData.pResolutionDependentSupport = &resolutionDepCaps;
+
+   VERIFY_SUCCEEDED(pD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_SUPPORT,
+                                                                         &capEncoderSupportData,
+                                                                         sizeof(capEncoderSupportData)));
+
+   bool configSupported = (((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_GENERAL_SUPPORT_OK) != 0)
+                        && (capEncoderSupportData.ValidationFlags == D3D12_VIDEO_ENCODER_VALIDATION_FLAG_NONE));
+
+   outMaxSlices = resolutionDepCaps.MaxSubregionsNumber;
+   return configSupported;
+}
+
 static bool
 d3d12_has_video_encode_support(struct pipe_screen *pscreen,
                                enum pipe_video_profile profile,
                                uint32_t &maxLvlSpec,
-                               D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC &maxRes)
+                               D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC &maxRes,
+                               uint32_t &maxSlices)
 {
    ComPtr<ID3D12VideoDevice3> spD3D12VideoDevice;
    struct d3d12_screen *pD3D12Screen = (struct d3d12_screen *) pscreen;
@@ -1070,6 +1133,7 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
       return false;
    }
 
+   DXGI_FORMAT encodeFormat = (profile == PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10) || (profile == PIPE_VIDEO_PROFILE_HEVC_MAIN_10) ? DXGI_FORMAT_P010 : DXGI_FORMAT_NV12;
    bool supportsProfile = false;
    switch (profile) {
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
@@ -1102,8 +1166,8 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
             supportsProfile = true;
          }
 
-         supportsProfile =
-            supportsProfile && d3d12_video_encode_max_supported_resolution(codecDesc, maxRes, spD3D12VideoDevice.Get());
+         supportsProfile = supportsProfile && d3d12_video_encode_max_supported_resolution(codecDesc, maxRes, spD3D12VideoDevice.Get());
+         supportsProfile = supportsProfile && d3d12_video_encode_max_supported_slices(codecDesc, maxRes, encodeFormat, maxSlices, spD3D12VideoDevice.Get());            
       } break;
       default:
          supportsProfile = false;
@@ -1181,6 +1245,7 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
 {
    uint32_t maxLvlEncode = 0u;
    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC maxResEncode = {};
+   uint32_t maxSlices = 0u;
    switch (param) {
       case PIPE_VIDEO_CAP_NPOT_TEXTURES:
          return 1;
@@ -1188,8 +1253,9 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
       case PIPE_VIDEO_CAP_MAX_HEIGHT:
       case PIPE_VIDEO_CAP_MAX_LEVEL:
       case PIPE_VIDEO_CAP_SUPPORTED:
+      case PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME:
       {
-         if (d3d12_has_video_encode_support(pscreen, profile, maxLvlEncode, maxResEncode)) {
+         if (d3d12_has_video_encode_support(pscreen, profile, maxLvlEncode, maxResEncode, maxSlices)) {
             if (param == PIPE_VIDEO_CAP_MAX_WIDTH) {
                return maxResEncode.Width;
             } else if (param == PIPE_VIDEO_CAP_MAX_HEIGHT) {
@@ -1198,6 +1264,8 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
                return maxLvlEncode;
             } else if (param == PIPE_VIDEO_CAP_SUPPORTED) {
                return 1;
+            } else if (param == PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME) {
+               return maxSlices;               
             }
          }
          return 0;
@@ -1210,27 +1278,6 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
          return false;
       case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
          return true;
-      case PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME:
-      {
-         // This is dependent on more info about the encoding session for the D3D12 drivers and can be queried
-         // in D3D12_FEATURE_DATA_VIDEO_ENCODER_RESOLUTION_SUPPORT_LIMITS.MaxSubregionsNumber
-         // with more encoding session information (dpb size, rate control mode, max resolution, etc)
-         // and it's queried when the encoder is requested an operation with all the context info
-         // We don't have this info as input for the pipe query so let's default to the common minimum
-         // slice support across the ecosystem
-         enum pipe_video_format codec = u_reduce_video_profile(profile);
-         switch (codec) {
-            case PIPE_VIDEO_FORMAT_MPEG4_AVC:
-            case PIPE_VIDEO_FORMAT_HEVC:
-            {
-               return 16;
-            } break;
-            default:
-            {
-               return 0;
-            } break;
-         }
-      } break;
       default:
          debug_printf("[d3d12_screen_get_video_param] unknown video param: %d\n", param);
          return 0;
