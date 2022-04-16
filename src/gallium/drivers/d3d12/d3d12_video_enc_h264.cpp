@@ -807,47 +807,6 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
    D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT capEncoderSupportData = { };
    if(!d3d12_video_encoder_negotiate_requested_features_and_d3d12_driver_caps(pD3D12Enc, capEncoderSupportData))
    {
-      D3D12_LOG_INFO("[d3d12_video_encoder_h264] Cap negotiation failed, see more details below:\n");
-      
-      if ((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_NOT_SUPPORTED) != 0) {
-         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested codec is not supported\n");
-      }
-
-      if ((capEncoderSupportData.ValidationFlags &
-         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RESOLUTION_NOT_SUPPORTED_IN_LIST) != 0) {
-         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested resolution is not supported\n");
-      }
-
-      if ((capEncoderSupportData.ValidationFlags &
-         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_CONFIGURATION_NOT_SUPPORTED) != 0) {
-         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested bitrate or rc config is not supported\n");
-      }
-
-      if ((capEncoderSupportData.ValidationFlags &
-         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_CONFIGURATION_NOT_SUPPORTED) != 0) {
-         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested codec config is not supported\n");
-      }
-
-      if ((capEncoderSupportData.ValidationFlags &
-         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_MODE_NOT_SUPPORTED) != 0) {
-         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested rate control mode is not supported\n");
-      }
-
-      if ((capEncoderSupportData.ValidationFlags &
-         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INTRA_REFRESH_MODE_NOT_SUPPORTED) != 0) {
-         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested intra refresh config is not supported\n");
-      }
-
-      if ((capEncoderSupportData.ValidationFlags &
-         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_SUBREGION_LAYOUT_MODE_NOT_SUPPORTED) != 0) {
-         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested subregion layout mode is not supported\n");
-      }
-
-      if ((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INPUT_FORMAT_NOT_SUPPORTED) !=
-         0) {
-         D3D12_LOG_INFO("[d3d12_video_encoder_h264] Requested input dxgi format is not supported\n");
-      }
-
       D3D12_LOG_ERROR("[d3d12_video_encoder_h264] After negotiating caps, D3D12_FEATURE_VIDEO_ENCODER_SUPPORT arguments are not supported - "
                      "ValidationFlags: 0x%x - SupportFlags: 0x%x\n",
                      capEncoderSupportData.ValidationFlags,

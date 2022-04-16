@@ -684,6 +684,49 @@ bool d3d12_video_encoder_negotiate_requested_features_and_d3d12_driver_caps(stru
                         && (capEncoderSupportData.ValidationFlags == D3D12_VIDEO_ENCODER_VALIDATION_FLAG_NONE));
    }
 
+   if(!configSupported) {
+      D3D12_LOG_INFO("[d3d12_video_encoder] Cap negotiation failed, see more details below:\n");
+      
+      if ((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_NOT_SUPPORTED) != 0) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] Requested codec is not supported\n");
+      }
+
+      if ((capEncoderSupportData.ValidationFlags &
+         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RESOLUTION_NOT_SUPPORTED_IN_LIST) != 0) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] Requested resolution is not supported\n");
+      }
+
+      if ((capEncoderSupportData.ValidationFlags &
+         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_CONFIGURATION_NOT_SUPPORTED) != 0) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] Requested bitrate or rc config is not supported\n");
+      }
+
+      if ((capEncoderSupportData.ValidationFlags &
+         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_CODEC_CONFIGURATION_NOT_SUPPORTED) != 0) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] Requested codec config is not supported\n");
+      }
+
+      if ((capEncoderSupportData.ValidationFlags &
+         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_MODE_NOT_SUPPORTED) != 0) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] Requested rate control mode is not supported\n");
+      }
+
+      if ((capEncoderSupportData.ValidationFlags &
+         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INTRA_REFRESH_MODE_NOT_SUPPORTED) != 0) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] Requested intra refresh config is not supported\n");
+      }
+
+      if ((capEncoderSupportData.ValidationFlags &
+         D3D12_VIDEO_ENCODER_VALIDATION_FLAG_SUBREGION_LAYOUT_MODE_NOT_SUPPORTED) != 0) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] Requested subregion layout mode is not supported\n");
+      }
+
+      if ((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_INPUT_FORMAT_NOT_SUPPORTED) !=
+         0) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] Requested input dxgi format is not supported\n");
+      }
+   }
+
    return configSupported;
 }
 
