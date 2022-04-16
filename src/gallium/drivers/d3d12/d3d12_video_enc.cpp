@@ -609,6 +609,147 @@ d3d12_video_encoder_get_current_codec_config_desc(struct d3d12_video_encoder *pD
    }
 }
 
+D3D12_VIDEO_ENCODER_CODEC
+d3d12_video_encoder_get_current_codec(struct d3d12_video_encoder *pD3D12Enc)
+{
+   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   switch (codec) {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         return D3D12_VIDEO_ENCODER_CODEC_H264;
+      } break;
+      default:
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_codec",
+                                                  "Unsupported codec",
+                                                  codec);
+      } break;
+   }
+}
+
+///
+/// Call d3d12_video_encoder_query_d3d12_driver_caps and see if any optional feature requested
+/// is not supported, disable it, query again until finding a negotiated cap/feature set
+/// Note that with fallbacks, the upper layer will not get exactly the encoding seetings they requested
+/// but for very particular settings it's better to continue with warnings than failing the whole encoding process
+///
+bool d3d12_video_encoder_negotiate_requested_features_and_d3d12_driver_caps(struct d3d12_video_encoder *pD3D12Enc, D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT &capEncoderSupportData) {
+
+   ///
+   /// Check for general support
+   /// Check for validation errors (some drivers return general support but also validation errors anyways, work around for those unexpected cases)
+   ///
+
+   d3d12_video_encoder_query_d3d12_driver_caps(pD3D12Enc, /*inout*/ capEncoderSupportData);
+   bool configSupported = (((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_GENERAL_SUPPORT_OK) != 0)
+                        && (capEncoderSupportData.ValidationFlags == D3D12_VIDEO_ENCODER_VALIDATION_FLAG_NONE));
+
+   ///
+   /// If rate control config is not supported, try falling back and check for caps again
+   ///   
+
+   if ((capEncoderSupportData.ValidationFlags & (D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_CONFIGURATION_NOT_SUPPORTED | D3D12_VIDEO_ENCODER_VALIDATION_FLAG_RATE_CONTROL_MODE_NOT_SUPPORTED)) != 0) {
+
+      D3D12_LOG_INFO("[d3d12_video_encoder] WARNING: Requested rate control is not supported, trying fallback to unsetting optional features\n");
+
+      bool isRequestingVBVSizesSupported = ((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_VBV_SIZE_CONFIG_AVAILABLE) != 0);
+      bool isClientRequestingVBVSizes = ((pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags & D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES) != 0);
+      
+      if(isClientRequestingVBVSizes && !isRequestingVBVSizesSupported) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] WARNING: Requested D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES with VBVCapacity (bits): %ld and InitialVBVFullness (bits) %ld is not supported, will continue encoding unsetting this feature as fallback.\n",
+               pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.VBVCapacity,
+               pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.InitialVBVFullness);
+
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags &= ~D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.VBVCapacity = 0;
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.InitialVBVFullness = 0;
+      }
+      
+      bool isRequestingPeakFrameSizeSupported = ((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_MAX_FRAME_SIZE_AVAILABLE) != 0);
+      bool isClientRequestingPeakFrameSize = ((pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags & D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE) != 0);
+
+      if(isClientRequestingPeakFrameSize && !isRequestingPeakFrameSizeSupported) {
+         D3D12_LOG_INFO("[d3d12_video_encoder] WARNING: Requested D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE with MaxFrameBitSize %ld but the feature is not supported, will continue encoding unsetting this feature as fallback.\n",
+            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.MaxFrameBitSize);
+
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags &= ~D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
+         pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.MaxFrameBitSize = 0;
+      }
+
+      ///
+      /// Try fallback configuration
+      ///
+      d3d12_video_encoder_query_d3d12_driver_caps(pD3D12Enc, /*inout*/ capEncoderSupportData);
+      configSupported = (((capEncoderSupportData.SupportFlags & D3D12_VIDEO_ENCODER_SUPPORT_FLAG_GENERAL_SUPPORT_OK) != 0)
+                        && (capEncoderSupportData.ValidationFlags == D3D12_VIDEO_ENCODER_VALIDATION_FLAG_NONE));
+   }
+
+   return configSupported;
+}
+
+void d3d12_video_encoder_query_d3d12_driver_caps(struct d3d12_video_encoder *pD3D12Enc, D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT &capEncoderSupportData) {
+   capEncoderSupportData.NodeIndex                                = pD3D12Enc->m_NodeIndex;
+   capEncoderSupportData.Codec                                    = d3d12_video_encoder_get_current_codec(pD3D12Enc);
+   capEncoderSupportData.InputFormat            = pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format;
+   capEncoderSupportData.RateControl            = d3d12_video_encoder_get_current_rate_control_settings(pD3D12Enc);
+   capEncoderSupportData.IntraRefresh           = pD3D12Enc->m_currentEncodeConfig.m_IntraRefresh.Mode;
+   capEncoderSupportData.SubregionFrameEncoding = pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode;
+   capEncoderSupportData.ResolutionsListCount   = 1;
+   capEncoderSupportData.pResolutionList        = &pD3D12Enc->m_currentEncodeConfig.m_currentResolution;
+   capEncoderSupportData.CodecGopSequence       = d3d12_video_encoder_get_current_gop_desc(pD3D12Enc);
+   capEncoderSupportData.MaxReferenceFramesInDPB =
+      pD3D12Enc->base.max_references;   // Max number of frames to be used as a reference, without counting the current
+                                        // picture recon picture
+   capEncoderSupportData.CodecConfiguration = d3d12_video_encoder_get_current_codec_config_desc(pD3D12Enc);
+
+   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   switch (codec) {
+      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
+      {
+         capEncoderSupportData.SuggestedProfile.pH264Profile =
+            &pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile;
+         capEncoderSupportData.SuggestedProfile.DataSize =
+            sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_encoderSuggestedProfileDesc.m_H264Profile);
+         capEncoderSupportData.SuggestedLevel.pH264LevelSetting =
+            &pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting;
+         capEncoderSupportData.SuggestedLevel.DataSize =
+            sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_encoderLevelSuggestedDesc.m_H264LevelSetting);
+      } break;
+
+      default:
+      {
+         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_query_d3d12_driver_caps",
+                                                  "Unsupported codec",
+                                                  codec);
+      } break;
+   }
+
+   // prepare inout storage for the resolution dependent result.
+   capEncoderSupportData.pResolutionDependentSupport =
+      &pD3D12Enc->m_currentEncodeCapabilities.m_currentResolutionSupportCaps;
+
+   VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_SUPPORT,
+                                                                         &capEncoderSupportData,
+                                                                         sizeof(capEncoderSupportData)));
+
+   pD3D12Enc->m_currentEncodeCapabilities.m_SupportFlags    = capEncoderSupportData.SupportFlags;
+   pD3D12Enc->m_currentEncodeCapabilities.m_ValidationFlags = capEncoderSupportData.ValidationFlags;
+}
+
+bool d3d12_video_encoder_check_subregion_mode_support(struct d3d12_video_encoder *pD3D12Enc,
+                                    D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE requestedSlicesMode
+   )
+{
+   D3D12_FEATURE_DATA_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE capDataSubregionLayout = { }; 
+   capDataSubregionLayout.NodeIndex = pD3D12Enc->m_NodeIndex;
+   capDataSubregionLayout.Codec = d3d12_video_encoder_get_current_codec(pD3D12Enc);
+   capDataSubregionLayout.Profile = d3d12_video_encoder_get_current_profile_desc(pD3D12Enc);
+   capDataSubregionLayout.Level = d3d12_video_encoder_get_current_level_desc(pD3D12Enc);
+   capDataSubregionLayout.SubregionMode = requestedSlicesMode;
+   VERIFY_SUCCEEDED(pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE, &capDataSubregionLayout, sizeof(capDataSubregionLayout)));
+   return capDataSubregionLayout.IsSupported;
+}
+
 D3D12_VIDEO_ENCODER_PROFILE_DESC
 d3d12_video_encoder_get_current_profile_desc(struct d3d12_video_encoder *pD3D12Enc)
 {

@@ -320,6 +320,13 @@ d3d12_video_encoder_extract_encode_metadata(
    D3D12_VIDEO_ENCODER_OUTPUT_METADATA &                      encoderMetadata,
    std::vector<D3D12_VIDEO_ENCODER_FRAME_SUBREGION_METADATA> &pSubregionsMetadata);
 
+D3D12_VIDEO_ENCODER_CODEC
+d3d12_video_encoder_get_current_codec(struct d3d12_video_encoder *pD3D12Enc);
+
+bool d3d12_video_encoder_negotiate_requested_features_and_d3d12_driver_caps(struct d3d12_video_encoder *pD3D12Enc, D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT &capEncoderSupportData);
+void d3d12_video_encoder_query_d3d12_driver_caps(struct d3d12_video_encoder *pD3D12Enc, D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT &capEncoderSupportData);
+bool d3d12_video_encoder_check_subregion_mode_support(struct d3d12_video_encoder *pD3D12Enc, D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE requestedSlicesMode);
+
 ///
 /// d3d12_video_encoder functions ends
 ///

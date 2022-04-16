@@ -70,7 +70,4 @@ d3d12_video_encoder_compare_slice_config_h264_hevc(
    D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE                   otherMode,
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA_SLICES otherConfig);
 
-bool d3d12_video_encoder_negotiate_requested_features_and_d3d12_driver_caps(struct d3d12_video_encoder *pD3D12Enc, D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT &capEncoderSupportData);
-void d3d12_video_encoder_query_d3d12_driver_caps(struct d3d12_video_encoder *pD3D12Enc, D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT &capEncoderSupportData);
-
 #endif
