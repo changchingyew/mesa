@@ -179,7 +179,7 @@ d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video
    picParams.pH264PicData->idr_pic_id               = h264Pic->idr_pic_id;
    picParams.pH264PicData->FrameType                = d3d12_video_encoder_convert_frame_type(h264Pic->picture_type);
    picParams.pH264PicData->PictureOrderCountNumber  = h264Pic->pic_order_cnt;
-   picParams.pH264PicData->FrameDecodingOrderNumber = h264Pic->frame_num_cnt;
+   picParams.pH264PicData->FrameDecodingOrderNumber = h264Pic->frame_num;
 }
 
 D3D12_VIDEO_ENCODER_FRAME_TYPE_H264
