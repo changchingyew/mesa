@@ -56,6 +56,7 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
                                               uint32_t                                    seq_parameter_set_id,
                                               uint32_t                                    max_num_ref_frames,
                                               D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC sequenceTargetResolution,
+                                              D3D12_BOX                                   frame_cropping_codec_config,
                                               std::vector<uint8_t> &                      headerBitstream,
                                               std::vector<uint8_t>::iterator              placingPositionStart,
                                               size_t &                                    writtenBytes)
@@ -96,21 +97,13 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
    uint32_t pic_height_in_map_units_minus1 =
       static_cast<uint32_t>(std::ceil(sequenceTargetResolution.Height / 16.0)) - 1;
 
-   // Calculate macroblock aligned resolution
-   uint32_t alignedWidth  = static_cast<uint32_t>(std::ceil(sequenceTargetResolution.Width / 16.0)) * 16;
-   uint32_t alignedHeight = static_cast<uint32_t>(std::ceil(sequenceTargetResolution.Height / 16.0)) * 16;
-
-   int32_t iCropRight  = alignedWidth - sequenceTargetResolution.Width;
-   int32_t iCropBottom = alignedHeight - sequenceTargetResolution.Height;
-
    uint32_t frame_cropping_flag               = 0;
-   uint32_t frame_cropping_rect_right_offset  = 0;
-   uint32_t frame_cropping_rect_bottom_offset = 0;
-
-   if (iCropRight || iCropBottom) {
+   if (frame_cropping_codec_config.left 
+      || frame_cropping_codec_config.right 
+      || frame_cropping_codec_config.top
+      || frame_cropping_codec_config.bottom
+   ) {
       frame_cropping_flag               = 1;
-      frame_cropping_rect_right_offset  = iCropRight / 2;
-      frame_cropping_rect_bottom_offset = iCropBottom / 2;
    }
 
    H264_SPS spsStructure = { static_cast<uint32_t>(profile_idc),
@@ -131,10 +124,10 @@ d3d12_video_bitstream_builder_h264::build_sps(const D3D12_VIDEO_ENCODER_PROFILE_
                                 1u :
                                 0u,   // direct_8x8_inference_flag
                              frame_cropping_flag,
-                             0,   // frame_cropping_rect_left_offset
-                             frame_cropping_rect_right_offset,
-                             0,   // frame_cropping_rect_top_offset
-                             frame_cropping_rect_bottom_offset };
+                             frame_cropping_codec_config.left,
+                             frame_cropping_codec_config.right,
+                             frame_cropping_codec_config.top,
+                             frame_cropping_codec_config.bottom };
 
    // Print built PPS structure
    D3D12_LOG_DBG(

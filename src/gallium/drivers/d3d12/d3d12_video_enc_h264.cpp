@@ -755,6 +755,17 @@ d3d12_video_encoder_update_current_encoder_config_state_h264(struct d3d12_video_
    pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Width  = srcTexture->width;
    pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Height = srcTexture->height;
 
+   // Set resolution codec dimensions (ie. cropping)   
+   if(h264Pic->pic_ctrl.enc_frame_cropping_flag)
+   {
+      pD3D12Enc->m_currentEncodeConfig.m_FrameCroppingCodecConfig.left = h264Pic->pic_ctrl.enc_frame_crop_left_offset;
+      pD3D12Enc->m_currentEncodeConfig.m_FrameCroppingCodecConfig.right = h264Pic->pic_ctrl.enc_frame_crop_right_offset;
+      pD3D12Enc->m_currentEncodeConfig.m_FrameCroppingCodecConfig.top = h264Pic->pic_ctrl.enc_frame_crop_top_offset;
+      pD3D12Enc->m_currentEncodeConfig.m_FrameCroppingCodecConfig.bottom = h264Pic->pic_ctrl.enc_frame_crop_bottom_offset;
+   } else {
+      memset(&pD3D12Enc->m_currentEncodeConfig.m_FrameCroppingCodecConfig, 0, sizeof(pD3D12Enc->m_currentEncodeConfig.m_FrameCroppingCodecConfig));
+   }
+
    // Set profile
    auto targetProfile = d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(pD3D12Enc->base.profile);
    if (pD3D12Enc->m_currentEncodeConfig.m_encoderProfileDesc.m_H264Profile != targetProfile) {
@@ -960,6 +971,7 @@ d3d12_video_encoder_build_codec_headers_h264(struct d3d12_video_encoder *pD3D12E
                                        active_seq_parameter_set_id,
                                        MaxDPBCapacity,   // max_num_ref_frames
                                        pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
+                                       pD3D12Enc->m_currentEncodeConfig.m_FrameCroppingCodecConfig,
                                        pD3D12Enc->m_BitstreamHeadersBuffer,
                                        pD3D12Enc->m_BitstreamHeadersBuffer.begin(),
                                        writtenSPSBytesCount);

@@ -189,6 +189,7 @@ struct d3d12_video_encoder
       d3d12_video_encoder_config_dirty_flags m_ConfigDirtyFlags = d3d12_video_encoder_config_dirty_flag_none;
 
       D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC m_currentResolution = {};
+      D3D12_BOX m_FrameCroppingCodecConfig = {};
 
       D3D12_FEATURE_DATA_FORMAT_INFO m_encodeFormatInfo = {};
 
