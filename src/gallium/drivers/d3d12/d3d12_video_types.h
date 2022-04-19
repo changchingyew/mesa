@@ -38,6 +38,26 @@
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 
+// Allow encoder to continue the encoding session when an optional 
+// rate control mode such as the following is used but not supported
+//
+// D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES
+// D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE
+//
+// If setting this OS Env variable to true, the encoding process will continue, disregarding the settings
+// requested for the optional RC mode
+//
+
+const bool D3D12_VIDEO_ENC_FALLBACK_RATE_CONTROL_CONFIG = debug_get_bool_option("D3D12_VIDEO_ENC_FALLBACK_RATE_CONTROL_CONFIG", false);
+
+// Allow encoder to continue the encoding session when aa slice mode 
+// is requested but not supported.
+//
+// If setting this OS Env variable to true, the encoder will try to adjust to the closest slice
+// setting available and encode using that configuration anyway
+//
+const bool D3D12_VIDEO_ENC_FALLBACK_SLICE_CONFIG = debug_get_bool_option("D3D12_VIDEO_ENC_FALLBACK_SLICE_CONFIG", false);
+
 constexpr unsigned int D3D12_VIDEO_H264_MB_IN_PIXELS = 16;
 
 // The following defines can be tweaked for better code performance or debug verbosity
