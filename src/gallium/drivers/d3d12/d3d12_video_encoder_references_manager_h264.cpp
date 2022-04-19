@@ -374,7 +374,7 @@ d3d12_video_encoder_references_manager_h264::prepare_current_frame_l0_l1_lists()
          m_CurrentFrameReferencesData.pList0ReferenceFrames.resize(m_MaxL0ReferencesForB);
       }
 
-      if (m_CurrentFrameReferencesData.pList1ReferenceFrames.size() > m_MaxL0ReferencesForP) {
+      if (m_CurrentFrameReferencesData.pList1ReferenceFrames.size() > m_MaxL1ReferencesForB) {
          m_CurrentFrameReferencesData.pList1ReferenceFrames.resize(m_MaxL1ReferencesForB);
       }
    }
