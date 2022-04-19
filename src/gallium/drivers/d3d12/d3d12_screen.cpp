@@ -1050,6 +1050,42 @@ d3d12_video_encode_max_supported_resolution(const D3D12_VIDEO_ENCODER_CODEC &arg
    return true;
 }
 
+uint32_t d3d12_video_encode_supported_references_per_frame_structures(const D3D12_VIDEO_ENCODER_CODEC &codec,
+                                            D3D12_VIDEO_ENCODER_PROFILE_H264 profile,
+                                            D3D12_VIDEO_ENCODER_LEVELS_H264 level,
+                                            ID3D12VideoDevice3 *pD3D12VideoDevice)
+{
+   uint32_t supportedMaxRefFrames = 0u;
+
+   D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_H264 h264PictureControl = {};
+   D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT capPictureControlData = { };
+   capPictureControlData.NodeIndex = 0;
+   capPictureControlData.Codec = codec;
+   capPictureControlData.Profile.pH264Profile = &profile;
+   capPictureControlData.Profile.DataSize = sizeof(profile);
+   capPictureControlData.PictureSupport.pH264Support = &h264PictureControl;
+   capPictureControlData.PictureSupport.DataSize = sizeof(h264PictureControl);
+   VERIFY_SUCCEEDED(
+      pD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT,
+                                                            &capPictureControlData,
+                                                            sizeof(capPictureControlData)));
+   if (capPictureControlData.IsSupported) {
+      /* This attribute determines the maximum number of reference
+       * frames supported for encoding.
+       *
+       * Note: for H.264 encoding, the value represents the maximum number
+       * of reference frames for both the reference picture list 0 (bottom
+       * 16 bits) and the reference picture list 1 (top 16 bits).
+      */
+     uint32_t maxRefForL0 = std::min(capPictureControlData.PictureSupport.pH264Support->MaxL0ReferencesForP,
+       capPictureControlData.PictureSupport.pH264Support->MaxL0ReferencesForB);
+     uint32_t maxRefForL1 = capPictureControlData.PictureSupport.pH264Support->MaxL1ReferencesForB;
+     supportedMaxRefFrames = (maxRefForL0 & 0xffff) | ((maxRefForL1 & 0xffff) << 16);
+   }
+
+   return supportedMaxRefFrames;
+}
+
 uint32_t d3d12_video_encode_supported_slice_structures(const D3D12_VIDEO_ENCODER_CODEC &codec,
                                             D3D12_VIDEO_ENCODER_PROFILE_H264 profile,
                                             D3D12_VIDEO_ENCODER_LEVELS_H264 level,
@@ -1195,7 +1231,8 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
                                uint32_t &maxLvlSpec,
                                D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC &maxRes,
                                uint32_t &maxSlices,
-                               uint32_t &supportedSliceStructures)
+                               uint32_t &supportedSliceStructures,
+                               uint32_t &maxReferencesPerFrame)
 {
    ComPtr<ID3D12VideoDevice3> spD3D12VideoDevice;
    struct d3d12_screen *pD3D12Screen = (struct d3d12_screen *) pscreen;
@@ -1247,6 +1284,7 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
          supportsProfile = supportsProfile && d3d12_video_encode_max_supported_resolution(codecDesc, maxRes, spD3D12VideoDevice.Get());
          supportsProfile = supportsProfile && d3d12_video_encode_max_supported_slices(codecDesc, maxRes, encodeFormat, maxSlices, spD3D12VideoDevice.Get());
          supportedSliceStructures = d3d12_video_encode_supported_slice_structures(codecDesc, profH264, maxLvlSettingH264, spD3D12VideoDevice.Get());
+         maxReferencesPerFrame = d3d12_video_encode_supported_references_per_frame_structures(codecDesc, profH264, maxLvlSettingH264, spD3D12VideoDevice.Get());
       } break;
       default:
          supportsProfile = false;
@@ -1326,6 +1364,7 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC maxResEncode = {};
    uint32_t maxSlices = 0u;
    uint32_t supportedSliceStructures = 0u;
+   uint32_t maxReferencesPerFrame = 0u;   
    switch (param) {
       case PIPE_VIDEO_CAP_NPOT_TEXTURES:
          return 1;
@@ -1335,8 +1374,9 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
       case PIPE_VIDEO_CAP_SUPPORTED:
       case PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME:
       case PIPE_VIDEO_CAP_ENC_SLICES_STRUCTURE:
+      case PIPE_VIDEO_CAP_ENC_MAX_REFERENCES_PER_FRAME:
       {
-         if (d3d12_has_video_encode_support(pscreen, profile, maxLvlEncode, maxResEncode, maxSlices, supportedSliceStructures)) {
+         if (d3d12_has_video_encode_support(pscreen, profile, maxLvlEncode, maxResEncode, maxSlices, supportedSliceStructures, maxReferencesPerFrame)) {
             if (param == PIPE_VIDEO_CAP_MAX_WIDTH) {
                return maxResEncode.Width;
             } else if (param == PIPE_VIDEO_CAP_MAX_HEIGHT) {
@@ -1349,6 +1389,8 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
                return maxSlices;
             } else if (param == PIPE_VIDEO_CAP_ENC_SLICES_STRUCTURE) {
                return supportedSliceStructures;
+            } else if (param == PIPE_VIDEO_CAP_ENC_MAX_REFERENCES_PER_FRAME) {
+               return maxReferencesPerFrame;
             }
          }
          return 0;
