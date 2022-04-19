@@ -620,6 +620,32 @@ d3d12_resource_from_resource(struct pipe_screen *pscreen,
     return pPipeSrc;
 }
 
+/**
+ * Get stride and offset for the given pipe resource without the need to get
+ * a winsys_handle.
+ */
+void d3d12_resource_get_info(struct pipe_screen *pscreen,
+                           struct pipe_resource *pres,
+                           unsigned *stride,
+                           unsigned *offset){
+
+   struct d3d12_resource *res = d3d12_resource(pres);
+   struct d3d12_screen *screen = d3d12_screen(pscreen);
+   D3D12_RESOURCE_DESC desc = res->bo->res->GetDesc();
+   unsigned plane_count = util_format_get_num_planes(res->overall_format);
+   D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprints[plane_count];
+   screen->dev->GetCopyableFootprints(&desc, 0, plane_count, 0, placed_footprints, nullptr, nullptr, nullptr);
+
+   if(stride) {
+      *stride = placed_footprints[res->plane_slice].Footprint.RowPitch;
+   }
+
+   if(offset) {
+      assert(placed_footprints[res->plane_slice].Offset < UINT_MAX);
+      *offset = placed_footprints[res->plane_slice].Offset;
+   }
+}
+
 void
 d3d12_screen_resource_init(struct pipe_screen *pscreen)
 {
@@ -627,6 +653,7 @@ d3d12_screen_resource_init(struct pipe_screen *pscreen)
    pscreen->resource_from_handle = d3d12_resource_from_handle;
    pscreen->resource_get_handle = d3d12_resource_get_handle;
    pscreen->resource_destroy = d3d12_resource_destroy;
+   pscreen->resource_get_info = d3d12_resource_get_info;
 }
 
 unsigned int
