@@ -194,6 +194,50 @@ vlVaGetConfigAttributes(VADriverContextP ctx, VAProfile profile, VAEntrypoint en
                value = maxSlicesPerEncodedPic;
             }
          } break;
+         case VAConfigAttribEncSliceStructure:
+         {
+            /**
+             * \brief Slice structure. Read-only.
+             *
+             * This attribute determines slice structures supported by the
+             * driver for encoding. This attribute is a hint to the user so
+             * that he can choose a suitable surface size and how to arrange
+             * the encoding process of multiple slices per frame.
+             *
+             * More specifically, for H.264 encoding, this attribute
+             * determines the range of accepted values to
+             * VAEncSliceParameterBufferH264::macroblock_address and
+             * VAEncSliceParameterBufferH264::num_macroblocks.
+             *
+             * See \c VA_ENC_SLICE_STRUCTURE_xxx for the supported slice
+             * structure types.
+             *
+             * @name Attribute values for VAConfigAttribEncSliceStructure
+             * \brief Driver supports a power-of-two number of rows per slice.
+               #define VA_ENC_SLICE_STRUCTURE_POWER_OF_TWO_ROWS        0x00000001
+             * \brief Driver supports an arbitrary number of macroblocks per slice.
+               #define VA_ENC_SLICE_STRUCTURE_ARBITRARY_MACROBLOCKS    0x00000002
+             * \brief Driver support 1 row per slice
+               #define VA_ENC_SLICE_STRUCTURE_EQUAL_ROWS               0x00000004
+             * \brief Driver support max encoded slice size per slice
+               #define VA_ENC_SLICE_STRUCTURE_MAX_SLICE_SIZE           0x00000008
+             * \brief Driver supports an arbitrary number of rows per slice.
+               #define VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS           0x00000010
+             * \brief Driver supports any number of rows per slice but they must be the same
+             *       for all slices except for the last one, which must be equal or smaller
+             *       to the previous slices.
+               #define VA_ENC_SLICE_STRUCTURE_EQUAL_MULTI_ROWS         0x00000020
+             */
+            int supportedSliceStructuresFlagSet = pscreen->get_video_param(pscreen, ProfileToPipe(profile),
+                                             PIPE_VIDEO_ENTRYPOINT_ENCODE,
+                                             PIPE_VIDEO_CAP_ENC_SLICES_STRUCTURE);
+            if(supportedSliceStructuresFlagSet <= 0)
+            {
+               value = VA_ATTRIB_NOT_SUPPORTED;
+            } else {
+               value = supportedSliceStructuresFlagSet;
+            }
+         } break;
          default:
             value = VA_ATTRIB_NOT_SUPPORTED;
             break;
