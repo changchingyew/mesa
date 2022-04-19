@@ -1050,6 +1050,83 @@ d3d12_video_encode_max_supported_resolution(const D3D12_VIDEO_ENCODER_CODEC &arg
    return true;
 }
 
+uint32_t d3d12_video_encode_supported_slice_structures(const D3D12_VIDEO_ENCODER_CODEC &codec,
+                                            D3D12_VIDEO_ENCODER_PROFILE_H264 profile,
+                                            D3D12_VIDEO_ENCODER_LEVELS_H264 level,
+                                            ID3D12VideoDevice3 *pD3D12VideoDevice)
+{
+      uint32_t supportedSliceStructuresBitMask = 0u;
+
+      D3D12_FEATURE_DATA_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE capDataSubregionLayout = { };
+      capDataSubregionLayout.NodeIndex = 0;
+      capDataSubregionLayout.Codec = codec;
+      capDataSubregionLayout.Profile.pH264Profile = &profile;
+      capDataSubregionLayout.Profile.DataSize=sizeof(profile);
+      capDataSubregionLayout.Level.pH264LevelSetting = &level;
+      capDataSubregionLayout.Level.DataSize = sizeof(level);
+
+      /**
+       * \brief Slice structure. Read-only.
+       *
+       * VAConfigAttribEncSliceStructure
+       *
+       * This attribute determines slice structures supported by the
+       * driver for encoding. This attribute is a hint to the user so
+       * that he can choose a suitable surface size and how to arrange
+       * the encoding process of multiple slices per frame.
+       *
+       * More specifically, for H.264 encoding, this attribute
+       * determines the range of accepted values to
+       * VAEncSliceParameterBufferH264::macroblock_address and
+       * VAEncSliceParameterBufferH264::num_macroblocks.
+       *
+       * See \c VA_ENC_SLICE_STRUCTURE_xxx for the supported slice
+       * structure types.
+      */
+      /* \brief Driver supports a power-of-two number of rows per slice.*/
+      const uint32_t VA_ENC_SLICE_STRUCTURE_POWER_OF_TWO_ROWS        = 0x00000001;
+      /* \brief Driver supports an arbitrary number of macroblocks per slice.*/
+      const uint32_t VA_ENC_SLICE_STRUCTURE_ARBITRARY_MACROBLOCKS    = 0x00000002;
+      /* \brief Driver support 1 row per slice*/
+      const uint32_t VA_ENC_SLICE_STRUCTURE_EQUAL_ROWS               = 0x00000004;
+      /* \brief Driver support max encoded slice size per slice */
+      const uint32_t VA_ENC_SLICE_STRUCTURE_MAX_SLICE_SIZE           = 0x00000008;
+      /* \brief Driver supports an arbitrary number of rows per slice. */
+      const uint32_t VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS           = 0x00000010;
+      /* \brief Driver supports any number of rows per slice but they must be the same
+      *       for all slices except for the last one, which must be equal or smaller
+      *       to the previous slices. */
+      const uint32_t VA_ENC_SLICE_STRUCTURE_EQUAL_MULTI_ROWS         = 0x00000020;
+
+      capDataSubregionLayout.SubregionMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME;
+      VERIFY_SUCCEEDED(pD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE, &capDataSubregionLayout, sizeof(capDataSubregionLayout)));
+      if(capDataSubregionLayout.IsSupported) {
+         supportedSliceStructuresBitMask |= VA_ENC_SLICE_STRUCTURE_POWER_OF_TWO_ROWS;
+         supportedSliceStructuresBitMask |= VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS;
+         supportedSliceStructuresBitMask |= VA_ENC_SLICE_STRUCTURE_EQUAL_MULTI_ROWS;
+      }
+
+      capDataSubregionLayout.SubregionMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_SQUARE_UNITS_PER_SUBREGION_ROW_UNALIGNED;
+      VERIFY_SUCCEEDED(pD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE, &capDataSubregionLayout, sizeof(capDataSubregionLayout)));
+      if(capDataSubregionLayout.IsSupported) {
+         supportedSliceStructuresBitMask |= VA_ENC_SLICE_STRUCTURE_ARBITRARY_MACROBLOCKS;
+      }
+
+      capDataSubregionLayout.SubregionMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_ROWS_PER_SUBREGION;
+      VERIFY_SUCCEEDED(pD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE, &capDataSubregionLayout, sizeof(capDataSubregionLayout)));
+      if(capDataSubregionLayout.IsSupported) {
+         supportedSliceStructuresBitMask |= VA_ENC_SLICE_STRUCTURE_EQUAL_ROWS;
+      }
+
+      capDataSubregionLayout.SubregionMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_BYTES_PER_SUBREGION;
+      VERIFY_SUCCEEDED(pD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE, &capDataSubregionLayout, sizeof(capDataSubregionLayout)));
+      if(capDataSubregionLayout.IsSupported) {
+         supportedSliceStructuresBitMask |= VA_ENC_SLICE_STRUCTURE_MAX_SLICE_SIZE;
+      }
+
+   return supportedSliceStructuresBitMask;
+}
+
 bool
 d3d12_video_encode_max_supported_slices(const D3D12_VIDEO_ENCODER_CODEC &argTargetCodec,
                                             D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC maxResolution,
@@ -1117,7 +1194,8 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
                                enum pipe_video_profile profile,
                                uint32_t &maxLvlSpec,
                                D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC &maxRes,
-                               uint32_t &maxSlices)
+                               uint32_t &maxSlices,
+                               uint32_t &supportedSliceStructures)
 {
    ComPtr<ID3D12VideoDevice3> spD3D12VideoDevice;
    struct d3d12_screen *pD3D12Screen = (struct d3d12_screen *) pscreen;
@@ -1167,7 +1245,8 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
          }
 
          supportsProfile = supportsProfile && d3d12_video_encode_max_supported_resolution(codecDesc, maxRes, spD3D12VideoDevice.Get());
-         supportsProfile = supportsProfile && d3d12_video_encode_max_supported_slices(codecDesc, maxRes, encodeFormat, maxSlices, spD3D12VideoDevice.Get());            
+         supportsProfile = supportsProfile && d3d12_video_encode_max_supported_slices(codecDesc, maxRes, encodeFormat, maxSlices, spD3D12VideoDevice.Get());
+         supportedSliceStructures = d3d12_video_encode_supported_slice_structures(codecDesc, profH264, maxLvlSettingH264, spD3D12VideoDevice.Get());
       } break;
       default:
          supportsProfile = false;
@@ -1246,6 +1325,7 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
    uint32_t maxLvlEncode = 0u;
    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC maxResEncode = {};
    uint32_t maxSlices = 0u;
+   uint32_t supportedSliceStructures = 0u;
    switch (param) {
       case PIPE_VIDEO_CAP_NPOT_TEXTURES:
          return 1;
@@ -1254,8 +1334,9 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
       case PIPE_VIDEO_CAP_MAX_LEVEL:
       case PIPE_VIDEO_CAP_SUPPORTED:
       case PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME:
+      case PIPE_VIDEO_CAP_ENC_SLICES_STRUCTURE:
       {
-         if (d3d12_has_video_encode_support(pscreen, profile, maxLvlEncode, maxResEncode, maxSlices)) {
+         if (d3d12_has_video_encode_support(pscreen, profile, maxLvlEncode, maxResEncode, maxSlices, supportedSliceStructures)) {
             if (param == PIPE_VIDEO_CAP_MAX_WIDTH) {
                return maxResEncode.Width;
             } else if (param == PIPE_VIDEO_CAP_MAX_HEIGHT) {
@@ -1265,7 +1346,9 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
             } else if (param == PIPE_VIDEO_CAP_SUPPORTED) {
                return 1;
             } else if (param == PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME) {
-               return maxSlices;               
+               return maxSlices;
+            } else if (param == PIPE_VIDEO_CAP_ENC_SLICES_STRUCTURE) {
+               return supportedSliceStructures;
             }
          }
          return 0;
