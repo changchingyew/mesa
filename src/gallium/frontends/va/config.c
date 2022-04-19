@@ -173,9 +173,6 @@ vlVaGetConfigAttributes(VADriverContextP ctx, VAProfile profile, VAEntrypoint en
             if (u_reduce_video_profile(ProfileToPipe(profile)) == PIPE_VIDEO_FORMAT_HEVC)
                value |= VA_ENC_PACKED_HEADER_SEQUENCE;
             break;
-         case VAConfigAttribEncMaxRefFrames:
-            value = 1;
-            break;
          case VAConfigAttribEncMaxSlices:         
          {
             /**
@@ -192,6 +189,28 @@ vlVaGetConfigAttributes(VADriverContextP ctx, VAProfile profile, VAEntrypoint en
                value = VA_ATTRIB_NOT_SUPPORTED;
             } else {
                value = maxSlicesPerEncodedPic;
+            }
+         } break;
+         case VAConfigAttribEncMaxRefFrames:         
+         {
+            /**
+             * \brief Maximum number of reference frames. Read-only.
+             *
+             * This attribute determines the maximum number of reference
+             * frames supported for encoding.
+             *
+             * Note: for H.264 encoding, the value represents the maximum number
+             * of reference frames for both the reference picture list 0 (bottom
+             * 16 bits) and the reference picture list 1 (top 16 bits).
+             */
+            int maxL0L1ReferencesPerFrame = pscreen->get_video_param(pscreen, ProfileToPipe(profile),
+                                             PIPE_VIDEO_ENTRYPOINT_ENCODE,
+                                             PIPE_VIDEO_CAP_ENC_MAX_REFERENCES_PER_FRAME);
+            if(maxL0L1ReferencesPerFrame <= 0)
+            {
+               value = 1;
+            } else {
+               value = maxL0L1ReferencesPerFrame;
             }
          } break;
          case VAConfigAttribEncSliceStructure:
