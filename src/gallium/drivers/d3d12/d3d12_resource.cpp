@@ -292,6 +292,7 @@ convert_planar_resource(struct d3d12_resource *res)
       assert(plane_res->base.b.width0 == footprint->Width);
       assert(plane_res->base.b.height0 == footprint->Height);
       assert(plane_res->base.b.depth0 == footprint->Depth);
+      assert(plane_res->first_plane == &res->base.b);
 #endif
    }
 }
@@ -307,6 +308,7 @@ d3d12_resource_create(struct pipe_screen *pscreen,
    res->base.b = *templ;
    res->overall_format = templ->format;
    res->plane_slice = 0;
+   res->first_plane = &res->base.b;
 
    if (D3D12_DEBUG_RESOURCE & d3d12_debug) {
       debug_printf("D3D12: Create %sresource %s@%d %dx%dx%d as:%d mip:%d\n",
@@ -525,6 +527,7 @@ d3d12_resource_from_handle(struct pipe_screen *pscreen,
 
    res->dxgi_format = d3d12_get_format(res->overall_format);
    res->plane_slice = handle->plane;
+   res->first_plane = &res->base.b;
 
    if (!res->bo) {
       res->bo = d3d12_bo_wrap_res(d3d12_res, res->overall_format);

@@ -44,6 +44,7 @@ struct d3d12_resource {
    DXGI_FORMAT dxgi_format;
    enum pipe_format overall_format;
    unsigned int plane_slice;
+   struct pipe_resource* first_plane;
    unsigned mip_levels;
    struct sw_displaytarget *dt;
    unsigned dt_stride;
