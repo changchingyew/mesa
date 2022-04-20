@@ -632,20 +632,13 @@ void d3d12_resource_get_info(struct pipe_screen *pscreen,
                            unsigned *stride,
                            unsigned *offset){
 
-   struct d3d12_resource *res = d3d12_resource(pres);
-   struct d3d12_screen *screen = d3d12_screen(pscreen);
-   D3D12_RESOURCE_DESC desc = res->bo->res->GetDesc();
-   unsigned plane_count = util_format_get_num_planes(res->overall_format);
-   D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprints[plane_count];
-   screen->dev->GetCopyableFootprints(&desc, 0, plane_count, 0, placed_footprints, nullptr, nullptr, nullptr);
-
    if(stride) {
-      *stride = placed_footprints[res->plane_slice].Footprint.RowPitch;
+      *stride = align(util_format_get_stride(pres->format, pres->width0),
+                              D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
    }
 
    if(offset) {
-      assert(placed_footprints[res->plane_slice].Offset < UINT_MAX);
-      *offset = placed_footprints[res->plane_slice].Offset;
+      *offset = 0;
    }
 }
 
