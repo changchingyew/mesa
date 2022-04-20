@@ -632,20 +632,39 @@ void d3d12_resource_get_info(struct pipe_screen *pscreen,
                            unsigned *stride,
                            unsigned *offset){
 
-   struct d3d12_resource *res = d3d12_resource(pres);
-   struct d3d12_screen *screen = d3d12_screen(pscreen);
-   D3D12_RESOURCE_DESC desc = res->bo->res->GetDesc();
-   unsigned plane_count = util_format_get_num_planes(res->overall_format);
-   D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprints[plane_count];
-   screen->dev->GetCopyableFootprints(&desc, 0, plane_count, 0, placed_footprints, nullptr, nullptr, nullptr);
+   struct d3d12_resource* res = d3d12_resource(pres);
+   unsigned NumPlanes = util_format_get_num_planes(res->overall_format);
+   pipe_resource* planes[NumPlanes];
+   unsigned int strides[NumPlanes];
+   unsigned int layer_strides[NumPlanes];
+   unsigned int offsets[NumPlanes];
+   unsigned staging_res_size = 0;
+
+   struct pipe_resource *pCurPlaneResource = res->first_plane;
+   for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
+      planes[PlaneSlice] = pCurPlaneResource;
+      int width = util_format_get_plane_width(res->base.b.format, PlaneSlice, res->first_plane->width0);
+      int height = util_format_get_plane_height(res->base.b.format, PlaneSlice, res->first_plane->height0);
+
+      strides[PlaneSlice] = align(util_format_get_stride(pCurPlaneResource->format, width),
+                           D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+
+      layer_strides[PlaneSlice] = align(util_format_get_2d_size(pCurPlaneResource->format,
+                                                   strides[PlaneSlice],
+                                                   height),
+                                 D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+
+      offsets[PlaneSlice] = staging_res_size;
+      staging_res_size += layer_strides[PlaneSlice];
+      pCurPlaneResource = pCurPlaneResource->next;
+   }
 
    if(stride) {
-      *stride = placed_footprints[res->plane_slice].Footprint.RowPitch;
+      *stride = strides[res->plane_slice];
    }
 
    if(offset) {
-      assert(placed_footprints[res->plane_slice].Offset < UINT_MAX);
-      *offset = placed_footprints[res->plane_slice].Offset;
+      *offset = offsets[res->plane_slice];
    }
 }
 
