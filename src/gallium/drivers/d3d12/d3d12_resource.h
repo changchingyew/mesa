@@ -45,6 +45,8 @@ struct d3d12_resource {
    enum pipe_format overall_format;
    unsigned int plane_slice;
    struct pipe_resource* first_plane;
+   uint8_t mapped_dirty_plane_mask;
+   uint8_t mapped_plane_refcount[3];
    unsigned mip_levels;
    struct sw_displaytarget *dt;
    unsigned dt_stride;

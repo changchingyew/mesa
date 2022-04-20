@@ -716,6 +716,7 @@ fill_buffer_location(struct d3d12_context *ctx,
    buf_loc.pResource = d3d12_resource_underlying(staging_res, &offset);
    buf_loc.PlacedFootprint = footprint;
    buf_loc.PlacedFootprint.Offset += offset;
+   buf_loc.PlacedFootprint.Offset += trans->base.b.offset;
 
    if (util_format_has_depth(util_format_description(res->base.b.format)) &&
        screen->opts2.ProgrammableSamplePositionsTier == D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_NOT_SUPPORTED) {
@@ -780,8 +781,8 @@ transfer_buf_to_image_part(struct d3d12_context *ctx,
    struct d3d12_screen *screen = d3d12_screen(res->base.b.screen);
    struct copy_info copy_info;
    copy_info.src = staging_res;
-   copy_info.src_loc = fill_buffer_location(ctx, res, staging_res, trans, depth, resid, z);
-   copy_info.src_loc.PlacedFootprint.Offset = (z  - start_z) * trans->base.b.layer_stride;
+   copy_info.src_loc = fill_buffer_location(ctx, res, staging_res, trans, depth, resid, z);   
+   copy_info.src_loc.PlacedFootprint.Offset += (z  - start_z) * trans->base.b.layer_stride;
    copy_info.src_box = nullptr;
    copy_info.dst = res;
    copy_info.dst_loc = fill_texture_location(res, trans, resid, z);
@@ -841,7 +842,7 @@ transfer_image_part_to_buf(struct d3d12_context *ctx,
    copy_info.dst = staging_res;
    copy_info.dst_loc = fill_buffer_location(ctx, res, staging_res, trans,
                                             depth, resid, z);
-   copy_info.dst_loc.PlacedFootprint.Offset = (z  - start_layer) * trans->base.b.layer_stride;
+   copy_info.dst_loc.PlacedFootprint.Offset += (z  - start_layer) * trans->base.b.layer_stride;
    copy_info.dst_x = copy_info.dst_y = copy_info.dst_z = 0;
 
    bool whole_resource = util_texrange_covers_whole_level(&res->base.b, trans->base.b.level,
@@ -1327,6 +1328,118 @@ d3d12_transfer_map(struct pipe_context *pctx,
       } else {
          ptr = nullptr;
       }
+   } else if(util_format_is_yuv(res->overall_format)) {
+
+      ///
+      /// Get planes information
+      ///
+
+      unsigned NumPlanes = util_format_get_num_planes(res->overall_format);
+      pipe_resource* planes[NumPlanes];
+      unsigned int strides[NumPlanes];
+      unsigned int layer_strides[NumPlanes];
+      unsigned int offsets[NumPlanes];
+      unsigned staging_res_size = 0;
+      
+      struct pipe_resource *pCurPlaneResource = res->first_plane;
+      for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
+         planes[PlaneSlice] = pCurPlaneResource;
+         int width = util_format_get_plane_width(res->base.b.format, PlaneSlice, box->width);
+         int height = util_format_get_plane_height(res->base.b.format, PlaneSlice, box->height);
+
+         strides[PlaneSlice] = align(util_format_get_stride(pCurPlaneResource->format, width),
+                              D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+
+         layer_strides[PlaneSlice] = align(util_format_get_2d_size(pCurPlaneResource->format,
+                                                     strides[PlaneSlice],
+                                                     height),
+                                    D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+
+         offsets[PlaneSlice] = staging_res_size;
+         staging_res_size += layer_strides[PlaneSlice];
+         pCurPlaneResource = pCurPlaneResource->next;
+      }
+      
+
+      ///
+      /// Allocate a buffer for all the planes to fit in adjacent memory
+      ///
+
+      pipe_resource_usage staging_usage = (usage & (PIPE_MAP_READ | PIPE_MAP_READ_WRITE)) ?
+         PIPE_USAGE_STAGING : PIPE_USAGE_STREAM;
+      trans->staging_res = pipe_buffer_create(pctx->screen, 0,
+                                              staging_usage,
+                                              staging_res_size);
+      if (!trans->staging_res)
+         return NULL;
+
+      struct d3d12_resource *staging_res = d3d12_resource(trans->staging_res);
+
+      ///
+      /// Readback contents into the buffer allocation now if map was intended for read
+      ///
+
+      /// In theory we should just mark dirty and readback only the contents for the plane
+      /// requested in res->plane_slice, but the VAAPI frontend has this
+      /// behaviour in which they assume that mapping the first plane of
+      /// NV12, P010, etc resources will will give them a buffer containing
+      /// both Y and UV planes contigously in vaDeriveImage and then vaMapBuffer
+      
+      // Mark them all as mapped and dirty
+      for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
+         // Track and refcount the plane requested to be mapped
+         // so we can flush accordingly in unmap
+         res->mapped_dirty_plane_mask |= (1 << PlaneSlice);
+         res->mapped_plane_refcount[PlaneSlice]++;
+      }
+      
+      /// Read all planes if readback needed
+      if (usage & PIPE_MAP_READ) {
+         pipe_box originalBox = ptrans->box;
+         for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
+            // Adjust strides, offsets to the corresponding plane for the copytexture operation
+            ptrans->stride = strides[PlaneSlice];
+            ptrans->layer_stride = layer_strides[PlaneSlice];
+            ptrans->offset = offsets[PlaneSlice];
+
+            // Adjust x, y, width, height in box according to this plane
+            if(res->plane_slice == 0) {
+               // Incoming arguments should be in the not-subsampled space and in the overall resource dimensions
+               // for all PlaneSlices, these functions should take of the math correctly for all PlaneSlice iterations
+               ptrans->box.width = util_format_get_plane_width(res->overall_format, PlaneSlice, originalBox.width);
+               ptrans->box.height = util_format_get_plane_height(res->overall_format, PlaneSlice, originalBox.height);
+               ptrans->box.x = util_format_get_plane_width(res->overall_format, PlaneSlice, originalBox.x);
+               ptrans->box.y = util_format_get_plane_height(res->overall_format, PlaneSlice, originalBox.y);
+            } else {
+               // Incoming arguments are in the subsampled space, we should upscale them 
+               // for mapping the upscaled plane, and leave them as is for the current subsampled one
+               if(PlaneSlice == 0) {
+                  ptrans->box.width = 2 * originalBox.width;
+                  ptrans->box.height = 2 * originalBox.height;
+                  ptrans->box.x = 2 * originalBox.x;
+                  ptrans->box.y = 2 * originalBox.y;
+               }
+            }
+
+            // Perform the readback
+            if(!transfer_image_to_buf(ctx, d3d12_resource(planes[PlaneSlice]), staging_res, trans, 0)){
+               return NULL;
+            }
+         }
+
+         d3d12_flush_cmdlist_and_wait(ctx);
+      }
+
+      // Map the whole staging buffer containing all the planes contiguously
+      // Just offset the resulting ptr to the according plane offset
+
+      range.End = staging_res_size - range.Begin;
+      uint8_t* pAllPlanesMap = (uint8_t*) d3d12_bo_map(staging_res->bo, &range);
+
+      ptrans->stride = strides[res->plane_slice];
+      ptrans->layer_stride = layer_strides[res->plane_slice];
+      ptr = pAllPlanesMap + offsets[res->plane_slice];
+
    } else {
       ptrans->stride = align(util_format_get_stride(pres->format, box->width),
                               D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
@@ -1402,6 +1515,7 @@ static void
 d3d12_transfer_unmap(struct pipe_context *pctx,
                      struct pipe_transfer *ptrans)
 {
+   struct d3d12_context *ctx = d3d12_context(pctx);
    struct d3d12_resource *res = d3d12_resource(ptrans->resource);
    struct d3d12_transfer *trans = (struct d3d12_transfer *)ptrans;
    D3D12_RANGE range = { 0, 0 };
@@ -1411,27 +1525,121 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
          write_zs_surface(pctx, res, trans);
       free(trans->data);
    } else if (trans->staging_res) {
-      struct d3d12_resource *staging_res = d3d12_resource(trans->staging_res);
+      if(util_format_is_yuv(res->overall_format)) {
+         ///
+         /// Get planes information
+         ///
+         
+         pipe_box originalBox = ptrans->box;
+         unsigned NumPlanes = util_format_get_num_planes(res->overall_format);
+         pipe_resource* planes[NumPlanes];
+         unsigned int strides[NumPlanes];
+         unsigned int layer_strides[NumPlanes];
+         unsigned int offsets[NumPlanes];
+         unsigned staging_res_size = 0;
+         
+         struct pipe_resource *pCurPlaneResource = res->first_plane;
+         for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
+            planes[PlaneSlice] = pCurPlaneResource;
+            int width = util_format_get_plane_width(res->base.b.format, PlaneSlice, originalBox.width);
+            int height = util_format_get_plane_height(res->base.b.format, PlaneSlice, originalBox.height);
 
-      if (trans->base.b.usage & PIPE_MAP_WRITE) {
-         assert(ptrans->box.x >= 0);
-         range.Begin = res->base.b.target == PIPE_BUFFER ?
-            (unsigned)ptrans->box.x % BUFFER_MAP_ALIGNMENT : 0;
-         range.End = staging_res->base.b.width0 - range.Begin;
+            strides[PlaneSlice] = align(util_format_get_stride(pCurPlaneResource->format, width),
+                                 D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+
+            layer_strides[PlaneSlice] = align(util_format_get_2d_size(pCurPlaneResource->format,
+                                                      strides[PlaneSlice],
+                                                      height),
+                                       D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+
+            offsets[PlaneSlice] = staging_res_size;
+            staging_res_size += layer_strides[PlaneSlice];
+            pCurPlaneResource = pCurPlaneResource->next;
+         }         
+
+
+         // Decrement refcount on this particular plane being mapped
+         assert(res->mapped_plane_refcount[res->plane_slice] > 0);
+         res->mapped_plane_refcount[res->plane_slice]--;
+
+         ///
+         /// Flush the changed contents into the GPU texture
+         ///
+
+         /// In theory we should just flush only the contents for the plane
+         /// requested in res->plane_slice, but the VAAPI frontend has this
+         /// behaviour in which they assume that mapping the first plane of
+         /// NV12, P010, etc resources will will give them a buffer containing
+         /// both Y and UV planes contigously in vaDeriveImage and then vaMapBuffer
+         /// so, flush them all
+         
+         struct d3d12_resource *staging_res = d3d12_resource(trans->staging_res);
+         if (trans->base.b.usage & PIPE_MAP_WRITE) {
+            assert(ptrans->box.x >= 0);
+            range.Begin = res->base.b.target == PIPE_BUFFER ?
+               (unsigned)ptrans->box.x % BUFFER_MAP_ALIGNMENT : 0;
+            range.End = staging_res->base.b.width0 - range.Begin;
+            
+            d3d12_bo_unmap(staging_res->bo, &range);
+            for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
+               // Adjust strides, offsets to the corresponding plane for the copytexture operation
+               ptrans->stride = strides[PlaneSlice];
+               ptrans->layer_stride = layer_strides[PlaneSlice];
+               ptrans->offset = offsets[PlaneSlice];
+
+               // Adjust x, y, width, height in box according to this plane
+               if(res->plane_slice == 0) {
+                  // Incoming arguments should be in the not-subsampled space and in the overall resource dimensions
+                  // for all PlaneSlices, these functions should take of the math correctly for all PlaneSlice iterations
+                  ptrans->box.width = util_format_get_plane_width(res->overall_format, PlaneSlice, originalBox.width);
+                  ptrans->box.height = util_format_get_plane_height(res->overall_format, PlaneSlice, originalBox.height);
+                  ptrans->box.x = util_format_get_plane_width(res->overall_format, PlaneSlice, originalBox.x);
+                  ptrans->box.y = util_format_get_plane_height(res->overall_format, PlaneSlice, originalBox.y);
+               } else {
+                  // Incoming arguments are in the subsampled space, we should upscale them 
+                  // for mapping the upscaled plane, and leave them as is for the current subsampled one
+                  if(PlaneSlice == 0) {
+                     ptrans->box.width = 2 * originalBox.width;
+                     ptrans->box.height = 2 * originalBox.height;
+                     ptrans->box.x = 2 * originalBox.x;
+                     ptrans->box.y = 2 * originalBox.y;
+                  }
+               }
+               
+               transfer_buf_to_image(ctx, d3d12_resource(planes[PlaneSlice]), staging_res, trans, 0);
+            }
+            
+            // vaMapBuffer/vaUnmapBuffer doesn't always flush as it should
+            d3d12_flush_cmdlist_and_wait(ctx);
+         }
+
+         pipe_resource_reference(&trans->staging_res, NULL);
+         
+         // Update the dirty plane map flags after the successful flush to GPU memory
+         res->mapped_dirty_plane_mask = 0;
+
+      } else {
+         struct d3d12_resource *staging_res = d3d12_resource(trans->staging_res);
+         if (trans->base.b.usage & PIPE_MAP_WRITE) {
+            assert(ptrans->box.x >= 0);
+            range.Begin = res->base.b.target == PIPE_BUFFER ?
+               (unsigned)ptrans->box.x % BUFFER_MAP_ALIGNMENT : 0;
+            range.End = staging_res->base.b.width0 - range.Begin;
+         }
+         d3d12_bo_unmap(staging_res->bo, &range);
+
+         if (trans->base.b.usage & PIPE_MAP_WRITE) {
+            struct d3d12_context *ctx = d3d12_context(pctx);
+            if (res->base.b.target == PIPE_BUFFER) {
+               uint64_t dst_offset = trans->base.b.box.x;
+               uint64_t src_offset = dst_offset % BUFFER_MAP_ALIGNMENT;
+               transfer_buf_to_buf(ctx, staging_res, res, src_offset, dst_offset, ptrans->box.width);
+            } else
+               transfer_buf_to_image(ctx, res, staging_res, trans, 0);
+         }
+
+         pipe_resource_reference(&trans->staging_res, NULL);
       }
-      d3d12_bo_unmap(staging_res->bo, &range);
-
-      if (trans->base.b.usage & PIPE_MAP_WRITE) {
-         struct d3d12_context *ctx = d3d12_context(pctx);
-         if (res->base.b.target == PIPE_BUFFER) {
-            uint64_t dst_offset = trans->base.b.box.x;
-            uint64_t src_offset = dst_offset % BUFFER_MAP_ALIGNMENT;
-            transfer_buf_to_buf(ctx, staging_res, res, src_offset, dst_offset, ptrans->box.width);
-         } else
-            transfer_buf_to_image(ctx, res, staging_res, trans, 0);
-      }
-
-      pipe_resource_reference(&trans->staging_res, NULL);
    } else {
       if (trans->base.b.usage & PIPE_MAP_WRITE) {
          range.Begin = ptrans->box.x;
