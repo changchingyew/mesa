@@ -1437,6 +1437,12 @@ d3d12_transfer_map(struct pipe_context *pctx,
                   ptrans->box.height = 2 * originalBox.height;
                   ptrans->box.x = 2 * originalBox.x;
                   ptrans->box.y = 2 * originalBox.y;
+               } else {
+                  // Restore originalBox values changed in previous PlaneSlice iteration
+                  ptrans->box.width = originalBox.width;
+                  ptrans->box.height = originalBox.height;
+                  ptrans->box.x = originalBox.x;
+                  ptrans->box.y = originalBox.y;
                }
             }
 
@@ -1622,6 +1628,12 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
                      ptrans->box.height = 2 * originalBox.height;
                      ptrans->box.x = 2 * originalBox.x;
                      ptrans->box.y = 2 * originalBox.y;
+                  }else {
+                     // Restore originalBox values changed in previous PlaneSlice iteration
+                     ptrans->box.width = originalBox.width;
+                     ptrans->box.height = originalBox.height;
+                     ptrans->box.x = originalBox.x;
+                     ptrans->box.y = originalBox.y;
                   }
                }
                
