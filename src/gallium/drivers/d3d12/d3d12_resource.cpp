@@ -623,6 +623,37 @@ d3d12_resource_from_resource(struct pipe_screen *pscreen,
     return pPipeSrc;
 }
 
+static
+void d3d12_resource_get_planes_info(struct pipe_resource *pres, // in 
+                                    const unsigned NumPlanes, // in 
+                                    pipe_resource **ppPlanes, // Out(NumPlanes elements)
+                                    unsigned int *pStrides, // Out(NumPlanes elements)
+                                    unsigned int *pLayerStrides, // Out(NumPlanes elements)
+                                    unsigned int *pOffsets, // Out(NumPlanes elements)
+                                    unsigned *pStagingResSize // Out unsigned
+) {
+   struct d3d12_resource* res = d3d12_resource(pres);
+   *pStagingResSize = 0;
+   struct pipe_resource *pCurPlaneResource = res->first_plane;
+   for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
+      ppPlanes[PlaneSlice] = pCurPlaneResource;
+      int width = util_format_get_plane_width(res->base.b.format, PlaneSlice, res->first_plane->width0);
+      int height = util_format_get_plane_height(res->base.b.format, PlaneSlice, res->first_plane->height0);
+
+      pStrides[PlaneSlice] = align(util_format_get_stride(pCurPlaneResource->format, width),
+                           D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+
+      pLayerStrides[PlaneSlice] = align(util_format_get_2d_size(pCurPlaneResource->format,
+                                                   pStrides[PlaneSlice],
+                                                   height),
+                                 D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+
+      pOffsets[PlaneSlice] = *pStagingResSize;
+      *pStagingResSize += pLayerStrides[PlaneSlice];
+      pCurPlaneResource = pCurPlaneResource->next;
+   }
+}
+
 /**
  * Get stride and offset for the given pipe resource without the need to get
  * a winsys_handle.
@@ -634,30 +665,21 @@ void d3d12_resource_get_info(struct pipe_screen *pscreen,
 
    struct d3d12_resource* res = d3d12_resource(pres);
    unsigned NumPlanes = util_format_get_num_planes(res->overall_format);
+
    pipe_resource* planes[NumPlanes];
    unsigned int strides[NumPlanes];
    unsigned int layer_strides[NumPlanes];
    unsigned int offsets[NumPlanes];
    unsigned staging_res_size = 0;
-
-   struct pipe_resource *pCurPlaneResource = res->first_plane;
-   for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
-      planes[PlaneSlice] = pCurPlaneResource;
-      int width = util_format_get_plane_width(res->base.b.format, PlaneSlice, res->first_plane->width0);
-      int height = util_format_get_plane_height(res->base.b.format, PlaneSlice, res->first_plane->height0);
-
-      strides[PlaneSlice] = align(util_format_get_stride(pCurPlaneResource->format, width),
-                           D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-
-      layer_strides[PlaneSlice] = align(util_format_get_2d_size(pCurPlaneResource->format,
-                                                   strides[PlaneSlice],
-                                                   height),
-                                 D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
-
-      offsets[PlaneSlice] = staging_res_size;
-      staging_res_size += layer_strides[PlaneSlice];
-      pCurPlaneResource = pCurPlaneResource->next;
-   }
+   d3d12_resource_get_planes_info(
+      pres,
+      NumPlanes,
+      planes,
+      strides,
+      layer_strides,
+      offsets,
+      &staging_res_size
+   );
 
    if(stride) {
       *stride = strides[res->plane_slice];
@@ -1359,27 +1381,17 @@ d3d12_transfer_map(struct pipe_context *pctx,
       unsigned int layer_strides[NumPlanes];
       unsigned int offsets[NumPlanes];
       unsigned staging_res_size = 0;
+
+      d3d12_resource_get_planes_info(
+         pres,
+         NumPlanes,
+         planes,
+         strides,
+         layer_strides,
+         offsets,
+         &staging_res_size
+      );
       
-      struct pipe_resource *pCurPlaneResource = res->first_plane;
-      for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
-         planes[PlaneSlice] = pCurPlaneResource;
-         int width = util_format_get_plane_width(res->base.b.format, PlaneSlice, res->first_plane->width0);
-         int height = util_format_get_plane_height(res->base.b.format, PlaneSlice, res->first_plane->height0);
-
-         strides[PlaneSlice] = align(util_format_get_stride(pCurPlaneResource->format, width),
-                              D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-
-         layer_strides[PlaneSlice] = align(util_format_get_2d_size(pCurPlaneResource->format,
-                                                     strides[PlaneSlice],
-                                                     height),
-                                    D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
-
-         offsets[PlaneSlice] = staging_res_size;
-         staging_res_size += layer_strides[PlaneSlice];
-         pCurPlaneResource = pCurPlaneResource->next;
-      }
-      
-
       ///
       /// Allocate a buffer for all the planes to fit in adjacent memory
       ///
@@ -1555,32 +1567,22 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
          /// Get planes information
          ///
          
-         pipe_box originalBox = ptrans->box;
          unsigned NumPlanes = util_format_get_num_planes(res->overall_format);
          pipe_resource* planes[NumPlanes];
          unsigned int strides[NumPlanes];
          unsigned int layer_strides[NumPlanes];
          unsigned int offsets[NumPlanes];
          unsigned staging_res_size = 0;
-         
-         struct pipe_resource *pCurPlaneResource = res->first_plane;
-         for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
-            planes[PlaneSlice] = pCurPlaneResource;
-            int width = util_format_get_plane_width(res->base.b.format, PlaneSlice, res->first_plane->width0);
-            int height = util_format_get_plane_height(res->base.b.format, PlaneSlice, res->first_plane->height0);
 
-            strides[PlaneSlice] = align(util_format_get_stride(pCurPlaneResource->format, width),
-                                 D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-
-            layer_strides[PlaneSlice] = align(util_format_get_2d_size(pCurPlaneResource->format,
-                                                      strides[PlaneSlice],
-                                                      height),
-                                       D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
-
-            offsets[PlaneSlice] = staging_res_size;
-            staging_res_size += layer_strides[PlaneSlice];
-            pCurPlaneResource = pCurPlaneResource->next;
-         }         
+         d3d12_resource_get_planes_info(
+            ptrans->resource,
+            NumPlanes,
+            planes,
+            strides,
+            layer_strides,
+            offsets,
+            &staging_res_size
+         );      
 
 
          // Decrement refcount on this particular plane being mapped
@@ -1606,6 +1608,7 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
             range.End = staging_res->base.b.width0 - range.Begin;
             
             d3d12_bo_unmap(staging_res->bo, &range);
+            pipe_box originalBox = ptrans->box;
             for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
                // Adjust strides, offsets to the corresponding plane for the copytexture operation
                ptrans->stride = strides[PlaneSlice];
