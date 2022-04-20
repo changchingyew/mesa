@@ -1363,8 +1363,27 @@ d3d12_transfer_map(struct pipe_context *pctx,
       struct pipe_resource *pCurPlaneResource = res->first_plane;
       for (uint PlaneSlice = 0; PlaneSlice < NumPlanes; ++PlaneSlice) {
          planes[PlaneSlice] = pCurPlaneResource;
-         int width = util_format_get_plane_width(res->base.b.format, PlaneSlice, box->width);
-         int height = util_format_get_plane_height(res->base.b.format, PlaneSlice, box->height);
+
+         int width = 0;
+         int height = 0;
+         // Adjust width, height in box according to this plane
+         if(res->plane_slice == 0) {
+            // Incoming arguments should be in the not-subsampled space and in the overall resource dimensions
+            // for all PlaneSlices, these functions should take of the math correctly for all PlaneSlice iterations
+            width = util_format_get_plane_width(res->base.b.format, PlaneSlice, box->width);
+            height = util_format_get_plane_height(res->base.b.format, PlaneSlice, box->height);
+         } else {
+            // Incoming arguments are in the subsampled space, we should upscale them
+            // for mapping the upscaled plane, and leave them as is for the current subsampled one
+            if(PlaneSlice == 0) {
+               width = 2 * box->width;
+               height = 2 * box->height;
+            } else {
+               // Restore box->values changed in previous PlaneSlice iteration
+               width = box->width;
+               height = box->height;
+            }
+         }
 
          strides[PlaneSlice] = align(util_format_get_stride(pCurPlaneResource->format, width),
                               D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
