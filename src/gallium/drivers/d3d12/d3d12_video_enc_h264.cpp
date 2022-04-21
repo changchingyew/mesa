@@ -49,44 +49,6 @@ d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder 
             picture->rate_ctrl[0].target_bitrate;
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.PeakBitRate =
             picture->rate_ctrl[0].peak_bitrate;
-
-         // These Rate control settings on this block below are not always supported in D3D12, and
-         // are under caps reported when querying D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT
-         // after filling as input to the cap, all the desired configuration
-         // For these specific RC settings, the associated cap flags to check for are
-         // D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_VBV_SIZE_CONFIG_AVAILABLE
-         // This d3d12_video_encoder will try to honor them
-         // but if the caps for them are not supported, will try to continue
-         // execution without them issuing a WARNING
-         {
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |=
-               D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.VBVCapacity =
-               picture->rate_ctrl[0].vbv_buffer_size;
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.InitialVBVFullness =
-               picture->rate_ctrl[0].vbv_buf_lv;
-         }
-
-         // These Rate control settings on this block below are not always supported in D3D12, and
-         // are under caps reported when querying D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT
-         // after filling as input to the cap, all the desired configuration
-         // For these specific RC settings, the associated cap flags to check for are
-         // D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_MAX_FRAME_SIZE_AVAILABLE
-         // This d3d12_video_encoder will try to honor them
-         // but if the caps for them are not supported, will try to continue
-         // execution without them issuing a WARNING
-         {
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |=
-               D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.MaxFrameBitSize =
-               picture->rate_ctrl[0].peak_bits_picture_integer;
-
-            if (picture->rate_ctrl[0].peak_bits_picture_fraction >
-                0)   // Round bit up as we don't have fractional bit parameter
-            {
-               pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_VBR.MaxFrameBitSize++;
-            }
-         }
       } break;
       case PIPE_H2645_ENC_RATE_CONTROL_METHOD_CONSTANT_SKIP:
       case PIPE_H2645_ENC_RATE_CONTROL_METHOD_CONSTANT:
@@ -94,44 +56,6 @@ d3d12_video_encoder_update_current_rate_control_h264(struct d3d12_video_encoder 
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Mode = D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_CBR;
          pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.TargetBitRate =
             picture->rate_ctrl[0].target_bitrate;
-
-         // These Rate control settings on this block below are not always supported in D3D12, and
-         // are under caps reported when querying D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT
-         // after filling as input to the cap, all the desired configuration
-         // For these specific RC settings, the associated cap flags to check for are
-         // D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_VBV_SIZE_CONFIG_AVAILABLE
-         // This d3d12_video_encoder will try to honor them
-         // but if the caps for them are not supported, will try to continue
-         // execution without them issuing a WARNING
-         {
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |=
-               D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_VBV_SIZES;
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.VBVCapacity =
-               picture->rate_ctrl[0].vbv_buffer_size;
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.InitialVBVFullness =
-               picture->rate_ctrl[0].vbv_buf_lv;
-         }
-
-         // These Rate control settings on this block below are not always supported in D3D12, and
-         // are under caps reported when querying D3D12_FEATURE_DATA_VIDEO_ENCODER_SUPPORT
-         // after filling as input to the cap, all the desired configuration
-         // For these specific RC settings, the associated cap flags to check for are
-         // D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RATE_CONTROL_MAX_FRAME_SIZE_AVAILABLE
-         // This d3d12_video_encoder will try to honor them
-         // but if the caps for them are not supported, will try to continue
-         // execution without them issuing a WARNING
-         {
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Flags |=
-               D3D12_VIDEO_ENCODER_RATE_CONTROL_FLAG_ENABLE_MAX_FRAME_SIZE;
-            pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.MaxFrameBitSize =
-               picture->rate_ctrl[0].peak_bits_picture_integer;
-
-            if (picture->rate_ctrl[0].peak_bits_picture_fraction >
-                0)   // Round bit up as we don't have fractional bit parameter
-            {
-               pD3D12Enc->m_currentEncodeConfig.m_encoderRateControlDesc.m_Config.m_Configuration_CBR.MaxFrameBitSize++;
-            }
-         }
       } break;
       case PIPE_H2645_ENC_RATE_CONTROL_METHOD_DISABLE:
       {
