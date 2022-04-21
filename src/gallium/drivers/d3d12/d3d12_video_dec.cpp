@@ -425,6 +425,7 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    struct pipe_fence_handle *pUploadGPUCompletionFence = NULL;
    pD3D12Dec->base.context->flush(pD3D12Dec->base.context, &pUploadGPUCompletionFence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
    if (pUploadGPUCompletionFence) {
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_end_frame - Waiting on GPU completion fence for buffer_subdata to upload compressed bitstream.\n");
       pD3D12Screen->base.fence_finish(&pD3D12Screen->base, NULL, pUploadGPUCompletionFence, PIPE_TIMEOUT_INFINITE);
       pD3D12Screen->base.fence_reference(&pD3D12Screen->base, &pUploadGPUCompletionFence, NULL);
    } else {
@@ -665,6 +666,7 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    struct pipe_fence_handle *pCompletionFence = NULL;
    pD3D12Dec->base.context->flush(pD3D12Dec->base.context, &pCompletionFence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
    if (pCompletionFence) {
+      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_end_frame - Waiting on GPU completion fence for resource_copy_region on decoded frame.\n");
       pD3D12Screen->base.fence_finish(&pD3D12Screen->base, NULL, pCompletionFence, PIPE_TIMEOUT_INFINITE);
       pD3D12Screen->base.fence_reference(&pD3D12Screen->base, &pCompletionFence, NULL);
    } else {
