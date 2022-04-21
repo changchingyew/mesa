@@ -646,29 +646,23 @@ static void d3d12_adjust_transfer_dimensions_for_plane(const struct d3d12_resour
    ptrans->layer_stride = plane_layer_stride;
    ptrans->offset = plane_offset;
 
-   // Adjust x, y, width, height in box according to this plane
-   if(res->plane_slice == 0) { // res->plane_slice is the selected plane in res
-      // Incoming arguments should be in the not-subsampled space and in the overall resource dimensions
-      ptrans->box.width = util_format_get_plane_width(res->overall_format, plane_slice, original_box->width);
-      ptrans->box.height = util_format_get_plane_height(res->overall_format, plane_slice, original_box->height);
-      ptrans->box.x = util_format_get_plane_width(res->overall_format, plane_slice, original_box->x);
-      ptrans->box.y = util_format_get_plane_height(res->overall_format, plane_slice, original_box->y);
-   } else {
-      // Incoming arguments are in the subsampled space, we should upscale them 
-      // for mapping the upscaled plane, and leave them as is for the current subsampled one
-      if(plane_slice == 0) { // plane_slice is the selected plane on the other (other than res->plane_slice) end of the transfer operation
-         ptrans->box.width = 2 * original_box->width;
-         ptrans->box.height = 2 * original_box->height;
-         ptrans->box.x = 2 * original_box->x;
-         ptrans->box.y = 2 * original_box->y;
-      } else {
-         // Restore original_box values changed in previous plane_slice iteration
-         ptrans->box.width = original_box->width;
-         ptrans->box.height = original_box->height;
-         ptrans->box.x = original_box->x;
-         ptrans->box.y = original_box->y;
-      }
-   }
+   // Find multipliers such that:
+   // first_plane.width = widthMultiplier * planes[res->plane_slice].width
+   // first_plane.height = heightMultiplier * planes[res->plane_slice].height
+   float widthMultiplier = res->first_plane->width0 / (float) util_format_get_plane_width(res->overall_format, res->plane_slice, res->first_plane->width0);
+   float heightMultiplier = res->first_plane->height0 / (float) util_format_get_plane_height(res->overall_format, res->plane_slice, res->first_plane->height0);
+   
+   // Normalize box back to overall dimensions (first plane)
+   ptrans->box.width = widthMultiplier * original_box->width;
+   ptrans->box.height = heightMultiplier * original_box->height;
+   ptrans->box.x = widthMultiplier * original_box->x;
+   ptrans->box.y = heightMultiplier * original_box->y;
+
+   // Now adjust dimensions to plane_slice
+   ptrans->box.width = util_format_get_plane_width(res->overall_format, plane_slice, ptrans->box.width);
+   ptrans->box.height = util_format_get_plane_height(res->overall_format, plane_slice, ptrans->box.height);
+   ptrans->box.x = util_format_get_plane_width(res->overall_format, plane_slice, ptrans->box.x);
+   ptrans->box.y = util_format_get_plane_height(res->overall_format, plane_slice, ptrans->box.y);
 }
 
 static
