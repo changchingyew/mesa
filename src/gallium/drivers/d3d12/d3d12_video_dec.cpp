@@ -628,49 +628,55 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    pD3D12Dec->m_needsGPUFlush = true;
    d3d12_video_decoder_flush(codec);
 
-   ///
-   /// To keep the decoded frame allocation lifetime available as a reference in the DPB
-   /// Do GPU->GPU texture copy from decode output to pipe target decode texture sampler view planes
-   ///
+   if(!pD3D12Dec->m_spDPBManager->is_pipe_buffer_underlying_output_decode_allocation())
+   {
+      ///
+      /// If !pD3D12Dec->m_spDPBManager->is_pipe_buffer_underlying_output_decode_allocation()
+      /// We cannot use the standalone video buffer allocation directly and we must use instead
+      /// either a ID3D12Resource with DECODE_REFERENCE only flag or a texture array within the same
+      /// allocation
+      /// Do GPU->GPU texture copy from decode output to pipe target decode texture sampler view planes
+      ///
 
-   // Get destination resource
-   struct pipe_sampler_view **pPipeDstViews = target->get_sampler_view_planes(target);
+      // Get destination resource
+      struct pipe_sampler_view **pPipeDstViews = target->get_sampler_view_planes(target);
 
-   // Get source pipe_resource
-   pipe_resource *pPipeSrc = d3d12_resource_from_resource(&pD3D12Screen->base, d3d12OutputArguments.pOutputTexture2D);
-   assert(pPipeSrc);
+      // Get source pipe_resource
+      pipe_resource *pPipeSrc = d3d12_resource_from_resource(&pD3D12Screen->base, d3d12OutputArguments.pOutputTexture2D);
+      assert(pPipeSrc);
 
-   // Copy all format subresources/texture planes
+      // Copy all format subresources/texture planes
 
-   for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
-      assert(d3d12OutputArguments.OutputSubresource < INT16_MAX);
-      struct pipe_box box = { 0,
-                              0,
-                              // src array slice, taken as Z for TEXTURE_2D_ARRAY
-                              static_cast<int16_t>(d3d12OutputArguments.OutputSubresource),
-                              static_cast<int>(pPipeDstViews[PlaneSlice]->texture->width0),
-                              static_cast<int16_t>(pPipeDstViews[PlaneSlice]->texture->height0),
-                              1 };
+      for (PlaneSlice = 0; PlaneSlice < pD3D12Dec->m_decodeFormatInfo.PlaneCount; PlaneSlice++) {
+         assert(d3d12OutputArguments.OutputSubresource < INT16_MAX);
+         struct pipe_box box = { 0,
+                                 0,
+                                 // src array slice, taken as Z for TEXTURE_2D_ARRAY
+                                 static_cast<int16_t>(d3d12OutputArguments.OutputSubresource),
+                                 static_cast<int>(pPipeDstViews[PlaneSlice]->texture->width0),
+                                 static_cast<int16_t>(pPipeDstViews[PlaneSlice]->texture->height0),
+                                 1 };
 
-      pD3D12Dec->base.context->resource_copy_region(pD3D12Dec->base.context,
-                                                    pPipeDstViews[PlaneSlice]->texture,              // dst
-                                                    0,                                               // dst level
-                                                    0,                                               // dstX
-                                                    0,                                               // dstY
-                                                    0,                                               // dstZ
-                                                    (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next,   // src
-                                                    0,                                               // src level
-                                                    &box);
-   }
-   // Flush resource_copy_region batch and wait on this CPU thread for GPU work completion
-   struct pipe_fence_handle *pCompletionFence = NULL;
-   pD3D12Dec->base.context->flush(pD3D12Dec->base.context, &pCompletionFence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
-   if (pCompletionFence) {
-      D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_end_frame - Waiting on GPU completion fence for resource_copy_region on decoded frame.\n");
-      pD3D12Screen->base.fence_finish(&pD3D12Screen->base, NULL, pCompletionFence, PIPE_TIMEOUT_INFINITE);
-      pD3D12Screen->base.fence_reference(&pD3D12Screen->base, &pCompletionFence, NULL);
-   } else {
-      D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_end_frame - pD3D12Dec->base.context->flush(...) returned a nullptr completion fence \n");
+         pD3D12Dec->base.context->resource_copy_region(pD3D12Dec->base.context,
+                                                      pPipeDstViews[PlaneSlice]->texture,              // dst
+                                                      0,                                               // dst level
+                                                      0,                                               // dstX
+                                                      0,                                               // dstY
+                                                      0,                                               // dstZ
+                                                      (PlaneSlice == 0) ? pPipeSrc : pPipeSrc->next,   // src
+                                                      0,                                               // src level
+                                                      &box);
+      }
+      // Flush resource_copy_region batch and wait on this CPU thread for GPU work completion
+      struct pipe_fence_handle *pCompletionFence = NULL;
+      pD3D12Dec->base.context->flush(pD3D12Dec->base.context, &pCompletionFence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
+      if (pCompletionFence) {
+         D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_end_frame - Waiting on GPU completion fence for resource_copy_region on decoded frame.\n");
+         pD3D12Screen->base.fence_finish(&pD3D12Screen->base, NULL, pCompletionFence, PIPE_TIMEOUT_INFINITE);
+         pD3D12Screen->base.fence_reference(&pD3D12Screen->base, &pCompletionFence, NULL);
+      } else {
+         D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_end_frame - pD3D12Dec->base.context->flush(...) returned a nullptr completion fence \n");
+      }
    }
 
    VERIFY_DEVICE_NOT_REMOVED(pD3D12Dec);

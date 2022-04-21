@@ -253,7 +253,9 @@ d3d12_video_encoder_reconfigure_encoder_objects(struct d3d12_video_encoder *pD3D
             pD3D12Enc->m_currentEncodeConfig.m_currentResolution,
             (D3D12_RESOURCE_FLAG_VIDEO_ENCODE_REFERENCE_ONLY | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE),
             true,   // setNullSubresourcesOnAllZero - D3D12 Video Encode expects nullptr pSubresources if AoT,
-            pD3D12Enc->m_NodeMask);
+            pD3D12Enc->m_NodeMask,
+            /*use underlying pool, we can't reuse upper level allocations, need D3D12_RESOURCE_FLAG_VIDEO_ENCODE_REFERENCE_ONLY*/
+            true);
       } else {
          pD3D12Enc->m_upDPBStorageManager = std::make_unique<d3d12_texture_array_dpb_manager>(
             static_cast<uint16_t>(texturePoolSize),

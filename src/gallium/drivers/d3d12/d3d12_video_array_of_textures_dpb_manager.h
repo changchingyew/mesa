@@ -80,7 +80,8 @@ class d3d12_array_of_textures_dpb_manager : public d3d12_video_dpb_storage_manag
       D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
       D3D12_RESOURCE_FLAGS                        resourceAllocFlags           = D3D12_RESOURCE_FLAG_NONE,
       bool                                        setNullSubresourcesOnAllZero = false,
-      uint32_t                                    nodeMask                     = 0);
+      uint32_t                                    nodeMask                     = 0,
+      bool                                        allocatePool                 = true);
    ~d3d12_array_of_textures_dpb_manager()
    { }
 

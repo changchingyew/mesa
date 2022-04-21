@@ -46,6 +46,11 @@ struct d3d12_video_decoder_references_manager
       return m_dpbDescriptor.fArrayOfTexture;
    }
 
+   bool is_pipe_buffer_underlying_output_decode_allocation()
+   {
+      return (!is_reference_only() && is_array_of_textures());
+   }
+
    void mark_all_references_as_unused();
    void release_unused_references_texture_memory();
 

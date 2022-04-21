@@ -26,6 +26,8 @@
 #include "d3d12_video_texture_array_dpb_manager.h"
 #include "d3d12_video_array_of_textures_dpb_manager.h"
 #include "d3d12_screen.h"
+#include "d3d12_resource.h"
+#include "d3d12_video_buffer.h"
 #include <algorithm>
 
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -96,11 +98,33 @@ d3d12_video_decoder_references_manager::get_current_frame_decode_output_texture(
          *ppOutTexture2D       = m_pClearDecodedOutputTexture.Get();
          *pOutSubresourceIndex = 0;
       } else {
-         // The DPB Storage only has standard (without the ref only flags) allocations, directly use one of those.
-         d3d12_video_reconstructed_picture pFreshAllocation =
-            m_upD3D12TexturesStorageManager->get_new_tracked_picture_allocation();
-         *ppOutTexture2D       = pFreshAllocation.pReconstructedPicture;
-         *pOutSubresourceIndex = pFreshAllocation.ReconstructedPictureSubresource;
+         if(is_array_of_textures()) {
+            // In non ref picture and non texarray mode, we can just use the underlying allocation in pCurrentDecodeTarget
+            // and avoid an extra copy after decoding the frame.
+            if(!is_pipe_buffer_underlying_output_decode_allocation()){
+               D3D12_LOG_ERROR(
+                  "[d3d12_video_decoder_references_manager] d3d12_video_decoder_references_manager::get_current_frame_decode_output_texture "
+                  "is_pipe_buffer_underlying_output_decode_allocation() to be true.\n");            
+            }
+
+            auto vidBuffer = (struct d3d12_video_buffer *)(pCurrentDecodeTarget);
+            *ppOutTexture2D       = d3d12_resource_resource(vidBuffer->m_pD3D12Resource);
+            *pOutSubresourceIndex = 0;
+            #if DEBUG
+               D3D12_RESOURCE_DESC desc = (*ppOutTexture2D)->GetDesc();
+               assert(desc.DepthOrArraySize == 1);
+               // if the underlying resource is a texture array at some point (if the impl. changes)
+               // we need to also return the correct underlying subresource in *pOutSubresourceIndex = <subres>
+            #endif
+            
+         } else {
+            // The DPB Storage only has standard (without the ref only flags) allocations, directly use one of those.
+            d3d12_video_reconstructed_picture pFreshAllocation =
+               m_upD3D12TexturesStorageManager->get_new_tracked_picture_allocation();
+            *ppOutTexture2D       = pFreshAllocation.pReconstructedPicture;
+            *pOutSubresourceIndex = pFreshAllocation.ReconstructedPictureSubresource;
+         }
+         
       }
    }
 }
@@ -204,7 +228,8 @@ d3d12_video_decoder_references_manager::d3d12_video_decoder_references_manager(
                                                                targetFrameResolution,
                                                                resourceAllocFlags,
                                                                setNullSubresourcesOnAllZero,
-                                                               m_dpbDescriptor.m_NodeMask);
+                                                               m_dpbDescriptor.m_NodeMask,
+                                                               !is_pipe_buffer_underlying_output_decode_allocation());
    } else {
       m_upD3D12TexturesStorageManager = std::make_unique<d3d12_texture_array_dpb_manager>(m_dpbDescriptor.dpbSize,
                                                                                           m_pD3D12Screen->dev,
@@ -337,8 +362,9 @@ d3d12_video_decoder_references_manager::release_unused_references_texture_memory
       if (!m_referenceDXVAIndices[index].fUsed) {
          d3d12_video_reconstructed_picture reconPicture = m_upD3D12TexturesStorageManager->get_reference_frame(index);
          if (reconPicture.pReconstructedPicture != nullptr) {
+            bool wasTracked = m_upD3D12TexturesStorageManager->untrack_reconstructed_picture_allocation(reconPicture);
             // Untrack this resource, will mark it as free un the underlying storage buffer pool
-            if (!m_upD3D12TexturesStorageManager->untrack_reconstructed_picture_allocation(reconPicture)) {
+            if (!wasTracked && !is_pipe_buffer_underlying_output_decode_allocation()) {
                D3D12_LOG_ERROR("[d3d12_video_decoder_references_manager] untrack_reconstructed_picture_allocation - "
                                "untrack_reconstructed_picture_allocation called with a resource not tracked by the "
                                "textures storage manager.\n");
@@ -380,7 +406,9 @@ void
 d3d12_video_decoder_references_manager::print_dpb()
 {
    // Resource backing storage always has to match dpbsize
-   assert(m_upD3D12TexturesStorageManager->get_number_of_tracked_allocations() == m_dpbDescriptor.dpbSize);
+   if(!is_pipe_buffer_underlying_output_decode_allocation()) {
+      assert(m_upD3D12TexturesStorageManager->get_number_of_tracked_allocations() == m_dpbDescriptor.dpbSize);
+   }
 
    // get_current_reference_frames query-interfaces the pVideoHeap's.
    D3D12_VIDEO_DECODE_REFERENCE_FRAMES curRefFrames = get_current_reference_frames();

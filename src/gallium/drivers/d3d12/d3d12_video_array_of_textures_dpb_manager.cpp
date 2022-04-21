@@ -67,7 +67,8 @@ d3d12_array_of_textures_dpb_manager::d3d12_array_of_textures_dpb_manager(
    D3D12_VIDEO_ENCODER_PICTURE_RESOLUTION_DESC encodeSessionResolution,
    D3D12_RESOURCE_FLAGS                        resourceAllocFlags,
    bool                                        setNullSubresourcesOnAllZero,
-   uint32_t                                    nodeMask)
+   uint32_t                                    nodeMask,
+   bool                                        allocatePool)
    : m_dpbInitialSize(dpbInitialSize),
      m_pDevice(pDevice),
      m_encodeFormat(encodeSessionFormat),
@@ -79,14 +80,19 @@ d3d12_array_of_textures_dpb_manager::d3d12_array_of_textures_dpb_manager(
    // Initialize D3D12 DPB exposed in this class implemented CRUD interface for a DPB
    assert(0u == clear_decode_picture_buffer());
 
-   // Implement a reusable pool of D3D12 Resources as an array of textures
-   m_ResourcesPool.resize(m_dpbInitialSize);
+   // Sometimes the client of this class can reuse allocations from an upper layer
+   // and doesn't need to get fresh/tracked allocations
+   if(allocatePool)
+   {
+      // Implement a reusable pool of D3D12 Resources as an array of textures
+      m_ResourcesPool.resize(m_dpbInitialSize);
 
-   // Build resource pool with commitedresources with a d3ddevice and the encoding session settings (eg. resolution) and
-   // the reference_only flag
-   for (auto &reusableRes : m_ResourcesPool) {
-      reusableRes.isFree = true;
-      create_reconstructed_picture_allocations(reusableRes.pResource.GetAddressOf());
+      // Build resource pool with commitedresources with a d3ddevice and the encoding session settings (eg. resolution) and
+      // the reference_only flag
+      for (auto &reusableRes : m_ResourcesPool) {
+         reusableRes.isFree = true;
+         create_reconstructed_picture_allocations(reusableRes.pResource.GetAddressOf());
+      }
    }
 }
 
