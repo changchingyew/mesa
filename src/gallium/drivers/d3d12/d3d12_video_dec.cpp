@@ -537,7 +537,7 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec * codec,
    }
 
    d3d12InputArguments.ReferenceFrames = pD3D12Dec->m_spDPBManager->get_current_reference_frames();
-   if(D3D12_LOG_DBG_ON) {
+   if(D3D12_DEBUG_VERBOSE & d3d12_debug) {
       pD3D12Dec->m_spDPBManager->print_dpb();
    }
 

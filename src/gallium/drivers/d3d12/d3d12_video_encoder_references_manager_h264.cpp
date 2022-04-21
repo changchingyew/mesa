@@ -385,7 +385,7 @@ d3d12_video_encoder_references_manager_h264::prepare_current_frame_l0_l1_lists()
 void
 d3d12_video_encoder_references_manager_h264::print_l0_l1_lists()
 {
-   if (D3D12_LOG_DBG_ON && ((m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME) ||
+   if ((D3D12_DEBUG_VERBOSE & d3d12_debug) && ((m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME) ||
                             (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME))) {
       std::string list0ContentsString;
       for (uint32_t idx = 0; idx < m_CurrentFrameReferencesData.pList0ReferenceFrames.size(); idx++) {
@@ -432,7 +432,7 @@ d3d12_video_encoder_references_manager_h264::print_l0_l1_lists()
 void
 d3d12_video_encoder_references_manager_h264::print_dpb()
 {
-   if (D3D12_LOG_DBG_ON) {
+   if (D3D12_DEBUG_VERBOSE & d3d12_debug) {
       std::string dpbContents;
       for (uint32_t dpbResIdx = 0;
            dpbResIdx < m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size();

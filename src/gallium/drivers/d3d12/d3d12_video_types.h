@@ -32,6 +32,7 @@
 #include "pipe/p_context.h"
 #include "pipe/p_video_codec.h"
 #include "d3d12_fence.h"
+#include "d3d12_debug.h"
 
 #include <dxguids/dxguids.h>
 
@@ -62,13 +63,11 @@ constexpr unsigned int D3D12_VIDEO_H264_MB_IN_PIXELS = 16;
 
 // The following defines can be tweaked for better code performance or debug verbosity
 
-#define D3D12_VIDEO_ENHANCED_DEBUGGING DEBUG
+#define D3D12_VIDEO_ENHANCED_DEBUGGING 1
 
 #if D3D12_VIDEO_ENHANCED_DEBUGGING
-#define D3D12_LOG_DBG_ON              true
 #define D3D12_VALIDATE_DEVICE_REMOVED true
 #else
-#define D3D12_LOG_DBG_ON              false
 #define D3D12_VALIDATE_DEVICE_REMOVED false
 #endif
 
@@ -88,7 +87,7 @@ constexpr unsigned int D3D12_VIDEO_H264_MB_IN_PIXELS = 16;
    }
 
 #define D3D12_LOG_DBG(args...)                                                                                         \
-   if (D3D12_LOG_DBG_ON)                                                                                               \
+   if (D3D12_DEBUG_VERBOSE & d3d12_debug)                                                                              \
       debug_printf(args);
 #define D3D12_LOG_INFO(args...) debug_printf(args);
 
