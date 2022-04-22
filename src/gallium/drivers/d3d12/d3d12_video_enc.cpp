@@ -685,7 +685,7 @@ bool d3d12_video_encoder_negotiate_requested_features_and_d3d12_driver_caps(stru
                            && (capEncoderSupportData.ValidationFlags == D3D12_VIDEO_ENCODER_VALIDATION_FLAG_NONE));
 
       } else {
-         D3D12_LOG_ERROR("[d3d12_video_encoder] WARNING: Requested rate control is not supported. To continue with uniform slices as a fallback, must enable the OS environment variable D3D12_VIDEO_ENC_FALLBACK_RATE_CONTROL_CONFIG\n");
+         D3D12_LOG_ERROR("[d3d12_video_encoder] WARNING: Requested rate control is not supported. To continue with a fallback, must enable the OS environment variable D3D12_VIDEO_ENC_FALLBACK_RATE_CONTROL_CONFIG\n");
       }
    }
 
