@@ -425,8 +425,12 @@ struct pipe_h264_enc_picture_desc
    unsigned gop_cnt;
    unsigned pic_order_cnt;
    unsigned pic_order_cnt_type;
-   unsigned ref_idx_l0;
-   unsigned ref_idx_l1;
+   unsigned num_ref_idx_l0_active_minus1;
+   unsigned num_ref_idx_l1_active_minus1;
+   unsigned ref_idx_l0_list[32];
+   unsigned ref_idx_l1_list[32];
+   unsigned ref_idx_l0; // TODO: back_compat for other drivers for now - Fix properly in next separate commit
+   unsigned ref_idx_l1; // TODO: back_compat for other drivers for now - Fix properly in next separate commit
    unsigned gop_size;
    unsigned ref_pic_mode;
    unsigned num_temporal_layers;

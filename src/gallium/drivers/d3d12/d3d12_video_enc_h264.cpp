@@ -92,18 +92,33 @@ void
 d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video_encoder *pD3D12Enc,
                                                               struct pipe_video_buffer *  srcTexture,
                                                               struct pipe_picture_desc *  picture,
-                                                              D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &picParams)
+                                                              D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &picParams,
+                                                              bool &bUsedAsReference)
 {
    struct pipe_h264_enc_picture_desc * h264Pic = (struct pipe_h264_enc_picture_desc *) picture;
    d3d12_video_bitstream_builder_h264 *pH264BitstreamBuilder =
       dynamic_cast<d3d12_video_bitstream_builder_h264 *>(pD3D12Enc->m_upBitstreamBuilder.get());
    assert(pH264BitstreamBuilder != nullptr);
 
+   bUsedAsReference = !h264Pic->not_referenced;
+
    picParams.pH264PicData->pic_parameter_set_id     = pH264BitstreamBuilder->get_active_pps_id();
    picParams.pH264PicData->idr_pic_id               = h264Pic->idr_pic_id;
    picParams.pH264PicData->FrameType                = d3d12_video_encoder_convert_frame_type(h264Pic->picture_type);
    picParams.pH264PicData->PictureOrderCountNumber  = h264Pic->pic_order_cnt;
    picParams.pH264PicData->FrameDecodingOrderNumber = h264Pic->frame_num;
+
+   picParams.pH264PicData->List0ReferenceFramesCount = h264Pic->num_ref_idx_l0_active_minus1 + 1;
+   picParams.pH264PicData->pList0ReferenceFrames = h264Pic->ref_idx_l0_list;
+   picParams.pH264PicData->List1ReferenceFramesCount = h264Pic->num_ref_idx_l1_active_minus1 + 1;
+   picParams.pH264PicData->pList1ReferenceFrames = h264Pic->ref_idx_l1_list;
+
+   // TODO: VA/pipe doesn't pass them
+   // TODO: Remove ref_idx_lo and ref_idx_l1 from pipe struct and build with meson, fix and test other gallium drivers too
+   picParams.pH264PicData->List0RefPicModificationsCount = 0;
+   picParams.pH264PicData->pList0RefPicModifications = NULL;
+   picParams.pH264PicData->List1RefPicModificationsCount = 0;
+   picParams.pH264PicData->pList1RefPicModifications = NULL;
 }
 
 D3D12_VIDEO_ENCODER_FRAME_TYPE_H264
@@ -413,49 +428,6 @@ d3d12_video_encoder_convert_from_d3d12_level_h264(D3D12_VIDEO_ENCODER_LEVELS_H26
    }
 }
 
-bool
-d3d12_video_encoder_is_gop_supported(uint32_t GOPLength,
-                                     uint32_t PPicturePeriod,
-                                     uint32_t MaxDPBCapacity,
-                                     uint32_t MaxL0ReferencesForP,
-                                     uint32_t MaxL0ReferencesForB,
-                                     uint32_t MaxL1ReferencesForB)
-{
-   bool bSupportedGOP = true;
-   bool gopHasPFrames = (PPicturePeriod > 0) && ((GOPLength == 0) || (PPicturePeriod < GOPLength));
-   bool gopHasBFrames = (PPicturePeriod > 1);
-
-   if (gopHasPFrames && (MaxL0ReferencesForP == 0)) {
-      D3D12_LOG_DBG("[d3d12_video_encoder_h264] GOP not supported based on HW capabilities - Reason: no P frames "
-                    "support - GOP Length: %d GOP PPicPeriod: %d\n",
-                    GOPLength,
-                    PPicturePeriod);
-      bSupportedGOP = false;
-   }
-
-   if (gopHasBFrames && ((MaxL0ReferencesForB + MaxL1ReferencesForB) == 0)) {
-      D3D12_LOG_DBG("[d3d12_video_encoder_h264] GOP not supported based on HW capabilities - Reason: no B frames "
-                    "support - GOP Length: %d GOP PPicPeriod: %d\n",
-                    GOPLength,
-                    PPicturePeriod);
-      bSupportedGOP = false;
-   }
-
-   if (gopHasPFrames && !gopHasBFrames && (MaxL0ReferencesForP < MaxDPBCapacity)) {
-      D3D12_LOG_DBG("[d3d12_video_encoder_h264] MaxL0ReferencesForP must be equal or higher than the reported "
-                    "MaxDPBCapacity -- P frames should be able to address all the DPB unique indices at least once\n");
-      bSupportedGOP = false;
-   }
-
-   if (gopHasPFrames && gopHasBFrames && ((MaxL0ReferencesForB + MaxL1ReferencesForB) < MaxDPBCapacity)) {
-      D3D12_LOG_DBG("[d3d12_video_encoder_h264] Insufficient L0 and L1 lists size to address all the unique ref pic "
-                    "indices reported by MaxDPBCapacity\n");
-      bSupportedGOP = false;
-   }
-
-   return bSupportedGOP;
-}
-
 void
 d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD3D12Enc,
                                                   pipe_h264_enc_picture_desc *picture)
@@ -472,36 +444,8 @@ d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD
                          picture->pic_order_cnt_type);
       }
 
-      bool gopHasPFrames = (PPicturePeriod > 0) && ((GOPLength == 0) || (PPicturePeriod < GOPLength));
-      bool gopHasBFrames = (PPicturePeriod > 1);
-      if (!gopHasPFrames && !gopHasBFrames) {
-         if (picture->pic_order_cnt_type != 2u) {
-            D3D12_LOG_INFO("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video "
-                           "expects pic_order_cnt_type = 2 - Overriding to picture->pic_order_cnt_type = 2\n",
-                           picture->pic_order_cnt_type);
-            picture->pic_order_cnt_type = 2u;
-         }
-         // I Frame only
-      } else if (gopHasPFrames && !gopHasBFrames) {
-         // I and P only
-         if (picture->pic_order_cnt_type != 2u) {
-            D3D12_LOG_INFO("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video "
-                           "expects pic_order_cnt_type = 2 - Overriding to picture->pic_order_cnt_type = 2\n",
-                           picture->pic_order_cnt_type);
-            picture->pic_order_cnt_type = 2u;
-         }
-      } else {
-         // I, P and B frames
-         if (picture->pic_order_cnt_type != 0u) {
-            D3D12_LOG_INFO("[d3d12_video_encoder_h264] Upper layer is requesting pic_order_cnt_type %d but D3D12 Video "
-                           "expects pic_order_cnt_type = 0 - Overriding to picture->pic_order_cnt_type = 0\n",
-                           picture->pic_order_cnt_type);
-            picture->pic_order_cnt_type = 0u;
-         }
-      }
-
-      const uint32_t max_pic_order_cnt_lsb             = (GOPLength > 0) ? 256u : 16384u;
-      const uint32_t max_max_frame_num                 = (GOPLength > 0) ? 256u : 16384u;
+      const uint32_t max_pic_order_cnt_lsb             = 2 * GOPLength;
+      const uint32_t max_max_frame_num                 = GOPLength;
       double         log2_max_frame_num_minus4         = std::max(0.0, std::ceil(std::log2(max_max_frame_num)) - 4);
       double         log2_max_pic_order_cnt_lsb_minus4 = std::max(0.0, std::ceil(std::log2(max_pic_order_cnt_lsb)) - 4);
       assert(log2_max_frame_num_minus4 < UCHAR_MAX);
@@ -522,109 +466,6 @@ d3d12_video_encoder_update_h264_gop_configuration(struct d3d12_video_encoder *pD
                  &pD3D12Enc->m_currentEncodeConfig.m_encoderGOPConfigDesc.m_H264GroupOfPictures,
                  sizeof(D3D12_VIDEO_ENCODER_SEQUENCE_GOP_STRUCTURE_H264)) != 0) {
          pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_gop;
-      }
-
-      ///
-      /// Cache caps in pD3D12Enc
-      ///
-      auto previousDPBConfig = pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
-
-      D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT inOutPicCtrlCodecData = {};
-      inOutPicCtrlCodecData.pH264Support =
-         &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
-      inOutPicCtrlCodecData.DataSize =
-         sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl);
-      D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT capPictureControlData = {
-         pD3D12Enc->m_NodeIndex,
-         D3D12_VIDEO_ENCODER_CODEC_H264,
-         d3d12_video_encoder_get_current_profile_desc(pD3D12Enc),
-         false,
-         inOutPicCtrlCodecData
-      };
-
-      VERIFY_SUCCEEDED(
-         pD3D12Enc->m_spD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT,
-                                                              &capPictureControlData,
-                                                              sizeof(capPictureControlData)));
-      if (!capPictureControlData.IsSupported) {
-         D3D12_LOG_ERROR(
-            "[d3d12_video_encoder_h264] d3d12_video_encoder_update_h264_gop_configuration failed. "
-            "Requested configuration is not supported by D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT\n");
-      }
-
-      // Calculate the DPB size for this session based on
-      // 1. Driver reported caps
-      // 2. the GOP type and L0/L1 usage based on this
-      // h264PicCtrlData will contain the adjusted values to be used later
-      // for allocations such as the DPB resource pool
-
-      // Set dirty flag if m_H264PictureControl changed
-      if (memcmp(&previousDPBConfig,
-                 &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl,
-                 sizeof(D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_H264)) != 0) {
-         pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |= d3d12_video_encoder_config_dirty_flag_gop;
-      }
-
-      auto &h264PicCtrlData = pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
-      if (!gopHasPFrames && !gopHasBFrames) {
-         // I Frame only
-         // Will store 0 previous frames
-         h264PicCtrlData.MaxDPBCapacity = 0u;
-      } else if (gopHasPFrames && !gopHasBFrames) {
-         // I and P only
-
-         // Check if underlying HW supports the GOP
-         if (h264PicCtrlData.MaxL0ReferencesForP == 0) {
-            D3D12_LOG_ERROR("[d3d12_video_encoder_h264] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT "
-                            "doesn't support P frames and the GOP has P frames.\n");
-            return;
-         }
-
-         if (GOPLength > 0)   // GOP is closed with periodic I/IDR frames (eg. no infinite gop)
-         {
-            // Will store only GOPLength - 1 inter frames in between IDRs as maximum, as we won't need all the
-            // MaxL0ReferencesForB slots even when the driver reports it.
-            h264PicCtrlData.MaxDPBCapacity = std::min(h264PicCtrlData.MaxL0ReferencesForP, (GOPLength - 1));
-         } else {
-            // Will store only MaxL0ReferencesForP frames as there're no B frames.
-            h264PicCtrlData.MaxDPBCapacity = h264PicCtrlData.MaxL0ReferencesForP;
-         }
-      } else {
-         // I, P and B frames
-
-         // Check if underlying HW supports the GOP for
-         if (gopHasPFrames && (h264PicCtrlData.MaxL0ReferencesForP == 0)) {
-            D3D12_LOG_ERROR("[d3d12_video_encoder_h264] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT "
-                            "doesn't support P frames and the GOP has P and B frames.\n");
-            return;
-         }
-
-         if (gopHasBFrames && ((h264PicCtrlData.MaxL0ReferencesForB + h264PicCtrlData.MaxL1ReferencesForB) == 0)) {
-            D3D12_LOG_ERROR("[d3d12_video_encoder_h264] D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT "
-                            "doesn't support B frames and the GOP has P and B frames.\n");
-            return;
-         }
-
-         if (GOPLength > 0)   // GOP is closed with periodic I/IDR frames (eg. no infinite gop)
-         {
-            // Will store only GOPLength - 1 inter frames in between IDRs as maximum, as we won't need the
-            // h264PicCtrlData.MaxDPBCapacity slots even when the driver reports it.
-            h264PicCtrlData.MaxDPBCapacity = std::min(h264PicCtrlData.MaxDPBCapacity, (GOPLength - 1));
-         }
-         // else
-         // {
-         //     // Will store the full h264PicCtrlData.MaxDPBCapacity capacity and then L0/L1 lists will be created
-         //     based on MaxL0ReferencesForP/MaxL0ReferencesForB/MaxL1ReferencesForB
-         // }
-      }
-
-      if (!d3d12_video_encoder_is_gop_supported(GOPLength,
-                                                PPicturePeriod,
-                                                h264PicCtrlData.MaxDPBCapacity,
-                                                h264PicCtrlData.MaxL0ReferencesForP,
-                                                h264PicCtrlData.MaxL0ReferencesForB,
-                                                h264PicCtrlData.MaxL1ReferencesForB)) {
-         D3D12_LOG_ERROR("[d3d12_video_encoder_h264] Invalid or unsupported GOP \n");
       }
    }
 }

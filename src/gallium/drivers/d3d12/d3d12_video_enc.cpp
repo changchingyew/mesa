@@ -171,10 +171,11 @@ d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder *pD3D12
       d3d12_video_encoder_get_current_picture_param_settings(pD3D12Enc);
 
    enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+   bool bUsedAsReference = false;
    switch (codec) {
       case PIPE_VIDEO_FORMAT_MPEG4_AVC:
       {
-         d3d12_video_encoder_update_current_frame_pic_params_info_h264(pD3D12Enc, srcTexture, picture, currentPicParams);
+         d3d12_video_encoder_update_current_frame_pic_params_info_h264(pD3D12Enc, srcTexture, picture, currentPicParams, bUsedAsReference);
       } break;
 
       default:
@@ -185,7 +186,7 @@ d3d12_video_encoder_update_picparams_tracking(struct d3d12_video_encoder *pD3D12
       } break;
    }
 
-   pD3D12Enc->m_upDPBManager->begin_frame(currentPicParams);
+   pD3D12Enc->m_upDPBManager->begin_frame(currentPicParams, bUsedAsReference);
 }
 
 void
@@ -403,12 +404,8 @@ d3d12_video_encoder_create_reference_picture_manager(struct d3d12_video_encoder 
          pD3D12Enc->m_upDPBManager = std::make_unique<d3d12_video_encoder_references_manager_h264>(
             gopHasPFrames,
             *pD3D12Enc->m_upDPBStorageManager,
-            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL0ReferencesForP,
-            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL0ReferencesForB,
-            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl.MaxL1ReferencesForB,
-            pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl
-               .MaxDPBCapacity   // Max number of frames to be used as a reference, without counting the current picture
-                                 // recon picture
+            // Max number of frames to be used as a reference, without counting the current recon picture
+            d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc)
          );
 
          pD3D12Enc->m_upBitstreamBuilder = std::make_unique<d3d12_video_bitstream_builder_h264>();
@@ -748,9 +745,7 @@ void d3d12_video_encoder_query_d3d12_driver_caps(struct d3d12_video_encoder *pD3
    capEncoderSupportData.ResolutionsListCount   = 1;
    capEncoderSupportData.pResolutionList        = &pD3D12Enc->m_currentEncodeConfig.m_currentResolution;
    capEncoderSupportData.CodecGopSequence       = d3d12_video_encoder_get_current_gop_desc(pD3D12Enc);
-   capEncoderSupportData.MaxReferenceFramesInDPB =
-      pD3D12Enc->base.max_references;   // Max number of frames to be used as a reference, without counting the current
-                                        // picture recon picture
+   capEncoderSupportData.MaxReferenceFramesInDPB = d3d12_video_encoder_get_current_max_dpb_capacity(pD3D12Enc);
    capEncoderSupportData.CodecConfiguration = d3d12_video_encoder_get_current_codec_config_desc(pD3D12Enc);
 
    enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
@@ -823,52 +818,10 @@ d3d12_video_encoder_get_current_profile_desc(struct d3d12_video_encoder *pD3D12E
    }
 }
 
-D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT
-d3d12_video_encoder_get_current_picture_control_capabilities_desc(struct d3d12_video_encoder *pD3D12Enc)
-{
-   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
-   switch (codec) {
-      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
-      {
-         D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT curPicCtrlCaps = {};
-         curPicCtrlCaps.pH264Support =
-            &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
-         curPicCtrlCaps.DataSize =
-            sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl);
-         return curPicCtrlCaps;
-      } break;
-
-      default:
-      {
-         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_picture_control_capabilities_desc",
-                                                  "Unsupported codec",
-                                                  codec);
-      } break;
-   }
-}
-
 uint32_t
 d3d12_video_encoder_get_current_max_dpb_capacity(struct d3d12_video_encoder *pD3D12Enc)
 {
-   enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
-   switch (codec) {
-      case PIPE_VIDEO_FORMAT_MPEG4_AVC:
-      {
-         D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT curPicCtrlCaps = {};
-         curPicCtrlCaps.pH264Support =
-            &pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl;
-         curPicCtrlCaps.DataSize =
-            sizeof(pD3D12Enc->m_currentEncodeCapabilities.m_PictureControlCapabilities.m_H264PictureControl);
-         return curPicCtrlCaps.pH264Support->MaxDPBCapacity;
-      } break;
-
-      default:
-      {
-         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_encoder_get_current_max_dpb_capacity",
-                                                  "Unsupported codec",
-                                                  codec);
-      } break;
-   }
+   return pD3D12Enc->base.max_references;
 }
 
 void
@@ -973,6 +926,7 @@ d3d12_video_encoder_create_encoder(struct pipe_context *context, const struct pi
    pD3D12Enc->base.context = context;
    pD3D12Enc->base.width   = codec->width;
    pD3D12Enc->base.height  = codec->height;
+   pD3D12Enc->base.max_references  = codec->max_references;
    // Only fill methods that are supported by the d3d12 encoder, leaving null the rest (ie. encode_* / encode_macroblock)
    pD3D12Enc->base.destroy          = d3d12_video_encoder_destroy;
    pD3D12Enc->base.begin_frame      = d3d12_video_encoder_begin_frame;

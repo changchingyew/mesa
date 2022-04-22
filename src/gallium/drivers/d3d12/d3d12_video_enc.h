@@ -151,12 +151,6 @@ struct d3d12_video_encoder
 
    struct
    {
-      union
-      {
-         D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_H264 m_H264PictureControl;
-         D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_HEVC m_HEVCPictureControl;
-      } m_PictureControlCapabilities;
-
       bool m_fArrayOfTexturesDpb;
 
       D3D12_VIDEO_ENCODER_SUPPORT_FLAGS                          m_SupportFlags;
@@ -282,8 +276,6 @@ D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION
 d3d12_video_encoder_get_current_codec_config_desc(struct d3d12_video_encoder *pD3D12Enc);
 D3D12_VIDEO_ENCODER_PROFILE_DESC
 d3d12_video_encoder_get_current_profile_desc(struct d3d12_video_encoder *pD3D12Enc);
-D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT
-d3d12_video_encoder_get_current_picture_control_capabilities_desc(struct d3d12_video_encoder *pD3D12Enc);
 D3D12_VIDEO_ENCODER_RATE_CONTROL
 d3d12_video_encoder_get_current_rate_control_settings(struct d3d12_video_encoder *pD3D12Enc);
 D3D12_VIDEO_ENCODER_PICTURE_CONTROL_SUBREGIONS_LAYOUT_DATA

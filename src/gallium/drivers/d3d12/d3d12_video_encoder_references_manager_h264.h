@@ -32,7 +32,7 @@ class d3d12_video_encoder_references_manager_h264 : public d3d12_video_encoder_r
 {
  public:
    void                                      end_frame();
-   void                                      begin_frame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curFrameData);
+   void                                      begin_frame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curFrameData, bool bUsedAsReference);
    D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE get_current_frame_recon_pic_output_allocation();
    void get_current_frame_picture_control_data(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA &codecAllocation);
    bool is_current_frame_used_as_reference();
@@ -40,9 +40,6 @@ class d3d12_video_encoder_references_manager_h264 : public d3d12_video_encoder_r
 
    d3d12_video_encoder_references_manager_h264(bool                                       gopHasInterCodedFrames,
                                                d3d12_video_dpb_storage_manager_interface &rDpbStorageManager,
-                                               uint32_t                                   MaxL0ReferencesForP,
-                                               uint32_t                                   MaxL0ReferencesForB,
-                                               uint32_t                                   MaxL1ReferencesForB,
                                                uint32_t                                   MaxDPBCapacity);
 
    ~d3d12_video_encoder_references_manager_h264()
@@ -53,21 +50,15 @@ class d3d12_video_encoder_references_manager_h264 : public d3d12_video_encoder_r
    void prepare_current_frame_recon_pic_allocation();
    void reset_gop_tracking_and_dpb();
    void update_fifo_dpb_push_front_cur_recon_pic();
-   void prepare_current_frame_l0_l1_lists();
    void print_dpb();
    void print_l0_l1_lists();
 
    // Class members
 
-   uint32_t m_MaxL0ReferencesForP = 0;
-   uint32_t m_MaxL0ReferencesForB = 0;
-   uint32_t m_MaxL1ReferencesForB = 0;
    uint32_t m_MaxDPBCapacity      = 0;
 
    typedef struct current_frame_references_data
    {
-      std::vector<uint32_t>                                              pList0ReferenceFrames;
-      std::vector<uint32_t>                                              pList1ReferenceFrames;
       std::vector<D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264> pReferenceFramesReconPictureDescriptors;
       D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE                          ReconstructedPicTexture;
    } current_frame_references_data;
@@ -78,6 +69,7 @@ class d3d12_video_encoder_references_manager_h264 : public d3d12_video_encoder_r
 
    bool m_gopHasInterFrames = false;
 
+   bool m_isCurrentFrameUsedAsReference = false;
    D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264 m_curFrameState = {};
 };
 

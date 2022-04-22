@@ -37,6 +37,10 @@ vlVaHandleVAEncPictureParameterBufferTypeH264(vlVaDriver *drv, vlVaContext *cont
    vlVaBuffer *coded_buf;
 
    h264 = buf->data;
+
+   context->desc.h264enc.num_ref_idx_l0_active_minus1 = h264->num_ref_idx_l0_active_minus1;
+   context->desc.h264enc.num_ref_idx_l1_active_minus1 = h264->num_ref_idx_l1_active_minus1;
+
    context->desc.h264enc.frame_num = h264->frame_num;
    context->desc.h264enc.not_referenced = !h264->pic_fields.bits.reference_pic_flag;
    context->desc.h264enc.pic_order_cnt = h264->CurrPic.TopFieldOrderCnt;
@@ -83,13 +87,28 @@ vlVaHandleVAEncSliceParameterBufferTypeH264(vlVaDriver *drv, vlVaContext *contex
    for (int i = 0; i < 32; i++) {
       if (h264->RefPicList0[i].picture_id != VA_INVALID_ID) {
          if (context->desc.h264enc.ref_idx_l0 == VA_INVALID_ID)
-            context->desc.h264enc.ref_idx_l0 = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
+         {
+            unsigned int refL0 = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
 									       UINT_TO_PTR(h264->RefPicList0[i].picture_id + 1)));
+            context->desc.h264enc.ref_idx_l0_list[i] = refL0;
+            context->desc.h264enc.ref_idx_l0 = refL0; // TODO: back_compat for other drivers for now - Fix properly in next separate commit
+         }
+      } else {
+         context->desc.h264enc.ref_idx_l0_list[i] = VA_INVALID_ID;
       }
+   }
+
+   for (int i = 0; i < 32; i++) {
       if (h264->RefPicList1[i].picture_id != VA_INVALID_ID && h264->slice_type == 1) {
          if (context->desc.h264enc.ref_idx_l1 == VA_INVALID_ID)
-            context->desc.h264enc.ref_idx_l1 = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
+         {
+            unsigned int refL1 = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
 									       UINT_TO_PTR(h264->RefPicList1[i].picture_id + 1)));
+            context->desc.h264enc.ref_idx_l1_list[i] = refL1;
+            context->desc.h264enc.ref_idx_l1 = refL1; // TODO: back_compat for other drivers for now - Fix properly in next separate commit
+         } else {
+            context->desc.h264enc.ref_idx_l1_list[i] = VA_INVALID_ID;
+         }
       }
    }
 
