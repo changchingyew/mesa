@@ -441,7 +441,7 @@ struct pipe_h264_enc_picture_desc
 
    /* multiple_slices_ctrl_present = false indicates single slice encoding */
    bool multiple_slices_ctrl_present;
-   struct pipe_h264_enc_slice_control multi_slice_ctrl;
+   struct pipe_h264_enc_slice_control multi_slice_ctrl; // Can simplify and always pass >=1 . Driver should report in VA cap query if interested or not in multi slice
 };
 
 struct pipe_h265_enc_seq_param

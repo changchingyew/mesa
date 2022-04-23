@@ -112,13 +112,6 @@ d3d12_video_encoder_update_current_frame_pic_params_info_h264(struct d3d12_video
    picParams.pH264PicData->pList0ReferenceFrames = h264Pic->ref_idx_l0_list;
    picParams.pH264PicData->List1ReferenceFramesCount = h264Pic->num_ref_idx_l1_active_minus1 + 1;
    picParams.pH264PicData->pList1ReferenceFrames = h264Pic->ref_idx_l1_list;
-
-   // TODO: VA/pipe doesn't pass them
-   // TODO: Remove ref_idx_lo and ref_idx_l1 from pipe struct and build with meson, fix and test other gallium drivers too
-   picParams.pH264PicData->List0RefPicModificationsCount = 0;
-   picParams.pH264PicData->pList0RefPicModifications = NULL;
-   picParams.pH264PicData->List1RefPicModificationsCount = 0;
-   picParams.pH264PicData->pList1RefPicModifications = NULL;
 }
 
 D3D12_VIDEO_ENCODER_FRAME_TYPE_H264
