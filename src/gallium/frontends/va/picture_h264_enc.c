@@ -149,15 +149,13 @@ vlVaHandleVAEncSliceParameterBufferTypeH264(vlVaDriver *drv, vlVaContext *contex
 
    // First slice of the picture
    if(pipeSliceDesc.macroblock_address == 0) {
-      context->desc.h264enc.multiple_slices_ctrl_present = false;
-      context->desc.h264enc.multi_slice_ctrl.num_slice_descriptors = 0;
-      memset(&context->desc.h264enc.multi_slice_ctrl.slices_descriptors, 0, sizeof(context->desc.h264enc.multi_slice_ctrl.slices_descriptors));
+      context->desc.h264enc.num_slice_descriptors = 0;
+      memset(&context->desc.h264enc.slices_descriptors, 0, sizeof(context->desc.h264enc.slices_descriptors));
    }
 
-   if(context->desc.h264enc.multi_slice_ctrl.num_slice_descriptors < ARRAY_SIZE(context->desc.h264enc.multi_slice_ctrl.slices_descriptors))
+   if(context->desc.h264enc.num_slice_descriptors < ARRAY_SIZE(context->desc.h264enc.slices_descriptors))
    {
-      context->desc.h264enc.multi_slice_ctrl.slices_descriptors[context->desc.h264enc.multi_slice_ctrl.num_slice_descriptors++] = pipeSliceDesc;
-      context->desc.h264enc.multiple_slices_ctrl_present = (pipeSliceDesc.macroblock_address > 0);
+      context->desc.h264enc.slices_descriptors[context->desc.h264enc.num_slice_descriptors++] = pipeSliceDesc;
    } else {
       return VA_STATUS_ERROR_NOT_ENOUGH_BUFFER;
    }
