@@ -473,7 +473,9 @@ if with_dri2 and with_platform_x11
 endif
 
 if with_glx == 'xlib' or with_glx == 'gallium-xlib'
-  files_libgalliumvlwinsys += files('vl/vl_winsys_swrast.c')
+  files_libgalliumvlwinsys += files('vl/vl_winsys_xlib_swrast.c')
+else
+  files_libgalliumvlwinsys += files('vl/vl_winsys_dri_vgem.c')
 endif
 
 files_libgallium += custom_target(
