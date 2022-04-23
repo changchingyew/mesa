@@ -165,24 +165,24 @@ d3d12_video_encoder_negotiate_current_h264_slices_configuration(struct d3d12_vid
    ///
    /// Try to see if can accomodate for multi-slice request by user
    ///
-   if(picture->multiple_slices_ctrl_present && (picture->multi_slice_ctrl.num_slice_descriptors > 1))
+   if(picture->num_slice_descriptors > 1)
    {
       bool bUniformSizeSlices = true; // Last slice can be less for rounding frame size
-      for(uint32_t sliceIdx = 1; sliceIdx < picture->multi_slice_ctrl.num_slice_descriptors - 1; sliceIdx++)
+      for(uint32_t sliceIdx = 1; sliceIdx < picture->num_slice_descriptors - 1; sliceIdx++)
       {
-         bUniformSizeSlices = bUniformSizeSlices && (picture->multi_slice_ctrl.slices_descriptors[sliceIdx].num_macroblocks == picture->multi_slice_ctrl.slices_descriptors[sliceIdx - 1].num_macroblocks);
+         bUniformSizeSlices = bUniformSizeSlices && (picture->slices_descriptors[sliceIdx].num_macroblocks == picture->slices_descriptors[sliceIdx - 1].num_macroblocks);
       }
 
       uint32_t mbPerScanline = pD3D12Enc->m_currentEncodeConfig.m_currentResolution.Width / D3D12_VIDEO_H264_MB_IN_PIXELS;
-      bool bSliceAligned = ((picture->multi_slice_ctrl.slices_descriptors[0].num_macroblocks % mbPerScanline) == 0);
+      bool bSliceAligned = ((picture->slices_descriptors[0].num_macroblocks % mbPerScanline) == 0);
 
       if(!bUniformSizeSlices && d3d12_video_encoder_check_subregion_mode_support(pD3D12Enc, D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME)) {
 
          if(D3D12_VIDEO_ENC_FALLBACK_SLICE_CONFIG) { // Check if fallback mode is enabled, or we should just fail without support
             // Not supported to have custom slice sizes in D3D12 Video Encode fallback to uniform multi-slice
-            D3D12_LOG_INFO("[d3d12_video_encoder_h264] WARNING: Requested slice control mode is not supported: All slices must have the same number of macroblocks. Falling back to encoding uniform %d slices per frame.\n", picture->multi_slice_ctrl.num_slice_descriptors);
+            D3D12_LOG_INFO("[d3d12_video_encoder_h264] WARNING: Requested slice control mode is not supported: All slices must have the same number of macroblocks. Falling back to encoding uniform %d slices per frame.\n", picture->num_slice_descriptors);
             requestedSlicesMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME;
-            requestedSlicesConfig.NumberOfSlicesPerFrame = picture->multi_slice_ctrl.num_slice_descriptors;
+            requestedSlicesConfig.NumberOfSlicesPerFrame = picture->num_slice_descriptors;
             D3D12_LOG_INFO("[d3d12_video_encoder_h264] Using multi slice encoding mode: D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME with %d slices per frame.\n", requestedSlicesConfig.NumberOfSlicesPerFrame);
          } else {
             D3D12_LOG_ERROR("[d3d12_video_encoder_h264] Requested slice control mode is not supported: All slices must have the same number of macroblocks. To continue with uniform slices as a fallback, must enable the OS environment variable D3D12_VIDEO_ENC_FALLBACK_SLICE_CONFIG");
@@ -194,7 +194,7 @@ d3d12_video_encoder_negotiate_current_h264_slices_configuration(struct d3d12_vid
          // use D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_ROWS_PER_SUBREGION
          // or D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME
          requestedSlicesMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_ROWS_PER_SUBREGION;
-         requestedSlicesConfig.NumberOfRowsPerSlice = (picture->multi_slice_ctrl.slices_descriptors[0].num_macroblocks / mbPerScanline);
+         requestedSlicesConfig.NumberOfRowsPerSlice = (picture->slices_descriptors[0].num_macroblocks / mbPerScanline);
          D3D12_LOG_INFO("[d3d12_video_encoder_h264] Using multi slice encoding mode: D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_ROWS_PER_SUBREGION with %d macroblocks rows per slice.\n",
             requestedSlicesConfig.NumberOfRowsPerSlice);
       
@@ -203,14 +203,14 @@ d3d12_video_encoder_negotiate_current_h264_slices_configuration(struct d3d12_vid
          // Number of macroblocks per slice is not aligned to scanline width, in which case we need
          // to use D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_SQUARE_UNITS_PER_SUBREGION_ROW_UNALIGNED
          requestedSlicesMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_SQUARE_UNITS_PER_SUBREGION_ROW_UNALIGNED;
-         requestedSlicesConfig.NumberOfCodingUnitsPerSlice = picture->multi_slice_ctrl.slices_descriptors[0].num_macroblocks;
+         requestedSlicesConfig.NumberOfCodingUnitsPerSlice = picture->slices_descriptors[0].num_macroblocks;
          D3D12_LOG_INFO("[d3d12_video_encoder_h264] Using multi slice encoding mode: D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_SQUARE_UNITS_PER_SUBREGION_ROW_UNALIGNED with %d macroblocks per slice.\n",
             requestedSlicesConfig.NumberOfCodingUnitsPerSlice);
       
       } else if(D3D12_VIDEO_ENC_FALLBACK_SLICE_CONFIG) { // Check if fallback mode is enabled, or we should just fail without support
             // Fallback to single slice encoding (assigned by default when initializing variables requestedSlicesMode, requestedSlicesConfig)
             D3D12_LOG_INFO("[d3d12_video_encoder_h264] WARNING: Slice mode for %d slices with bUniformSizeSlices: %d - bSliceAligned %d not supported by the D3D12 driver, falling back to encoding a single slice per frame.\n",
-               picture->multi_slice_ctrl.num_slice_descriptors,
+               picture->num_slice_descriptors,
                bUniformSizeSlices,
                bSliceAligned);
       } else {
