@@ -1344,7 +1344,7 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *pscreen,
       case PIPE_VIDEO_CAP_PREFERS_INTERLACED:
          return false;
       case PIPE_VIDEO_CAP_SUPPORTS_INTERLACED:
-         return true;
+         return false;
       case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
          return true;
          break;
