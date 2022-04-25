@@ -65,6 +65,11 @@ vl_vgem_drm_screen_create(int fd)
    {
       debug_printf("[vl_vgem_drm_screen_create] - Invalid FD %d for kms_dri_winsys, creating NULL winsys instead.\n", fd);
       winsysObj = null_sw_create();
+      if(winsysObj == NULL)
+      {
+         debug_printf("[vl_vgem_drm_screen_create] NULL winsys failed!\n");
+         goto release_pipe;
+      }
    }
    else
    {
@@ -72,6 +77,7 @@ vl_vgem_drm_screen_create(int fd)
       if(winsysObj == NULL)
       {
          debug_printf("[vl_vgem_drm_screen_create] Creating DRM winsys with fd %d failed!\n", fd);
+         goto release_pipe;
       }
    }
    vscreen->pscreen = sw_screen_create(winsysObj);
