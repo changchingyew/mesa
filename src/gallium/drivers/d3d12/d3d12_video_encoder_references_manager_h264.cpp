@@ -30,10 +30,8 @@
 using namespace std;
 
 d3d12_video_encoder_references_manager_h264::d3d12_video_encoder_references_manager_h264(
-   bool                                       gopHasIorPFrames,
-   d3d12_video_dpb_storage_manager_interface &rDpbStorageManager,
-   uint32_t                                   MaxDPBCapacity) :
-     m_MaxDPBCapacity(MaxDPBCapacity),
+   bool gopHasIorPFrames, d3d12_video_dpb_storage_manager_interface &rDpbStorageManager, uint32_t MaxDPBCapacity)
+   : m_MaxDPBCapacity(MaxDPBCapacity),
      m_rDPBStorageManager(rDpbStorageManager),
      m_CurrentFrameReferencesData({}),
      m_gopHasInterFrames(gopHasIorPFrames)
@@ -56,7 +54,7 @@ d3d12_video_encoder_references_manager_h264::reset_gop_tracking_and_dpb()
 
    // Reset DPB storage
    uint32_t numPicsBeforeClearInDPB = m_rDPBStorageManager.get_number_of_pics_in_dpb();
-   uint32_t cFreedResources         = m_rDPBStorageManager.clear_decode_picture_buffer();
+   uint32_t cFreedResources = m_rDPBStorageManager.clear_decode_picture_buffer();
    assert(numPicsBeforeClearInDPB == cFreedResources);
 
    // Initialize if needed the reconstructed picture allocation for the first IDR picture in the GOP
@@ -92,64 +90,73 @@ d3d12_video_encoder_references_manager_h264::get_current_frame_picture_control_d
                       (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME);
    bool needsL1List = (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME);
 
-   assert(codecAllocation.DataSize == sizeof(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264));   
+   assert(codecAllocation.DataSize == sizeof(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264));
 
-// See D3D12 Encode spec below
-// pList0ReferenceFrames
-//    List of past frame reference frames to be used for this frame. Each integer value in this array indices into pReferenceFramesReconPictureDescriptors to reference pictures kept in the DPB.
-// pList1ReferenceFrames
-//    List of future frame reference frames to be used for this frame. Each integer value in this array indices into pReferenceFramesReconPictureDescriptors to reference pictures kept in the DPB.
+   // See D3D12 Encode spec below
+   // pList0ReferenceFrames
+   //    List of past frame reference frames to be used for this frame. Each integer value in this array indices into
+   //    pReferenceFramesReconPictureDescriptors to reference pictures kept in the DPB.
+   // pList1ReferenceFrames
+   //    List of future frame reference frames to be used for this frame. Each integer value in this array indices into
+   //    pReferenceFramesReconPictureDescriptors to reference pictures kept in the DPB.
 
-   // Need to map from frame_num in the receiving ref_idx_l0_list/ref_idx_l1_list to the position with that FrameDecodingOrderNumber in the DPB descriptor
-   
-   if(needsL0List && (m_curFrameState.List0ReferenceFramesCount > 0)) {
+   // Need to map from frame_num in the receiving ref_idx_l0_list/ref_idx_l1_list to the position with that
+   // FrameDecodingOrderNumber in the DPB descriptor
+
+   if (needsL0List && (m_curFrameState.List0ReferenceFramesCount > 0)) {
       std::vector<uint32_t> tmpL0(m_curFrameState.List0ReferenceFramesCount, 0);
-      memcpy(tmpL0.data(), m_curFrameState.pList0ReferenceFrames, m_curFrameState.List0ReferenceFramesCount * sizeof(m_curFrameState.pList0ReferenceFrames[0]));
+      memcpy(tmpL0.data(),
+             m_curFrameState.pList0ReferenceFrames,
+             m_curFrameState.List0ReferenceFramesCount * sizeof(m_curFrameState.pList0ReferenceFrames[0]));
 
-      for (size_t l0Idx = 0; l0Idx < m_curFrameState.List0ReferenceFramesCount; l0Idx++)
-      {
+      for (size_t l0Idx = 0; l0Idx < m_curFrameState.List0ReferenceFramesCount; l0Idx++) {
          // tmpL0[l0Idx] has frame_num's (FrameDecodingOrderNumber)
-         // m_curFrameState.pList0ReferenceFrames[l0Idx] needs to have the index j of pReferenceFramesReconPictureDescriptors where pReferenceFramesReconPictureDescriptors[j].FrameDecodingOrderNumber == tmpL0[l0Idx]
+         // m_curFrameState.pList0ReferenceFrames[l0Idx] needs to have the index j of
+         // pReferenceFramesReconPictureDescriptors where
+         // pReferenceFramesReconPictureDescriptors[j].FrameDecodingOrderNumber == tmpL0[l0Idx]
 
          auto value = tmpL0[l0Idx];
-         auto foundItemIt = std::find_if(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.begin(), m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.end(),
-               [&value](const D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264 &p) {
-                  return p.FrameDecodingOrderNumber == value;
-               });
+         auto foundItemIt = std::find_if(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.begin(),
+                                         m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.end(),
+                                         [&value](const D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264 &p) {
+                                            return p.FrameDecodingOrderNumber == value;
+                                         });
 
          assert(foundItemIt != m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.end());
-         m_curFrameState.pList0ReferenceFrames[l0Idx] = std::distance(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.begin(), foundItemIt);
+         m_curFrameState.pList0ReferenceFrames[l0Idx] =
+            std::distance(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.begin(), foundItemIt);
       }
    }
 
-   if(needsL1List && (m_curFrameState.List1ReferenceFramesCount > 0)) {
+   if (needsL1List && (m_curFrameState.List1ReferenceFramesCount > 0)) {
       std::vector<uint32_t> tmpL1(m_curFrameState.List1ReferenceFramesCount, 0);
-      memcpy(tmpL1.data(), m_curFrameState.pList1ReferenceFrames, m_curFrameState.List1ReferenceFramesCount * sizeof(m_curFrameState.pList1ReferenceFrames[0]));
+      memcpy(tmpL1.data(),
+             m_curFrameState.pList1ReferenceFrames,
+             m_curFrameState.List1ReferenceFramesCount * sizeof(m_curFrameState.pList1ReferenceFrames[0]));
 
-      for (size_t l1Idx = 0; l1Idx < m_curFrameState.List1ReferenceFramesCount; l1Idx++)
-      {
+      for (size_t l1Idx = 0; l1Idx < m_curFrameState.List1ReferenceFramesCount; l1Idx++) {
          // tmpL1[l1Idx] has frame_num's (FrameDecodingOrderNumber)
-         // m_curFrameState.pList1ReferenceFrames[l1Idx] needs to have the index j of pReferenceFramesReconPictureDescriptors where pReferenceFramesReconPictureDescriptors[j].FrameDecodingOrderNumber == tmpL1[l1Idx]
+         // m_curFrameState.pList1ReferenceFrames[l1Idx] needs to have the index j of
+         // pReferenceFramesReconPictureDescriptors where
+         // pReferenceFramesReconPictureDescriptors[j].FrameDecodingOrderNumber == tmpL1[l1Idx]
 
          auto value = tmpL1[l1Idx];
-         auto foundItemIt = std::find_if(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.begin(), m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.end(),
-               [&value](const D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264 &p) {
-                  return p.FrameDecodingOrderNumber == value;
-               });
+         auto foundItemIt = std::find_if(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.begin(),
+                                         m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.end(),
+                                         [&value](const D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264 &p) {
+                                            return p.FrameDecodingOrderNumber == value;
+                                         });
 
          assert(foundItemIt != m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.end());
-         m_curFrameState.pList1ReferenceFrames[l1Idx] = std::distance(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.begin(), foundItemIt);
+         m_curFrameState.pList1ReferenceFrames[l1Idx] =
+            std::distance(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.begin(), foundItemIt);
       }
    }
 
-   m_curFrameState.List0ReferenceFramesCount =
-      needsL0List ? m_curFrameState.List0ReferenceFramesCount : 0;
-   m_curFrameState.pList0ReferenceFrames =
-      needsL0List ? m_curFrameState.pList0ReferenceFrames : nullptr,
-   m_curFrameState.List1ReferenceFramesCount =
-      needsL1List ? m_curFrameState.List1ReferenceFramesCount : 0,
-   m_curFrameState.pList1ReferenceFrames =
-      needsL1List ? m_curFrameState.pList1ReferenceFrames : nullptr,
+   m_curFrameState.List0ReferenceFramesCount = needsL0List ? m_curFrameState.List0ReferenceFramesCount : 0;
+   m_curFrameState.pList0ReferenceFrames = needsL0List ? m_curFrameState.pList0ReferenceFrames : nullptr,
+   m_curFrameState.List1ReferenceFramesCount = needsL1List ? m_curFrameState.List1ReferenceFramesCount : 0,
+   m_curFrameState.pList1ReferenceFrames = needsL1List ? m_curFrameState.pList1ReferenceFrames : nullptr,
    m_curFrameState.ReferenceFramesReconPictureDescriptorsCount =
       needsL0List ? static_cast<uint32_t>(m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size()) :
                     0,
@@ -183,9 +190,9 @@ d3d12_video_encoder_references_manager_h264::get_current_reference_frames()
 
    if ((m_curFrameState.FrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME) &&
        (m_curFrameState.FrameType != D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_I_FRAME) && m_gopHasInterFrames) {
-      auto curRef          = m_rDPBStorageManager.get_current_reference_frames();
+      auto curRef = m_rDPBStorageManager.get_current_reference_frames();
       retVal.NumTexture2Ds = curRef.NumTexture2Ds;
-      retVal.ppTexture2Ds  = curRef.ppTexture2Ds;
+      retVal.ppTexture2Ds = curRef.ppTexture2Ds;
       retVal.pSubresources = curRef.pSubresources;
    }
 
@@ -237,10 +244,10 @@ d3d12_video_encoder_references_manager_h264::update_fifo_dpb_push_front_cur_reco
       }
 
       // Add new dpb to front of DPB
-      D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE recAlloc     = get_current_frame_recon_pic_output_allocation();
-      d3d12_video_reconstructed_picture         refFrameDesc = {};
-      refFrameDesc.pReconstructedPicture                     = recAlloc.pReconstructedPicture;
-      refFrameDesc.ReconstructedPictureSubresource           = recAlloc.ReconstructedPictureSubresource;
+      D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE recAlloc = get_current_frame_recon_pic_output_allocation();
+      d3d12_video_reconstructed_picture refFrameDesc = {};
+      refFrameDesc.pReconstructedPicture = recAlloc.pReconstructedPicture;
+      refFrameDesc.ReconstructedPictureSubresource = recAlloc.ReconstructedPictureSubresource;
       refFrameDesc.pVideoHeap = nullptr;   // D3D12 Video Encode does not need the D3D12VideoEncoderHeap struct for H264
                                            // (used for no-key-frame resolution change in VC1, AV1, etc)
       m_rDPBStorageManager.insert_reference_frame(refFrameDesc, 0);
@@ -285,8 +292,9 @@ d3d12_video_encoder_references_manager_h264::update_fifo_dpb_push_front_cur_reco
 void
 d3d12_video_encoder_references_manager_h264::print_l0_l1_lists()
 {
-   if ((D3D12_DEBUG_VERBOSE & d3d12_debug) && ((m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME) ||
-                            (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME))) {
+   if ((D3D12_DEBUG_VERBOSE & d3d12_debug) &&
+       ((m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME) ||
+        (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_B_FRAME))) {
       std::string list0ContentsString;
       for (uint32_t idx = 0; idx < m_curFrameState.List0ReferenceFramesCount; idx++) {
          uint32_t value = m_curFrameState.pList0ReferenceFrames[idx];
@@ -337,8 +345,8 @@ d3d12_video_encoder_references_manager_h264::print_dpb()
       for (uint32_t dpbResIdx = 0;
            dpbResIdx < m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors.size();
            dpbResIdx++) {
-         auto &dpbDesc  = m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors[dpbResIdx];
-         auto  dpbEntry = m_rDPBStorageManager.get_reference_frame(dpbDesc.ReconstructedPictureResourceIndex);
+         auto &dpbDesc = m_CurrentFrameReferencesData.pReferenceFramesReconPictureDescriptors[dpbResIdx];
+         auto dpbEntry = m_rDPBStorageManager.get_reference_frame(dpbDesc.ReconstructedPictureResourceIndex);
 
          dpbContents += "{ DPBidx: ";
          dpbContents += std::to_string(dpbResIdx);
@@ -390,11 +398,15 @@ d3d12_video_encoder_references_manager_h264::is_current_frame_used_as_reference(
 }
 
 void
-d3d12_video_encoder_references_manager_h264::begin_frame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curFrameData, bool bUsedAsReference)
+d3d12_video_encoder_references_manager_h264::begin_frame(D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA curFrameData,
+                                                         bool bUsedAsReference)
 {
    m_curFrameState = *curFrameData.pH264PicData;
    m_isCurrentFrameUsedAsReference = bUsedAsReference;
-   D3D12_LOG_DBG("Marking frame_num %d (POC %d) as reference ? %d\n", curFrameData.pH264PicData->FrameDecodingOrderNumber, curFrameData.pH264PicData->PictureOrderCountNumber, bUsedAsReference);
+   D3D12_LOG_DBG("Marking frame_num %d (POC %d) as reference ? %d\n",
+                 curFrameData.pH264PicData->FrameDecodingOrderNumber,
+                 curFrameData.pH264PicData->PictureOrderCountNumber,
+                 bUsedAsReference);
 
    // Advance the GOP tracking state
    bool isDPBFlushNeeded = (m_curFrameState.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME);
