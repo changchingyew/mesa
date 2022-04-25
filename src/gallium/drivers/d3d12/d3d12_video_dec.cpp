@@ -1045,7 +1045,6 @@ d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *pD3D12Dec,
 
    ID3D12Resource *pPipeD3D12DstResource = d3d12_resource_resource(pD3D12VideoBuffer->m_pD3D12Resource);
    D3D12_RESOURCE_DESC outputResourceDesc = pPipeD3D12DstResource->GetDesc();
-   video_decode_profile_bit_depth resourceBitDepth = d3d12_video_decoder_get_format_bitdepth(outputResourceDesc.Format);
 
    pD3D12VideoBuffer->base.interlaced = isInterlaced;
    D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE interlaceTypeRequested =
@@ -1056,7 +1055,7 @@ d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *pD3D12Dec,
       D3D12_VIDEO_DECODER_DESC decoderDesc = pD3D12Dec->m_decoderDesc;
       decoderDesc.Configuration.InterlaceType = interlaceTypeRequested;
       decoderDesc.Configuration.DecodeProfile =
-         d3d12_video_decoder_resolve_profile(pD3D12Dec->m_d3d12DecProfileType, resourceBitDepth);
+         d3d12_video_decoder_resolve_profile(pD3D12Dec->m_d3d12DecProfileType);
       pD3D12Dec->m_spVideoDecoder.Reset();
       HRESULT hr =
          pD3D12Dec->m_spD3D12VideoDevice->CreateVideoDecoder(&decoderDesc,
@@ -1383,7 +1382,7 @@ d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(enum pipe_video_
 }
 
 GUID
-d3d12_video_decoder_resolve_profile(d3d12_video_decode_profile_type profileType, uint32_t resourceBitDepth)
+d3d12_video_decoder_resolve_profile(d3d12_video_decode_profile_type profileType)
 {
    switch (profileType) {
       case d3d12_video_decode_profile_type_h264:
@@ -1395,36 +1394,6 @@ d3d12_video_decoder_resolve_profile(d3d12_video_decode_profile_type profileType,
                                                   "Unsupported profile",
                                                   profileType);
          return {};
-      } break;
-   }
-}
-
-video_decode_profile_bit_depth
-d3d12_video_decoder_get_format_bitdepth(DXGI_FORMAT Format)
-{
-   switch (Format) {
-      case DXGI_FORMAT_NV12:
-      case DXGI_FORMAT_YUY2:
-      case DXGI_FORMAT_AYUV:
-      case DXGI_FORMAT_NV11:
-      case DXGI_FORMAT_420_OPAQUE:
-         return video_decode_profile_bit_depth_8_bit;
-
-      case DXGI_FORMAT_P010:
-      case DXGI_FORMAT_Y410:
-      case DXGI_FORMAT_Y210:
-         return video_decode_profile_bit_depth_10_bit;
-
-      case DXGI_FORMAT_P016:
-      case DXGI_FORMAT_Y416:
-      case DXGI_FORMAT_Y216:
-         return video_decode_profile_bit_depth_16_bit;
-      default:
-      {
-         D3D12_VIDEO_UNSUPPORTED_SWITCH_CASE_FAIL("d3d12_video_decoder_get_format_bitdepth",
-                                                  "Unsupported DXGI_FORMAT",
-                                                  Format);
-         return video_decode_profile_bit_depth_none;
       } break;
    }
 }

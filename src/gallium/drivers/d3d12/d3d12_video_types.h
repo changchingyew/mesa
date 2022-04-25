@@ -129,23 +129,6 @@ typedef enum
    d3d12_video_decode_profile_type_max_valid
 } d3d12_video_decode_profile_type;
 
-typedef enum
-{
-   video_decode_profile_bit_depth_index_8_bit  = 0,
-   video_decode_profile_bit_depth_index_10_bit = 1,
-   video_decode_profile_bit_depth_index_16_bit = 2,
-
-   video_decode_profile_bit_depth_index_max,   // Keep at end to inform array size.
-} video_decode_profile_bit_depth_index;
-
-typedef enum
-{
-   video_decode_profile_bit_depth_none   = 0,
-   video_decode_profile_bit_depth_8_bit  = (1 << video_decode_profile_bit_depth_index_8_bit),
-   video_decode_profile_bit_depth_10_bit = (1 << video_decode_profile_bit_depth_index_10_bit),
-   video_decode_profile_bit_depth_16_bit = (1 << video_decode_profile_bit_depth_index_16_bit),
-} video_decode_profile_bit_depth;
-
 typedef struct d3d12_video_decode_dpb_descriptor
 {
    DXGI_FORMAT Format          = DXGI_FORMAT_UNKNOWN;

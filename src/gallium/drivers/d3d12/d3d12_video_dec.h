@@ -226,9 +226,7 @@ d3d12_video_decoder_supports_aot_dpb(D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT dec
 d3d12_video_decode_profile_type
 d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(enum pipe_video_profile profile);
 GUID
-d3d12_video_decoder_resolve_profile(d3d12_video_decode_profile_type profileType, uint32_t resourceBitDepth);
-video_decode_profile_bit_depth
-d3d12_video_decoder_get_format_bitdepth(DXGI_FORMAT Format);
+d3d12_video_decoder_resolve_profile(d3d12_video_decode_profile_type profileType);
 void
 d3d12_video_decoder_store_dxva_picparams_in_picparams_buffer(struct d3d12_video_decoder *codec,
                                                              void *                      pDXVABuffer,
