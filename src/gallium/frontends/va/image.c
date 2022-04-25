@@ -314,11 +314,12 @@ vlVaDeriveImage(VADriverContextP ctx, VASurfaceID surface, VAImage *image)
       // In some gallium platforms, the stride and offset are different
       // for the U and UV planes, query them independently.
       if (screen->resource_get_info) {
-         screen->resource_get_info(screen, surfaces[0]->texture, &img->pitches[0],
-                                 &img->offsets[0]);
-
-         if (!img->pitches[0])
-               img->offsets[0] = 0;
+         // resource_get_info is called above for surfaces[0]->texture and 
+         // saved results in stride, offset, reuse those values to avoid a new call to: 
+         // screen->resource_get_info(screen, surfaces[0]->texture, &img->pitches[0],
+         //                         &img->offsets[0]);
+         img->pitches[0] = stride;
+         img->offsets[0] = offset;
 
          screen->resource_get_info(screen, surfaces[1]->texture, &img->pitches[1],
                                  &img->offsets[1]);
