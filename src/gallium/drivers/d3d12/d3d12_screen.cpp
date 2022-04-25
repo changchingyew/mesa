@@ -692,12 +692,6 @@ get_debug_interface()
    typedef HRESULT(WINAPI *PFN_D3D12_GET_DEBUG_INTERFACE)(REFIID riid, void **ppFactory);
    PFN_D3D12_GET_DEBUG_INTERFACE D3D12GetDebugInterface;
 
-   util_dl_library *d3d12core_mod = util_dl_open(UTIL_DL_PREFIX "d3d12core" UTIL_DL_EXT);
-   if (!d3d12core_mod) {
-      debug_printf("D3D12core: failed to load D3D12core.DLL\n");
-      return NULL;
-   }
-
    util_dl_library *d3d12_mod = util_dl_open(UTIL_DL_PREFIX "d3d12" UTIL_DL_EXT);
    if (!d3d12_mod) {
       debug_printf("D3D12: failed to load D3D12.DLL\n");
@@ -1350,7 +1344,7 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *pscreen,
       case PIPE_VIDEO_CAP_PREFERS_INTERLACED:
          return false;
       case PIPE_VIDEO_CAP_SUPPORTS_INTERLACED:
-         return false;
+         return true;
       case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
          return true;
          break;
