@@ -1248,7 +1248,6 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
       return false;
    }
 
-   DXGI_FORMAT encodeFormat = (profile == PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10) || (profile == PIPE_VIDEO_PROFILE_HEVC_MAIN_10) ? DXGI_FORMAT_P010 : DXGI_FORMAT_NV12;
    bool supportsProfile = false;
    switch (profile) {
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
@@ -1281,10 +1280,13 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
             supportsProfile = true;
          }
 
-         supportsProfile = supportsProfile && d3d12_video_encode_max_supported_resolution(codecDesc, maxRes, spD3D12VideoDevice.Get());
-         supportsProfile = supportsProfile && d3d12_video_encode_max_supported_slices(codecDesc, maxRes, encodeFormat, maxSlices, spD3D12VideoDevice.Get());
-         supportedSliceStructures = d3d12_video_encode_supported_slice_structures(codecDesc, profH264, maxLvlSettingH264, spD3D12VideoDevice.Get());
-         maxReferencesPerFrame = d3d12_video_encode_supported_references_per_frame_structures(codecDesc, profH264, maxLvlSettingH264, spD3D12VideoDevice.Get());
+         if(supportsProfile) {
+            DXGI_FORMAT encodeFormat = d3d12_convert_pipe_video_profile_to_dxgi_format(profile);
+            supportsProfile = supportsProfile && d3d12_video_encode_max_supported_resolution(codecDesc, maxRes, spD3D12VideoDevice.Get());
+            supportsProfile = supportsProfile && d3d12_video_encode_max_supported_slices(codecDesc, maxRes, encodeFormat, maxSlices, spD3D12VideoDevice.Get());
+            supportedSliceStructures = d3d12_video_encode_supported_slice_structures(codecDesc, profH264, maxLvlSettingH264, spD3D12VideoDevice.Get());
+            maxReferencesPerFrame = d3d12_video_encode_supported_references_per_frame_structures(codecDesc, profH264, maxLvlSettingH264, spD3D12VideoDevice.Get());
+         }         
       } break;
       default:
          supportsProfile = false;
@@ -1308,31 +1310,38 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *pscreen,
       case PIPE_VIDEO_CAP_SUPPORTED:
       {
          if (d3d12_has_video_decode_support(pscreen, profile)) {
-            GUID decodeGUID = d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(profile);
-            GUID emptyGUID = {};
-            if (decodeGUID != emptyGUID) {
-               bool supportAny = false;
-               D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT outSupportedConfig = {};
-               D3D12_VIDEO_DECODE_CONFIGURATION decoderConfig = { decodeGUID,
-                                                                  D3D12_BITSTREAM_ENCRYPTION_TYPE_NONE,
-                                                                  D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE };
-
-               DXGI_FORMAT format = DXGI_FORMAT_NV12;
-               d3d12_video_resolution_to_level_mapping_entry bestSupportedConfig =
-                  get_max_level_resolution_video_decode_support(decoderConfig,
-                                                                format,
-                                                                pscreen,
-                                                                supportAny,
-                                                                outSupportedConfig);
-               if (supportAny) {
-                  if (param == PIPE_VIDEO_CAP_MAX_WIDTH) {
-                     return bestSupportedConfig.resolution.Width;
-                  } else if (param == PIPE_VIDEO_CAP_MAX_HEIGHT) {
-                     return bestSupportedConfig.resolution.Height;
-                  } else if (param == PIPE_VIDEO_CAP_MAX_LEVEL) {
-                     return bestSupportedConfig.level;
-                  } else if (param == PIPE_VIDEO_CAP_SUPPORTED) {
-                     return 1;
+            DXGI_FORMAT format = d3d12_convert_pipe_video_profile_to_dxgi_format(profile);
+            auto pipeFmt = d3d12_get_pipe_format(format);
+            bool formatSupported = pscreen->is_video_format_supported(pscreen, 
+                                                      pipeFmt,
+                                                      profile,
+                                                      entrypoint);
+            if(formatSupported) {
+               GUID decodeGUID = d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(profile);
+               GUID emptyGUID = { };
+               if (decodeGUID != emptyGUID) {
+                  bool supportAny = false;
+                  D3D12_FEATURE_DATA_VIDEO_DECODE_SUPPORT outSupportedConfig = {};
+                  D3D12_VIDEO_DECODE_CONFIGURATION decoderConfig = { decodeGUID,
+                                                                     D3D12_BITSTREAM_ENCRYPTION_TYPE_NONE,
+                                                                     D3D12_VIDEO_FRAME_CODED_INTERLACE_TYPE_NONE };
+                  
+                  d3d12_video_resolution_to_level_mapping_entry bestSupportedConfig =
+                     get_max_level_resolution_video_decode_support(decoderConfig,
+                                                                  format,
+                                                                  pscreen,
+                                                                  supportAny,
+                                                                  outSupportedConfig);
+                  if (supportAny) {
+                     if (param == PIPE_VIDEO_CAP_MAX_WIDTH) {
+                        return bestSupportedConfig.resolution.Width;
+                     } else if (param == PIPE_VIDEO_CAP_MAX_HEIGHT) {
+                        return bestSupportedConfig.resolution.Height;
+                     } else if (param == PIPE_VIDEO_CAP_MAX_LEVEL) {
+                        return bestSupportedConfig.level;
+                     } else if (param == PIPE_VIDEO_CAP_SUPPORTED) {
+                        return 1;
+                     }
                   }
                }
             }

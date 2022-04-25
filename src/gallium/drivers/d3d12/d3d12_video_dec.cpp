@@ -1349,8 +1349,6 @@ d3d12_video_decoder_convert_pipe_video_profile_to_profile_type(enum pipe_video_p
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_EXTENDED:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
-      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422:
-      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10:
          return d3d12_video_decode_profile_type_h264;
       default:
@@ -1372,8 +1370,6 @@ d3d12_video_decoder_convert_pipe_video_profile_to_d3d12_profile(enum pipe_video_
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_EXTENDED:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
-      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422:
-      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10:
          return D3D12_VIDEO_DECODE_PROFILE_H264;
       default:

@@ -685,11 +685,6 @@ d3d12_video_encoder_convert_profile_to_d3d12_enc_profile_h264(enum pipe_video_pr
       {
          return D3D12_VIDEO_ENCODER_PROFILE_H264_HIGH_10;
       } break;
-      // No support for other profiles below
-      case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
-      case PIPE_VIDEO_PROFILE_MPEG4_AVC_EXTENDED:
-      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422:
-      case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
       default:
       {
          D3D12_LOG_ERROR("[d3d12_video_encoder_h264] d3d12_video_encoder_update_current_encoder_config_state_h264 - "
