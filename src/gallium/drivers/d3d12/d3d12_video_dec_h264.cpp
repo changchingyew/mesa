@@ -252,6 +252,7 @@ d3d12_video_decoder_log_pic_params_h264(DXVA_PicParams_H264 *pPicParams)
    D3D12_LOG_DBG("CurrPic.Index7Bits = %d\n", pPicParams->CurrPic.Index7Bits);
    D3D12_LOG_DBG("CurrPic.AssociatedFlag = %d\n", pPicParams->CurrPic.AssociatedFlag);
    D3D12_LOG_DBG("num_ref_frames = %d\n", pPicParams->num_ref_frames);
+   D3D12_LOG_DBG("sp_for_switch_flag = %d\n", pPicParams->sp_for_switch_flag);   
    D3D12_LOG_DBG("field_pic_flag = %d\n", pPicParams->field_pic_flag);
    D3D12_LOG_DBG("MbaffFrameFlag = %d\n", pPicParams->MbaffFrameFlag);
    D3D12_LOG_DBG("residual_colour_transform_flag = %d\n", pPicParams->residual_colour_transform_flag);
@@ -259,6 +260,7 @@ d3d12_video_decoder_log_pic_params_h264(DXVA_PicParams_H264 *pPicParams)
    D3D12_LOG_DBG("RefPicFlag = %d\n", pPicParams->RefPicFlag);
    D3D12_LOG_DBG("IntraPicFlag = %d\n", pPicParams->IntraPicFlag);
    D3D12_LOG_DBG("constrained_intra_pred_flag = %d\n", pPicParams->constrained_intra_pred_flag);
+   D3D12_LOG_DBG("MinLumaBipredSize8x8Flag = %d\n", pPicParams->MinLumaBipredSize8x8Flag);   
    D3D12_LOG_DBG("weighted_pred_flag = %d\n", pPicParams->weighted_pred_flag);
    D3D12_LOG_DBG("weighted_bipred_idc = %d\n", pPicParams->weighted_bipred_idc);
    D3D12_LOG_DBG("MbsConsecutiveFlag = %d\n", pPicParams->MbsConsecutiveFlag);
@@ -349,14 +351,30 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // struct {
    // uint16_t  field_pic_flag                 : 1;
    dxvaStructure.field_pic_flag = pPipeDesc->field_pic_flag;
+   // From H264 codec spec
+   // The variable MbaffFrameFlag is derived as
+   // MbaffFrameFlag = ( mb_adaptive_frame_field_flag && !field_pic_flag )
+   dxvaStructure.MbaffFrameFlag = (pPipeDesc->pps->sps->mb_adaptive_frame_field_flag && !pPipeDesc->field_pic_flag);
+   // uint16_t  residual_colour_transform_flag :1
+   dxvaStructure.residual_colour_transform_flag = pPipeDesc->pps->sps->separate_colour_plane_flag;
+   // uint16_t sp_for_switch_flag // switch slices are not supported by VA
+   dxvaStructure.sp_for_switch_flag = 0;
    // uint16_t  chroma_format_idc              : 2;
+   assert( pPipeDesc->pps->sps->chroma_format_idc == 1); // Not supported otherwise
    dxvaStructure.chroma_format_idc = 1;   // This is always 4:2:0 for D3D12 Video. NV12/P010 DXGI formats only.
+   // uint16_t  RefPicFlag                     : 1;
+   dxvaStructure.RefPicFlag = pPipeDesc->is_reference;
+
    // uint16_t  constrained_intra_pred_flag    : 1;
    dxvaStructure.constrained_intra_pred_flag = pPipeDesc->pps->constrained_intra_pred_flag;
    // uint16_t  weighted_pred_flag             : 1;
    dxvaStructure.weighted_pred_flag = pPipeDesc->pps->weighted_pred_flag;
    // uint16_t  weighted_bipred_idc            : 2;
    dxvaStructure.weighted_bipred_idc = pPipeDesc->pps->weighted_bipred_idc;
+   // From DXVA spec:
+   // The value shall be 1 unless the restricted-mode profile in use explicitly supports the value 0.
+   // FMO is not supported by VAAPI
+   dxvaStructure.MbsConsecutiveFlag = 1;
    // uint16_t  frame_mbs_only_flag            : 1;
    dxvaStructure.frame_mbs_only_flag = pPipeDesc->pps->sps->frame_mbs_only_flag;
    // uint16_t  transform_8x8_mode_flag        : 1;
@@ -366,8 +384,14 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // };
    // uint8_t  bit_depth_luma_minus8;
    dxvaStructure.bit_depth_luma_minus8 = pPipeDesc->pps->sps->bit_depth_luma_minus8;
+   assert(dxvaStructure.bit_depth_luma_minus8 == 0); // Only support for NV12 now
    // uint8_t  bit_depth_chroma_minus8;
    dxvaStructure.bit_depth_chroma_minus8 = pPipeDesc->pps->sps->bit_depth_chroma_minus8;
+   assert(dxvaStructure.bit_depth_chroma_minus8 == 0); // Only support for NV12 now
+   // uint16_t MinLumaBipredSize8x8Flag
+   dxvaStructure.MinLumaBipredSize8x8Flag = pPipeDesc->pps->sps->MinLumaBiPredSize8x8;
+   // char pic_init_qs_minus26
+   dxvaStructure.pic_init_qs_minus26 = pPipeDesc->pps->pic_init_qs_minus26;
    // uint8_t   chroma_qp_index_offset;   /* also used for QScb */
    dxvaStructure.chroma_qp_index_offset = pPipeDesc->pps->chroma_qp_index_offset;
    // uint8_t   second_chroma_qp_index_offset; /* also for QScr */
@@ -398,6 +422,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    dxvaStructure.entropy_coding_mode_flag = pPipeDesc->pps->entropy_coding_mode_flag;
    // uint8_t  num_slice_groups_minus1;
    dxvaStructure.num_slice_groups_minus1 = pPipeDesc->pps->num_slice_groups_minus1;
+   assert(dxvaStructure.num_slice_groups_minus1 == 0); // FMO Not supported by VA
 
    // uint8_t  slice_group_map_type;
    dxvaStructure.slice_group_map_type = pPipeDesc->pps->slice_group_map_type;
@@ -407,12 +432,10 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    dxvaStructure.redundant_pic_cnt_present_flag = pPipeDesc->pps->redundant_pic_cnt_present_flag;
    // uint16_t slice_group_change_rate_minus1;
    dxvaStructure.slice_group_change_rate_minus1 = pPipeDesc->pps->slice_group_change_rate_minus1;
+
    // int32_t    CurrFieldOrderCnt[2];
    dxvaStructure.CurrFieldOrderCnt[0] = pPipeDesc->field_order_cnt[0];
    dxvaStructure.CurrFieldOrderCnt[1] = pPipeDesc->field_order_cnt[1];
-
-   // uint16_t  RefPicFlag                     : 1;
-   dxvaStructure.RefPicFlag = pPipeDesc->is_reference;
 
    // DXVA_PicEntry_H264  RefFrameList[16]; /* DXVA_PicEntry_H264.AssociatedFlag 1 means LongTermRef */
    // From DXVA spec:
@@ -512,27 +535,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
             dxvaStructure.UsedForReferenceFlags |= (1 << (2 * i + 1));
          }
       }
-   }
-
-   // From H264 codec spec
-   // The variable MbaffFrameFlag is derived as
-   // MbaffFrameFlag = ( mb_adaptive_frame_field_flag && !field_pic_flag )
-   dxvaStructure.MbaffFrameFlag = (pPipeDesc->pps->sps->mb_adaptive_frame_field_flag && !pPipeDesc->field_pic_flag);
-
-   // From DXVA spec:
-   // The value shall be 1 unless the restricted-mode profile in use explicitly supports the value 0.
-   dxvaStructure.MbsConsecutiveFlag = 1;
-
-   if (((profile == PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN) || (profile == PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH) ||
-        (profile == PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10) || (profile == PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422) ||
-        (profile ==
-         PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444)) &&   // profile is Main,High,High 10, High 4:2:2 or High 4:4:4
-       (pPipeDesc->pps->sps->level_idc >= 31))       // AND level 3.1 and higher
-   {
-      dxvaStructure.MinLumaBipredSize8x8Flag = 1;
-   } else {
-      dxvaStructure.MinLumaBipredSize8x8Flag = 0;
-   }
+   }   
 
    // frame type (I, P, B, etc) is not included in pipeDesc data, let's try to derive it
    // from the reference list...if frame doesn't use any references, it should be an I frame.
