@@ -1061,18 +1061,6 @@ d3d12_video_encoder_begin_frame(struct pipe_video_codec * codec,
 
    pD3D12Enc->m_numNestedBeginFrame++;
 
-   ///
-   /// Caps check
-   ///
-   int capsResult = d3d12_screen_get_video_param(&pD3D12Enc->m_pD3D12Screen->base,
-                                                 codec->profile,
-                                                 PIPE_VIDEO_ENTRYPOINT_ENCODE,
-                                                 PIPE_VIDEO_CAP_SUPPORTED);
-   if (capsResult == 0) {
-      D3D12_LOG_ERROR(
-         "[d3d12_video_encoder] d3d12_video_encoder_begin_frame - d3d12_screen_get_video_param returned no support.\n");
-   }
-
    if (!d3d12_video_encoder_reconfigure_session(pD3D12Enc, target, picture)) {
       D3D12_LOG_ERROR("[d3d12_video_encoder] d3d12_video_encoder_begin_frame - Failure on "
                       "d3d12_video_encoder_reconfigure_session\n");
