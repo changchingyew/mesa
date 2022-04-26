@@ -247,6 +247,15 @@ vlVaGetConfigAttributes(VADriverContextP ctx, VAProfile profile, VAEntrypoint en
              *       to the previous slices.
                #define VA_ENC_SLICE_STRUCTURE_EQUAL_MULTI_ROWS         0x00000020
              */
+            
+            /* The VA enum values match the pipe_video_cap_slice_structure definitions*/
+            static_assert(PIPE_VIDEO_CAP_SLICE_STRUCTURE_POWER_OF_TWO_ROWS == VA_ENC_SLICE_STRUCTURE_POWER_OF_TWO_ROWS);
+            static_assert(PIPE_VIDEO_CAP_SLICE_STRUCTURE_ARBITRARY_MACROBLOCKS == VA_ENC_SLICE_STRUCTURE_ARBITRARY_MACROBLOCKS);
+            static_assert(PIPE_VIDEO_CAP_SLICE_STRUCTURE_EQUAL_ROWS == VA_ENC_SLICE_STRUCTURE_EQUAL_ROWS);
+            static_assert(PIPE_VIDEO_CAP_SLICE_STRUCTURE_MAX_SLICE_SIZE == VA_ENC_SLICE_STRUCTURE_MAX_SLICE_SIZE);
+            static_assert(PIPE_VIDEO_CAP_SLICE_STRUCTURE_ARBITRARY_ROWS == VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS);
+            static_assert(PIPE_VIDEO_CAP_SLICE_STRUCTURE_EQUAL_MULTI_ROWS == VA_ENC_SLICE_STRUCTURE_EQUAL_MULTI_ROWS);
+
             int supportedSliceStructuresFlagSet = pscreen->get_video_param(pscreen, ProfileToPipe(profile),
                                              PIPE_VIDEO_ENTRYPOINT_ENCODE,
                                              PIPE_VIDEO_CAP_ENC_SLICES_STRUCTURE);
