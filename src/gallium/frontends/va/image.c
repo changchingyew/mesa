@@ -729,14 +729,14 @@ vlVaPutImage(VADriverContextP ctx, VASurfaceID surface, VAImageID image,
          }
       }
    }
-   struct pipe_fence_handle *pCompletionFence = NULL;
-   drv->pipe->flush(drv->pipe, &pCompletionFence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
+   struct pipe_fence_handle *completion_fence = NULL;
+   drv->pipe->flush(drv->pipe, &completion_fence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
    // pipe->flush is async by default, wait for GPU work completion to avoid race conditions 
    // on callers to vaPutImage expecting the data to be fully transferred on this function
    // return, and the VAImage to be ready for destruction with vaDestroyImage.   
-   assert (pCompletionFence);
-   drv->pipe->screen->fence_finish(drv->pipe->screen, drv->pipe, pCompletionFence, PIPE_TIMEOUT_INFINITE);
-   drv->pipe->screen->fence_reference(drv->pipe->screen, &pCompletionFence, NULL);
+   assert (completion_fence);
+   drv->pipe->screen->fence_finish(drv->pipe->screen, drv->pipe, completion_fence, PIPE_TIMEOUT_INFINITE);
+   drv->pipe->screen->fence_reference(drv->pipe->screen, &completion_fence, NULL);
    mtx_unlock(&drv->mutex);
 
    return VA_STATUS_SUCCESS;

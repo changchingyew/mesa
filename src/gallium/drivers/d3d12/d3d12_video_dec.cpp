@@ -655,15 +655,15 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
                                                        &box);
       }
       // Flush resource_copy_region batch and wait on this CPU thread for GPU work completion
-      struct pipe_fence_handle *pCompletionFence = NULL;
+      struct pipe_fence_handle *completion_fence = NULL;
       pD3D12Dec->base.context->flush(pD3D12Dec->base.context,
-                                     &pCompletionFence,
+                                     &completion_fence,
                                      PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
-      if (pCompletionFence) {
+      if (completion_fence) {
          D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_end_frame - Waiting on GPU completion fence for "
                        "resource_copy_region on decoded frame.\n");
-         pD3D12Screen->base.fence_finish(&pD3D12Screen->base, NULL, pCompletionFence, PIPE_TIMEOUT_INFINITE);
-         pD3D12Screen->base.fence_reference(&pD3D12Screen->base, &pCompletionFence, NULL);
+         pD3D12Screen->base.fence_finish(&pD3D12Screen->base, NULL, completion_fence, PIPE_TIMEOUT_INFINITE);
+         pD3D12Screen->base.fence_reference(&pD3D12Screen->base, &completion_fence, NULL);
       } else {
          D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_end_frame - pD3D12Dec->base.context->flush(...) "
                          "returned a nullptr completion fence \n");
