@@ -1032,14 +1032,14 @@ d3d12_video_decoder_reconfigure_dpb(struct d3d12_video_decoder *pD3D12Dec,
    d3d12_video_decoder_get_frame_info(pD3D12Dec, &width, &height, &maxDPB, isInterlaced);
    if(isInterlaced) {
       D3D12_LOG_DBG("[d3d12_video_decoder] d3d12_video_decoder_reconfigure_dpb - Requested video bitstream uses interlaced encoding\n");
-      int capsResult = d3d12_screen_get_video_param(&pD3D12Dec->m_pD3D12Screen->base,
+      int capsResult = pD3D12Dec->m_screen->get_video_param(&pD3D12Dec->m_pD3D12Screen->base,
                                                    pD3D12Dec->base.profile,
                                                    PIPE_VIDEO_ENTRYPOINT_BITSTREAM,
                                                    PIPE_VIDEO_CAP_SUPPORTS_INTERLACED);
       if (capsResult == 0) {
          D3D12_LOG_ERROR("[d3d12_video_decoder] d3d12_video_decoder_decode_bitstream failed. Requested configuration is "
                         "PIPE_VIDEO_CAP_SUPPORTS_INTERLACED "
-                        "and it is not supported by d3d12_screen_get_video_param for entrypoint PIPE_VIDEO_ENTRYPOINT_BITSTREAM");
+                        "and it is not supported by get_video_param for entrypoint PIPE_VIDEO_ENTRYPOINT_BITSTREAM");
       }
    }
 

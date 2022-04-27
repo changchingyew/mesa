@@ -127,7 +127,4 @@ d3d12_dxcore_screen(struct d3d12_screen *screen)
 bool
 d3d12_init_screen(struct d3d12_screen *screen, struct sw_winsys *winsys, IUnknown *adapter);
 
-int
-d3d12_screen_get_video_param(struct pipe_screen *pscreen, enum pipe_video_profile profile, enum pipe_video_entrypoint entrypoint, enum pipe_video_cap param);
-
 #endif

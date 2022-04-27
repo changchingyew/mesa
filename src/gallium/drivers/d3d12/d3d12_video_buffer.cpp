@@ -32,15 +32,6 @@
 #include "vl/vl_video_buffer.h"
 #include "util/u_sampler.h"
 
-bool
-d3d12_video_buffer_is_format_supported(struct pipe_screen *       screen,
-                                       enum pipe_format           format,
-                                       enum pipe_video_profile    profile,
-                                       enum pipe_video_entrypoint entrypoint)
-{
-   return (format == PIPE_FORMAT_NV12);
-}
-
 /**
  * creates a video buffer
  */
