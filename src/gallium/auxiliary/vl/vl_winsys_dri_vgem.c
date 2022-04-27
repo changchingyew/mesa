@@ -41,7 +41,14 @@
 #include "gallium/winsys/sw/kms-dri/kms_dri_sw_winsys.h"
 #include "gallium/winsys/sw/null/null_sw_winsys.h"
 
-static void vl_vgem_drm_screen_destroy(struct vl_screen *vscreen);
+static void vl_vgem_drm_screen_destroy(struct vl_screen *vscreen) {
+  if (vscreen) {
+    if (vscreen->pscreen) {
+      vscreen->pscreen->destroy(vscreen->pscreen);
+    }
+    FREE(vscreen);
+  }
+}
 
 struct vl_screen *vl_vgem_drm_screen_create(int fd) {
   char *driver_name = loader_get_driver_for_fd(fd);
@@ -91,13 +98,4 @@ struct vl_screen *vl_vgem_drm_screen_create(int fd) {
 release_pipe:
   vl_vgem_drm_screen_destroy(vscreen);
   return NULL;
-}
-
-static void vl_vgem_drm_screen_destroy(struct vl_screen *vscreen) {
-  if (vscreen) {
-    if (vscreen->pscreen) {
-      vscreen->pscreen->destroy(vscreen->pscreen);
-    }
-    FREE(vscreen);
-  }
 }
