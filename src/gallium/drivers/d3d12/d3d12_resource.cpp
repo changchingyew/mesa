@@ -641,24 +641,24 @@ static void d3d12_adjust_transfer_dimensions_for_plane(const struct d3d12_resour
                                                        const struct pipe_box* original_box,
                                                        struct pipe_transfer *ptrans/*inout*/)
 {
-   // Adjust strides, offsets to the corresponding plane
+   /* Adjust strides, offsets to the corresponding plane*/
    ptrans->stride = plane_stride;
    ptrans->layer_stride = plane_layer_stride;
    ptrans->offset = plane_offset;
 
-   // Find multipliers such that:
-   // first_plane.width = widthMultiplier * planes[res->plane_slice].width
-   // first_plane.height = heightMultiplier * planes[res->plane_slice].height
+   /* Find multipliers such that:*/
+   /* first_plane.width = widthMultiplier * planes[res->plane_slice].width*/
+   /* first_plane.height = heightMultiplier * planes[res->plane_slice].height*/
    float widthMultiplier = res->first_plane->width0 / (float) util_format_get_plane_width(res->overall_format, res->plane_slice, res->first_plane->width0);
    float heightMultiplier = res->first_plane->height0 / (float) util_format_get_plane_height(res->overall_format, res->plane_slice, res->first_plane->height0);
    
-   // Normalize box back to overall dimensions (first plane)
+   /* Normalize box back to overall dimensions (first plane)*/
    ptrans->box.width = widthMultiplier * original_box->width;
    ptrans->box.height = heightMultiplier * original_box->height;
    ptrans->box.x = widthMultiplier * original_box->x;
    ptrans->box.y = heightMultiplier * original_box->y;
 
-   // Now adjust dimensions to plane_slice
+   /* Now adjust dimensions to plane_slice*/
    ptrans->box.width = util_format_get_plane_width(res->overall_format, plane_slice, ptrans->box.width);
    ptrans->box.height = util_format_get_plane_height(res->overall_format, plane_slice, ptrans->box.height);
    ptrans->box.x = util_format_get_plane_width(res->overall_format, plane_slice, ptrans->box.x);
@@ -1414,9 +1414,7 @@ d3d12_transfer_map(struct pipe_context *pctx,
       }
    } else if(util_format_is_yuv(res->overall_format)) {
 
-      ///
-      /// Get planes information
-      ///
+      /* Get planes information*/
 
       unsigned num_planes = util_format_get_num_planes(res->overall_format);
       pipe_resource* planes[num_planes];
@@ -1435,9 +1433,7 @@ d3d12_transfer_map(struct pipe_context *pctx,
          &staging_res_size
       );
       
-      ///
-      /// Allocate a buffer for all the planes to fit in adjacent memory
-      ///
+      /* Allocate a buffer for all the planes to fit in adjacent memory*/
 
       pipe_resource_usage staging_usage = (usage & (PIPE_MAP_READ | PIPE_MAP_READ_WRITE)) ?
          PIPE_USAGE_STAGING : PIPE_USAGE_STREAM;
@@ -1449,15 +1445,13 @@ d3d12_transfer_map(struct pipe_context *pctx,
 
       struct d3d12_resource *staging_res = d3d12_resource(trans->staging_res);
 
-      ///
-      /// Readback contents into the buffer allocation now if map was intended for read
-      ///
+      /* Readback contents into the buffer allocation now if map was intended for read*/
 
-      /// Read all planes if readback needed
+      /* Read all planes if readback needed*/
       if (usage & PIPE_MAP_READ) {
          pipe_box original_box = ptrans->box;
          for (uint plane_slice = 0; plane_slice < num_planes; ++plane_slice) {
-            // Adjust strides, offsets, box to the corresponding plane for the copytexture operation
+            /* Adjust strides, offsets, box to the corresponding plane for the copytexture operation*/
             d3d12_adjust_transfer_dimensions_for_plane(res,
                                                        plane_slice,
                                                        strides[plane_slice],
@@ -1465,7 +1459,7 @@ d3d12_transfer_map(struct pipe_context *pctx,
                                                        offsets[plane_slice],
                                                        &original_box,
                                                        ptrans/*inout*/);
-            // Perform the readback
+            /* Perform the readback*/
             if(!transfer_image_to_buf(ctx, d3d12_resource(planes[plane_slice]), staging_res, trans, 0)){
                return NULL;
             }
@@ -1474,8 +1468,8 @@ d3d12_transfer_map(struct pipe_context *pctx,
          d3d12_flush_cmdlist_and_wait(ctx);
       }
 
-      // Map the whole staging buffer containing all the planes contiguously
-      // Just offset the resulting ptr to the according plane offset
+      /* Map the whole staging buffer containing all the planes contiguously*/
+      /* Just offset the resulting ptr to the according plane offset*/
 
       range.End = staging_res_size - range.Begin;
       uint8_t* all_planes_map = (uint8_t*) d3d12_bo_map(staging_res->bo, &range);
@@ -1570,10 +1564,8 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
       free(trans->data);
    } else if (trans->staging_res) {
       if(util_format_is_yuv(res->overall_format)) {
-         ///
-         /// Get planes information
-         ///
-         
+
+         /* Get planes information*/
          unsigned num_planes = util_format_get_num_planes(res->overall_format);
          pipe_resource* planes[num_planes];
          unsigned int strides[num_planes];
@@ -1591,16 +1583,14 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
             &staging_res_size
          );      
 
-         ///
-         /// Flush the changed contents into the GPU texture
-         ///
+         /* Flush the changed contents into the GPU texture*/
 
-         /// In theory we should just flush only the contents for the plane
-         /// requested in res->plane_slice, but the VAAPI frontend has this
-         /// behaviour in which they assume that mapping the first plane of
-         /// NV12, P010, etc resources will will give them a buffer containing
-         /// both Y and UV planes contigously in vaDeriveImage and then vaMapBuffer
-         /// so, flush them all
+         /* In theory we should just flush only the contents for the plane*/
+         /* requested in res->plane_slice, but the VAAPI frontend has this*/
+         /* behaviour in which they assume that mapping the first plane of*/
+         /* NV12, P010, etc resources will will give them a buffer containing*/
+         /* both Y and UV planes contigously in vaDeriveImage and then vaMapBuffer*/
+         /* so, flush them all*/
          
          struct d3d12_resource *staging_res = d3d12_resource(trans->staging_res);
          if (trans->base.b.usage & PIPE_MAP_WRITE) {
@@ -1612,7 +1602,7 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
             d3d12_bo_unmap(staging_res->bo, &range);
             pipe_box original_box = ptrans->box;
             for (uint plane_slice = 0; plane_slice < num_planes; ++plane_slice) {
-               // Adjust strides, offsets to the corresponding plane for the copytexture operation
+               /* Adjust strides, offsets to the corresponding plane for the copytexture operation*/
                d3d12_adjust_transfer_dimensions_for_plane(res,
                                                           plane_slice,
                                                           strides[plane_slice],
@@ -1624,9 +1614,9 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
                transfer_buf_to_image(ctx, d3d12_resource(planes[plane_slice]), staging_res, trans, 0);
             }
             
-            // Some frontends like VA in functions vaUnmapBuffer dont't flush
-            // and some callers to vaUnmapBuffer like ffmpeg destroy the underlying
-            // source CPU buffer without flushing, so let's flush here
+            /* Some frontends like VA in functions vaUnmapBuffer dont't flush*/
+            /* and some callers to vaUnmapBuffer like ffmpeg destroy the underlying*/
+            /* source CPU buffer without flushing, so let's flush here*/
             d3d12_flush_cmdlist_and_wait(ctx);
          }
 
