@@ -666,32 +666,32 @@ static void d3d12_adjust_transfer_dimensions_for_plane(const struct d3d12_resour
 }
 
 static
-void d3d12_resource_get_planes_info(struct pipe_resource *pres, // in 
-                                    const unsigned num_planes, // in 
-                                    pipe_resource **ppPlanes, // Out(num_planes elements)
-                                    unsigned int *pStrides, // Out(num_planes elements)
-                                    unsigned int *pLayerStrides, // Out(num_planes elements)
-                                    unsigned int *pOffsets, // Out(num_planes elements)
-                                    unsigned *pStagingResSize // Out unsigned
-) {
+void d3d12_resource_get_planes_info(pipe_resource *pres,
+                                    unsigned num_planes,
+                                    pipe_resource **planes,
+                                    unsigned *strides,
+                                    unsigned *layer_strides,
+                                    unsigned *offsets,
+                                    unsigned *staging_res_size)
+{
    struct d3d12_resource* res = d3d12_resource(pres);
-   *pStagingResSize = 0;
+   *staging_res_size = 0;
    struct pipe_resource *pCurPlaneResource = res->first_plane;
    for (uint plane_slice = 0; plane_slice < num_planes; ++plane_slice) {
-      ppPlanes[plane_slice] = pCurPlaneResource;
+      planes[plane_slice] = pCurPlaneResource;
       int width = util_format_get_plane_width(res->base.b.format, plane_slice, res->first_plane->width0);
       int height = util_format_get_plane_height(res->base.b.format, plane_slice, res->first_plane->height0);
 
-      pStrides[plane_slice] = align(util_format_get_stride(pCurPlaneResource->format, width),
+      strides[plane_slice] = align(util_format_get_stride(pCurPlaneResource->format, width),
                            D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 
-      pLayerStrides[plane_slice] = align(util_format_get_2d_size(pCurPlaneResource->format,
-                                                   pStrides[plane_slice],
+      layer_strides[plane_slice] = align(util_format_get_2d_size(pCurPlaneResource->format,
+                                                   strides[plane_slice],
                                                    height),
                                  D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 
-      pOffsets[plane_slice] = *pStagingResSize;
-      *pStagingResSize += pLayerStrides[plane_slice];
+      offsets[plane_slice] = *staging_res_size;
+      *staging_res_size += layer_strides[plane_slice];
       pCurPlaneResource = pCurPlaneResource->next;
    }
 }
@@ -703,7 +703,8 @@ void d3d12_resource_get_planes_info(struct pipe_resource *pres, // in
 void d3d12_resource_get_info(struct pipe_screen *pscreen,
                            struct pipe_resource *pres,
                            unsigned *stride,
-                           unsigned *offset){
+                           unsigned *offset)
+{
 
    struct d3d12_resource* res = d3d12_resource(pres);
    unsigned num_planes = util_format_get_num_planes(res->overall_format);
@@ -1452,20 +1453,6 @@ d3d12_transfer_map(struct pipe_context *pctx,
       /// Readback contents into the buffer allocation now if map was intended for read
       ///
 
-      /// In theory we should just mark dirty and readback only the contents for the plane
-      /// requested in res->plane_slice, but the VAAPI frontend has this
-      /// behaviour in which they assume that mapping the first plane of
-      /// NV12, P010, etc resources will will give them a buffer containing
-      /// both Y and UV planes contigously in vaDeriveImage and then vaMapBuffer
-      
-      // Mark them all as mapped and dirty
-      for (uint plane_slice = 0; plane_slice < num_planes; ++plane_slice) {
-         // Track and refcount the plane requested to be mapped
-         // so we can flush accordingly in unmap
-         res->mapped_dirty_plane_mask |= (1 << plane_slice);
-         res->mapped_plane_refcount[plane_slice]++;
-      }
-      
       /// Read all planes if readback needed
       if (usage & PIPE_MAP_READ) {
          pipe_box original_box = ptrans->box;
@@ -1491,11 +1478,11 @@ d3d12_transfer_map(struct pipe_context *pctx,
       // Just offset the resulting ptr to the according plane offset
 
       range.End = staging_res_size - range.Begin;
-      uint8_t* pAllPlanesMap = (uint8_t*) d3d12_bo_map(staging_res->bo, &range);
+      uint8_t* all_planes_map = (uint8_t*) d3d12_bo_map(staging_res->bo, &range);
 
       ptrans->stride = strides[res->plane_slice];
       ptrans->layer_stride = layer_strides[res->plane_slice];
-      ptr = pAllPlanesMap + offsets[res->plane_slice];
+      ptr = all_planes_map + offsets[res->plane_slice];
 
    } else {
       ptrans->stride = align(util_format_get_stride(pres->format, box->width),
@@ -1604,10 +1591,6 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
             &staging_res_size
          );      
 
-         // Decrement refcount on this particular plane being mapped
-         assert(res->mapped_plane_refcount[res->plane_slice] > 0);
-         res->mapped_plane_refcount[res->plane_slice]--;
-
          ///
          /// Flush the changed contents into the GPU texture
          ///
@@ -1648,10 +1631,6 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
          }
 
          pipe_resource_reference(&trans->staging_res, NULL);
-         
-         // Update the dirty plane map flags after the successful flush to GPU memory
-         res->mapped_dirty_plane_mask = 0;
-
       } else {
          struct d3d12_resource *staging_res = d3d12_resource(trans->staging_res);
          if (trans->base.b.usage & PIPE_MAP_WRITE) {
