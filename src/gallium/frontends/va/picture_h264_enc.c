@@ -82,32 +82,14 @@ vlVaHandleVAEncSliceParameterBufferTypeH264(vlVaDriver *drv, vlVaContext *contex
 
    context->desc.h264enc.num_ref_idx_l0_active_minus1 = h264->num_ref_idx_l0_active_minus1;
    context->desc.h264enc.num_ref_idx_l1_active_minus1 = h264->num_ref_idx_l1_active_minus1;
-   if( (h264->num_ref_idx_l0_active_minus1 > 0)
-      || (h264->num_ref_idx_l0_active_minus1 > 0)) {
-         // Multiple L0, L1 references
-      for (int i = 0; i < 32; i++) {
-         if (h264->RefPicList0[i].picture_id != VA_INVALID_ID) {
-                  context->desc.h264enc.ref_idx_l0_list[i] = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
-                                    UINT_TO_PTR(h264->RefPicList0[i].picture_id + 1)));
-         }
-         if (h264->RefPicList1[i].picture_id != VA_INVALID_ID && h264->slice_type == 1) {
-               context->desc.h264enc.ref_idx_l1_list[i] = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
-                                    UINT_TO_PTR(h264->RefPicList1[i].picture_id + 1)));
-         }
+   for (int i = 0; i < 32; i++) {
+      if (h264->RefPicList0[i].picture_id != VA_INVALID_ID) {
+               context->desc.h264enc.ref_idx_l0_list[i] = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
+                                 UINT_TO_PTR(h264->RefPicList0[i].picture_id + 1)));
       }
-   } else {
-      // Default single-reference behaviour
-      for (int i = 0; i < 32; i++) {
-         if (h264->RefPicList0[i].picture_id != VA_INVALID_ID) {
-            if (context->desc.h264enc.ref_idx_l0 == VA_INVALID_ID)
-               context->desc.h264enc.ref_idx_l0 = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
-                                    UINT_TO_PTR(h264->RefPicList0[i].picture_id + 1)));
-         }
-         if (h264->RefPicList1[i].picture_id != VA_INVALID_ID && h264->slice_type == 1) {
-            if (context->desc.h264enc.ref_idx_l1 == VA_INVALID_ID)
-               context->desc.h264enc.ref_idx_l1 = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
-                                    UINT_TO_PTR(h264->RefPicList1[i].picture_id + 1)));
-         }
+      if (h264->RefPicList1[i].picture_id != VA_INVALID_ID && h264->slice_type == 1) {
+            context->desc.h264enc.ref_idx_l1_list[i] = PTR_TO_UINT(util_hash_table_get(context->desc.h264enc.frame_idx,
+                                 UINT_TO_PTR(h264->RefPicList1[i].picture_id + 1)));
       }
    }
 
