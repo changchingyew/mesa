@@ -311,13 +311,13 @@ vlVaDeriveImage(VADriverContextP ctx, VASurfaceID surface, VAImage *image)
    case VA_FOURCC('P','0','1','0'):
    case VA_FOURCC('P','0','1','6'):
    {
-      // In some gallium platforms, the stride and offset are different
-      // for the U and UV planes, query them independently.
+      /* In some gallium platforms, the stride and offset are different*/
+      /* for the U and UV planes, query them independently.*/
       if (screen->resource_get_info) {
-         // resource_get_info is called above for surfaces[0]->texture and 
-         // saved results in stride, offset, reuse those values to avoid a new call to: 
-         // screen->resource_get_info(screen, surfaces[0]->texture, &img->pitches[0],
-         //                         &img->offsets[0]);
+         /* resource_get_info is called above for surfaces[0]->texture and */
+         /* saved results in stride, offset, reuse those values to avoid a new call to: */
+         /* screen->resource_get_info(screen, surfaces[0]->texture, &img->pitches[0],*/
+         /*                         &img->offsets[0]);*/
          img->pitches[0] = stride;
          img->offsets[0] = offset;
 
@@ -371,8 +371,7 @@ vlVaDeriveImage(VADriverContextP ctx, VASurfaceID surface, VAImage *image)
       }
 
       img->num_planes = 2;
-      if(screen->resource_get_info)
-      {
+      if(screen->resource_get_info) {
          // Note this block might use h and w from the recalculated size if it entered
          // the interlaced branch above.
          img->data_size  = (img->pitches[0] * h) + (img->pitches[1] * h);
@@ -731,9 +730,9 @@ vlVaPutImage(VADriverContextP ctx, VASurfaceID surface, VAImageID image,
    }
    struct pipe_fence_handle *completion_fence = NULL;
    drv->pipe->flush(drv->pipe, &completion_fence, PIPE_FLUSH_ASYNC | PIPE_FLUSH_HINT_FINISH);
-   // pipe->flush is async by default, wait for GPU work completion to avoid race conditions 
-   // on callers to vaPutImage expecting the data to be fully transferred on this function
-   // return, and the VAImage to be ready for destruction with vaDestroyImage.   
+   /* pipe->flush is async by default, wait for GPU work completion to avoid race conditions */
+   /*  on callers to vaPutImage expecting the data to be fully transferred on this function*/
+   /*  return, and the VAImage to be ready for destruction with vaDestroyImage.*/
    assert (completion_fence);
    drv->pipe->screen->fence_finish(drv->pipe->screen, drv->pipe, completion_fence, PIPE_TIMEOUT_INFINITE);
    drv->pipe->screen->fence_reference(drv->pipe->screen, &completion_fence, NULL);
