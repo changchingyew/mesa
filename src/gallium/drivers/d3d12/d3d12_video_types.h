@@ -39,6 +39,9 @@
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 
+// Some GPUs need the H264 scaling matrices to be translated from the layout which the upper layer writes
+const bool D3D12_VIDEO_DEC_QPMATRIX_ZIGZAG_SCAN = debug_get_bool_option("D3D12_VIDEO_DEC_QPMATRIX_ZIGZAG_SCAN", true);
+
 // Allow encoder to continue the encoding session when an optional 
 // rate control mode such as the following is used but not supported
 //

@@ -35,9 +35,9 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
    //    that were left not marked as used in m_spDPBManager by step (2) are lost.
 
    // Assign DXVA original Index7Bits indices to current frame and references
-   DXVA_PicParams_H264* pCurrPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
+   DXVA_PicParams_H264 *pCurrPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
    assert(pD3D12Dec->m_currentReferenceTargetsCount == 16);
-   for(uint8_t i=0;i<16;i++) {
+   for (uint8_t i = 0; i < 16; i++) {
       // From H264 DXVA spec:
       // Index7Bits
       //     An index that identifies an uncompressed surface for the CurrPic or RefFrameList member of the picture
@@ -48,10 +48,10 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
       //     the surface indirectly, as an index into the RefFrameList array of the associated picture parameters
       //     structure.For more information, see section 6.2. In all cases, when Index7Bits does not contain a valid
       //     index, the value is 127.
-      if(pCurrPicParams->RefFrameList[i].bPicEntry != DXVA_H264_INVALID_PICTURE_ENTRY_VALUE)
-      {
-         pCurrPicParams->RefFrameList[i].Index7Bits = pD3D12Dec->m_spDPBManager->get_index7bits(pD3D12Dec->m_pCurrentReferenceTargets[i]);
-      }      
+      if (pCurrPicParams->RefFrameList[i].bPicEntry != DXVA_H264_INVALID_PICTURE_ENTRY_VALUE) {
+         pCurrPicParams->RefFrameList[i].Index7Bits =
+            pD3D12Dec->m_spDPBManager->get_index7bits(pD3D12Dec->m_pCurrentReferenceTargets[i]);
+      }
    }
 
    pD3D12Dec->m_spDPBManager->mark_all_references_as_unused();
@@ -63,7 +63,8 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
 
    pCurrPicParams->CurrPic.Index7Bits = pD3D12Dec->m_spDPBManager->get_index7bits(pD3D12Dec->m_pCurrentDecodeTarget);
 
-   D3D12_LOG_DBG("[d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input] DXVA_PicParams_H264 converted from pipe_h264_picture_desc (No reference index remapping)\n");
+   D3D12_LOG_DBG("[d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input] DXVA_PicParams_H264 converted "
+                 "from pipe_h264_picture_desc (No reference index remapping)\n");
    d3d12_video_decoder_log_pic_params_h264(pCurrPicParams);
 }
 
@@ -124,115 +125,113 @@ d3d12_video_decoder_prepare_current_frame_references_h264(struct d3d12_video_dec
       pD3D12Dec->m_transitionsBeforeCloseCmdList.push_back(BarrierDesc);
    }
 
-   D3D12_LOG_DBG("[d3d12_video_decoder_prepare_current_frame_references_h264] DXVA_PicParams_H264 after index remapping)\n");
-   d3d12_video_decoder_log_pic_params_h264(d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec));
+   D3D12_LOG_DBG(
+      "[d3d12_video_decoder_prepare_current_frame_references_h264] DXVA_PicParams_H264 after index remapping)\n");
+   d3d12_video_decoder_log_pic_params_h264(
+      d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec));
 }
 
 void
 d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder *pD3D12Dec,
                                                      std::vector<DXVA_Slice_H264_Short> &pOutSliceControlBuffers,
-                                                     struct pipe_h264_picture_desc* picture_h264)
+                                                     struct pipe_h264_picture_desc *picture_h264)
 {
-   D3D12_LOG_INFO("[d3d12_video_decoder_h264] Upper layer reported %d slices for this frame, parsing them below...", picture_h264->slice_count);
+   D3D12_LOG_INFO("[d3d12_video_decoder_h264] Upper layer reported %d slices for this frame, parsing them below...",
+                  picture_h264->slice_count);
    size_t processedBitstreamBytes = 0u;
    size_t sliceIdx = 0;
    bool sliceFound = false;
    do {
-      DXVA_Slice_H264_Short currentSliceEntry = { };
+      DXVA_Slice_H264_Short currentSliceEntry = {};
       // From DXVA spec: All bits for the slice are located within the corresponding bitstream data buffer.
       currentSliceEntry.wBadSliceChopping = 0u;
-      sliceFound =
-         d3d12_video_decoder_get_next_slice_size_and_offset_h264(pD3D12Dec->m_stagingDecodeBitstream,
-                                                               processedBitstreamBytes,
-                                                               currentSliceEntry.SliceBytesInBuffer,
-                                                               currentSliceEntry.BSNALunitDataLocation);
+      sliceFound = d3d12_video_decoder_get_next_slice_size_and_offset_h264(pD3D12Dec->m_stagingDecodeBitstream,
+                                                                           processedBitstreamBytes,
+                                                                           currentSliceEntry.SliceBytesInBuffer,
+                                                                           currentSliceEntry.BSNALunitDataLocation);
 
-      if(sliceFound)
-      {
-         d3d12_video_decoder_nal_unit_type_h264 naluType = (d3d12_video_decoder_nal_unit_type_h264)(pD3D12Dec->m_stagingDecodeBitstream[currentSliceEntry.BSNALunitDataLocation + (DXVA_H264_START_CODE_LEN_BITS/8)] & 0x1F);
-         D3D12_LOG_INFO("[d3d12_video_decoder_h264] Detected slice (NALU Type %d) index %ld with size %d and offset %d for frame with "
-                     "fenceValue: %d\n",
-                     naluType,
-                     sliceIdx,
-                     currentSliceEntry.SliceBytesInBuffer,
-                     currentSliceEntry.BSNALunitDataLocation,
-                     pD3D12Dec->m_fenceValue);
+      if (sliceFound) {
+         d3d12_video_decoder_nal_unit_type_h264 naluType = (d3d12_video_decoder_nal_unit_type_h264)(
+            pD3D12Dec->m_stagingDecodeBitstream[currentSliceEntry.BSNALunitDataLocation +
+                                                (DXVA_H264_START_CODE_LEN_BITS / 8)] &
+            0x1F);
+         D3D12_LOG_INFO("[d3d12_video_decoder_h264] Detected slice (NALU Type %d) index %ld with size %d and offset %d "
+                        "for frame with "
+                        "fenceValue: %d\n",
+                        naluType,
+                        sliceIdx,
+                        currentSliceEntry.SliceBytesInBuffer,
+                        currentSliceEntry.BSNALunitDataLocation,
+                        pD3D12Dec->m_fenceValue);
 
          sliceIdx++;
          processedBitstreamBytes += currentSliceEntry.SliceBytesInBuffer;
          pOutSliceControlBuffers.push_back(currentSliceEntry);
-      }      
-   } while(sliceFound && (sliceIdx < picture_h264->slice_count));
+      }
+   } while (sliceFound && (sliceIdx < picture_h264->slice_count));
    assert(pOutSliceControlBuffers.size() == picture_h264->slice_count);
 }
 
 bool
 d3d12_video_decoder_get_next_slice_size_and_offset_h264(std::vector<uint8_t> &buf,
-                                                      unsigned int bufferOffset,
-                                                      uint32_t &outSliceSize,
-                                                      uint32_t &outSliceOffset)
+                                                        unsigned int bufferOffset,
+                                                        uint32_t &outSliceSize,
+                                                        uint32_t &outSliceOffset)
 {
    // Search the rest of the full frame buffer after the offset
-   uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset;      
+   uint numBitsToSearchIntoBuffer = buf.size() - bufferOffset;
    int currentSlicePosition = d3d12_video_decoder_get_next_startcode_offset(buf,
                                                                             bufferOffset,
                                                                             DXVA_H264_START_CODE,
                                                                             DXVA_H264_START_CODE_LEN_BITS,
                                                                             numBitsToSearchIntoBuffer);
-   
+
    // Return false now if we didn't find a next slice based on the bufferOffset parameter
-   if(currentSlicePosition < 0)
-   {
+   if (currentSlicePosition < 0) {
       return false;
-   }
-   else
-   {
+   } else {
       // Save the absolute buffer offset until the next slice in the output param
       outSliceOffset = currentSlicePosition + bufferOffset;
-      
+
       // Found a next NALU, make sure it's a slice:
-      d3d12_video_decoder_nal_unit_type_h264 naluType = (d3d12_video_decoder_nal_unit_type_h264)(buf[outSliceOffset + (DXVA_H264_START_CODE_LEN_BITS/8)] & 0x1F);
+      d3d12_video_decoder_nal_unit_type_h264 naluType =
+         (d3d12_video_decoder_nal_unit_type_h264)(buf[outSliceOffset + (DXVA_H264_START_CODE_LEN_BITS / 8)] & 0x1F);
 
-      bool isNaluSliceType = (naluType == type_slice)
-                              || (naluType == type_slice_part_A)
-                              || (naluType == type_slice_part_B)
-                              || (naluType == type_slice_part_C)
-                              || (naluType == type_slice_IDR)
-                              || (naluType == type_slice_aux)
-                              || (naluType == type_slice_layer_ext);
+      bool isNaluSliceType = (naluType == type_slice) || (naluType == type_slice_part_A) ||
+                             (naluType == type_slice_part_B) || (naluType == type_slice_part_C) ||
+                             (naluType == type_slice_IDR) || (naluType == type_slice_aux) ||
+                             (naluType == type_slice_layer_ext);
 
-      if(!isNaluSliceType) {
+      if (!isNaluSliceType) {
          // We found a NALU, but it's not a slice
          return false;
       } else {
          // We did find a next slice based on the bufferOffset parameter
-         
+
          // Skip current start code, to get the slice after this, to calculate its size
          bufferOffset += DXVA_H264_START_CODE_LEN_BITS;
          numBitsToSearchIntoBuffer = buf.size() - bufferOffset;
 
          int c_signedStartCodeLen = DXVA_H264_START_CODE_LEN_BITS;
-         int nextSlicePosition =
-            c_signedStartCodeLen // Takes into account the skipped start code 
-            + d3d12_video_decoder_get_next_startcode_offset(buf,
-                                                                                          bufferOffset,
-                                                                                          DXVA_H264_START_CODE,
-                                                                                          DXVA_H264_START_CODE_LEN_BITS,
-                                                                                          numBitsToSearchIntoBuffer);
+         int nextSlicePosition = c_signedStartCodeLen   // Takes into account the skipped start code
+                                 + d3d12_video_decoder_get_next_startcode_offset(buf,
+                                                                                 bufferOffset,
+                                                                                 DXVA_H264_START_CODE,
+                                                                                 DXVA_H264_START_CODE_LEN_BITS,
+                                                                                 numBitsToSearchIntoBuffer);
 
-         if(nextSlicePosition < c_signedStartCodeLen) // if no slice found, d3d12_video_decoder_get_next_startcode_offset returns - 1
+         if (nextSlicePosition <
+             c_signedStartCodeLen)   // if no slice found, d3d12_video_decoder_get_next_startcode_offset returns - 1
          {
             // This means currentSlicePosition points to the last slice in the buffer
             outSliceSize = buf.size() - outSliceOffset;
-         }
-         else
-         {
+         } else {
             // This means there are more slices after the one pointed by currentSlicePosition
             outSliceSize = nextSlicePosition - currentSlicePosition;
-         }      
+         }
          return true;
       }
-   }   
+   }
 }
 
 static void
@@ -255,7 +254,7 @@ d3d12_video_decoder_log_pic_params_h264(DXVA_PicParams_H264 *pPicParams)
    D3D12_LOG_DBG("CurrPic.Index7Bits = %d\n", pPicParams->CurrPic.Index7Bits);
    D3D12_LOG_DBG("CurrPic.AssociatedFlag = %d\n", pPicParams->CurrPic.AssociatedFlag);
    D3D12_LOG_DBG("num_ref_frames = %d\n", pPicParams->num_ref_frames);
-   D3D12_LOG_DBG("sp_for_switch_flag = %d\n", pPicParams->sp_for_switch_flag);   
+   D3D12_LOG_DBG("sp_for_switch_flag = %d\n", pPicParams->sp_for_switch_flag);
    D3D12_LOG_DBG("field_pic_flag = %d\n", pPicParams->field_pic_flag);
    D3D12_LOG_DBG("MbaffFrameFlag = %d\n", pPicParams->MbaffFrameFlag);
    D3D12_LOG_DBG("residual_colour_transform_flag = %d\n", pPicParams->residual_colour_transform_flag);
@@ -263,7 +262,7 @@ d3d12_video_decoder_log_pic_params_h264(DXVA_PicParams_H264 *pPicParams)
    D3D12_LOG_DBG("RefPicFlag = %d\n", pPicParams->RefPicFlag);
    D3D12_LOG_DBG("IntraPicFlag = %d\n", pPicParams->IntraPicFlag);
    D3D12_LOG_DBG("constrained_intra_pred_flag = %d\n", pPicParams->constrained_intra_pred_flag);
-   D3D12_LOG_DBG("MinLumaBipredSize8x8Flag = %d\n", pPicParams->MinLumaBipredSize8x8Flag);   
+   D3D12_LOG_DBG("MinLumaBipredSize8x8Flag = %d\n", pPicParams->MinLumaBipredSize8x8Flag);
    D3D12_LOG_DBG("weighted_pred_flag = %d\n", pPicParams->weighted_pred_flag);
    D3D12_LOG_DBG("weighted_bipred_idc = %d\n", pPicParams->weighted_bipred_idc);
    D3D12_LOG_DBG("MbsConsecutiveFlag = %d\n", pPicParams->MbsConsecutiveFlag);
@@ -299,20 +298,21 @@ d3d12_video_decoder_log_pic_params_h264(DXVA_PicParams_H264 *pPicParams)
    const UINT16 RefPicListLength = _countof(DXVA_PicParams_H264::RefFrameList);
 
    D3D12_LOG_DBG("[D3D12 Video Decoder H264 DXVA PicParams info]\n"
-                  "\t[Current Picture Entry]\n");
+                 "\t[Current Picture Entry]\n");
    d3d12_video_decoder_log_pic_entry_h264(pPicParams->CurrPic);
 
-   D3D12_LOG_DBG("[Decode RefFrameList Pic_Entry list] Entries where bPicEntry == DXVA_H264_INVALID_PICTURE_ENTRY_VALUE are not printed\n");
+   D3D12_LOG_DBG("[Decode RefFrameList Pic_Entry list] Entries where bPicEntry == "
+                 "DXVA_H264_INVALID_PICTURE_ENTRY_VALUE are not printed\n");
    for (uint32_t refIdx = 0; refIdx < RefPicListLength; refIdx++) {
       if (DXVA_H264_INVALID_PICTURE_ENTRY_VALUE != pPicParams->RefFrameList[refIdx].bPicEntry) {
          D3D12_LOG_DBG("\t[Reference PicEntry %d]\n", refIdx);
          d3d12_video_decoder_log_pic_entry_h264(pPicParams->RefFrameList[refIdx]);
          D3D12_LOG_DBG("\t\tFrameNumList: %d\n"
-               "\t\tFieldOrderCntList[0]: %d\n"
-               "\t\tFieldOrderCntList[1]: %d\n",
-               pPicParams->FrameNumList[refIdx],
-               pPicParams->FieldOrderCntList[refIdx][0],
-               pPicParams->FieldOrderCntList[refIdx][1]);
+                       "\t\tFieldOrderCntList[0]: %d\n"
+                       "\t\tFieldOrderCntList[1]: %d\n",
+                       pPicParams->FrameNumList[refIdx],
+                       pPicParams->FieldOrderCntList[refIdx][0],
+                       pPicParams->FieldOrderCntList[refIdx][1]);
       }
    }
 }
@@ -338,11 +338,11 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
 
    // CurrPic.Index7Bits is handled by d3d12_video_decoder_refresh_dpb_active_references_h264
    // CurrPic.AssociatedFlag
-      // If field_pic_flag is 1, the AssociatedFlag field in CurrPic is interpreted as follows:
-      // 0 -> The current picture is the top field of the uncompressed destination frame surface.
-      // 1 -> The current picture is the bottom field of the uncompressed destination frame surface.
-      // If field_pic_flag is 0, AssociatedFlag has no meaning and shall be 0, and the accelerator shall ignore the value.
-   if(pPipeDesc->field_pic_flag) {
+   // If field_pic_flag is 1, the AssociatedFlag field in CurrPic is interpreted as follows:
+   // 0 -> The current picture is the top field of the uncompressed destination frame surface.
+   // 1 -> The current picture is the bottom field of the uncompressed destination frame surface.
+   // If field_pic_flag is 0, AssociatedFlag has no meaning and shall be 0, and the accelerator shall ignore the value.
+   if (pPipeDesc->field_pic_flag) {
       dxvaStructure.CurrPic.AssociatedFlag = (pPipeDesc->bottom_field_flag == 0) ? 0 : 1;
    } else {
       dxvaStructure.CurrPic.AssociatedFlag = 0;
@@ -363,7 +363,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // uint16_t sp_for_switch_flag // switch slices are not supported by VA
    dxvaStructure.sp_for_switch_flag = 0;
    // uint16_t  chroma_format_idc              : 2;
-   assert( pPipeDesc->pps->sps->chroma_format_idc == 1); // Not supported otherwise
+   assert(pPipeDesc->pps->sps->chroma_format_idc == 1);   // Not supported otherwise
    dxvaStructure.chroma_format_idc = 1;   // This is always 4:2:0 for D3D12 Video. NV12/P010 DXGI formats only.
    // uint16_t  RefPicFlag                     : 1;
    dxvaStructure.RefPicFlag = pPipeDesc->is_reference;
@@ -387,10 +387,10 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // };
    // uint8_t  bit_depth_luma_minus8;
    dxvaStructure.bit_depth_luma_minus8 = pPipeDesc->pps->sps->bit_depth_luma_minus8;
-   assert(dxvaStructure.bit_depth_luma_minus8 == 0); // Only support for NV12 now
+   assert(dxvaStructure.bit_depth_luma_minus8 == 0);   // Only support for NV12 now
    // uint8_t  bit_depth_chroma_minus8;
    dxvaStructure.bit_depth_chroma_minus8 = pPipeDesc->pps->sps->bit_depth_chroma_minus8;
-   assert(dxvaStructure.bit_depth_chroma_minus8 == 0); // Only support for NV12 now
+   assert(dxvaStructure.bit_depth_chroma_minus8 == 0);   // Only support for NV12 now
    // uint16_t MinLumaBipredSize8x8Flag
    dxvaStructure.MinLumaBipredSize8x8Flag = pPipeDesc->pps->sps->MinLumaBiPredSize8x8;
    // char pic_init_qs_minus26
@@ -425,7 +425,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    dxvaStructure.entropy_coding_mode_flag = pPipeDesc->pps->entropy_coding_mode_flag;
    // uint8_t  num_slice_groups_minus1;
    dxvaStructure.num_slice_groups_minus1 = pPipeDesc->pps->num_slice_groups_minus1;
-   assert(dxvaStructure.num_slice_groups_minus1 == 0); // FMO Not supported by VA
+   assert(dxvaStructure.num_slice_groups_minus1 == 0);   // FMO Not supported by VA
 
    // uint8_t  slice_group_map_type;
    dxvaStructure.slice_group_map_type = pPipeDesc->pps->slice_group_map_type;
@@ -453,21 +453,19 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
 
    bool frameUsesAnyRefPicture = false;
    for (uint i = 0; i < 16; i++) {
-      // Fix ad-hoc behaviour from the VA upper layer which always marks short term references as top_is_reference and bottom_is_reference as true
-      // and then differenciates using INT_MAX in field_order_cnt_list[i][0]/[1] to indicate not used
-      // convert to expected
-      if(pPipeDesc->field_order_cnt_list[i][0] == INT_MAX)
-      {
+      // Fix ad-hoc behaviour from the VA upper layer which always marks short term references as top_is_reference and
+      // bottom_is_reference as true and then differenciates using INT_MAX in field_order_cnt_list[i][0]/[1] to indicate
+      // not used convert to expected
+      if (pPipeDesc->field_order_cnt_list[i][0] == INT_MAX) {
          pPipeDesc->top_is_reference[i] = false;
-         pPipeDesc->field_order_cnt_list[i][0] = 0; // DXVA Spec says this has to be zero if unused
+         pPipeDesc->field_order_cnt_list[i][0] = 0;   // DXVA Spec says this has to be zero if unused
       }
 
-      if(pPipeDesc->field_order_cnt_list[i][1] == INT_MAX)
-      {
+      if (pPipeDesc->field_order_cnt_list[i][1] == INT_MAX) {
          pPipeDesc->bottom_is_reference[i] = false;
-         pPipeDesc->field_order_cnt_list[i][1] = 0; // DXVA Spec says this has to be zero if unused
+         pPipeDesc->field_order_cnt_list[i][1] = 0;   // DXVA Spec says this has to be zero if unused
       }
-      
+
       // If both top and bottom reference flags are false, this is an invalid entry
       bool validEntry = (pPipeDesc->top_is_reference[i] || pPipeDesc->bottom_is_reference[i]);
       if (!validEntry) {
@@ -538,7 +536,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
             dxvaStructure.UsedForReferenceFlags |= (1 << (2 * i + 1));
          }
       }
-   }   
+   }
 
    // frame type (I, P, B, etc) is not included in pipeDesc data, let's try to derive it
    // from the reference list...if frame doesn't use any references, it should be an I frame.
@@ -580,11 +578,34 @@ d3d12_video_decoder_dxva_qmatrix_from_pipe_picparams_h264(pipe_h264_picture_desc
                                                           bool &outSeq_scaling_matrix_present_flag)
 {
    outSeq_scaling_matrix_present_flag = pPipeDesc->pps->sps->seq_scaling_matrix_present_flag;
-   if (outSeq_scaling_matrix_present_flag) {
-      memcpy(&outMatrixBuffer.bScalingLists4x4, pPipeDesc->pps->ScalingList4x4, 6 * 16);
-      memcpy(&outMatrixBuffer.bScalingLists8x8, pPipeDesc->pps->ScalingList8x8, 2 * 64);
+
+   D3D12_LOG_DBG("[D3D12 H264 Dec] 4x4 and 8x8 Scaling Matrices available: %d - ZigZag workaround: %d\n",
+                 outSeq_scaling_matrix_present_flag,
+                 D3D12_VIDEO_DEC_QPMATRIX_ZIGZAG_SCAN);
+
+   unsigned i, j;
+   memset(&outMatrixBuffer, 0, sizeof(DXVA_Qmatrix_H264));
+   if (D3D12_VIDEO_DEC_QPMATRIX_ZIGZAG_SCAN) {
+      for (i = 0; i < 6; i++) {
+         for (j = 0; j < 16; j++) {
+            outMatrixBuffer.bScalingLists4x4[i][j] = pPipeDesc->pps->ScalingList4x4[i][d3d12_video_zigzag_scan[j]];
+         }
+      }
+
+      for (i = 0; i < 64; i++) {
+         outMatrixBuffer.bScalingLists8x8[0][i] = pPipeDesc->pps->ScalingList8x8[0][d3d12_video_zigzag_direct[i]];
+         outMatrixBuffer.bScalingLists8x8[1][i] = pPipeDesc->pps->ScalingList8x8[3][d3d12_video_zigzag_direct[i]];
+      }
    } else {
-      memset(&outMatrixBuffer.bScalingLists4x4, 0, 6 * 16);
-      memset(&outMatrixBuffer.bScalingLists8x8, 0, 2 * 64);
+      for (i = 0; i < 6; i++) {
+         for (j = 0; j < 16; j++) {
+            outMatrixBuffer.bScalingLists4x4[i][j] = pPipeDesc->pps->ScalingList4x4[i][j];
+         }
+      }
+
+      for (i = 0; i < 64; i++) {
+         outMatrixBuffer.bScalingLists8x8[0][i] = pPipeDesc->pps->ScalingList8x8[0][i];
+         outMatrixBuffer.bScalingLists8x8[1][i] = pPipeDesc->pps->ScalingList8x8[3][i];
+      }
    }
 }
