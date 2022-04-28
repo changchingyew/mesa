@@ -136,7 +136,7 @@ d3d12_video_decoder_prepare_dxva_slices_control_h264(struct d3d12_video_decoder 
                                                      std::vector<DXVA_Slice_H264_Short> &pOutSliceControlBuffers,
                                                      struct pipe_h264_picture_desc *picture_h264)
 {
-   D3D12_LOG_INFO("[d3d12_video_decoder_h264] Upper layer reported %d slices for this frame, parsing them below...",
+   D3D12_LOG_INFO("[d3d12_video_decoder_h264] Upper layer reported %d slices for this frame, parsing them below...\n",
                   picture_h264->slice_count);
    size_t processedBitstreamBytes = 0u;
    size_t sliceIdx = 0;
@@ -209,10 +209,10 @@ d3d12_video_decoder_get_next_slice_size_and_offset_h264(std::vector<uint8_t> &bu
          // We did find a next slice based on the bufferOffset parameter
 
          // Skip current start code, to get the slice after this, to calculate its size
-         bufferOffset += DXVA_H264_START_CODE_LEN_BITS;
+         bufferOffset += (DXVA_H264_START_CODE_LEN_BITS / 8 /*convert bits to bytes*/);
          numBitsToSearchIntoBuffer = buf.size() - bufferOffset;
 
-         int c_signedStartCodeLen = DXVA_H264_START_CODE_LEN_BITS;
+         int c_signedStartCodeLen = (DXVA_H264_START_CODE_LEN_BITS / 8 /*convert bits to bytes*/);
          int nextSlicePosition = c_signedStartCodeLen   // Takes into account the skipped start code
                                  + d3d12_video_decoder_get_next_startcode_offset(buf,
                                                                                  bufferOffset,
