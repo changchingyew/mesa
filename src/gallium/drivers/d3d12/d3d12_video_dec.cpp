@@ -316,7 +316,6 @@ d3d12_video_decoder_store_upper_layer_references(struct d3d12_video_decoder *pD3
          pipe_h264_picture_desc *pPicControlH264 = (pipe_h264_picture_desc *) picture;
          pD3D12Dec->m_pCurrentDecodeTarget = target;
          pD3D12Dec->m_pCurrentReferenceTargets = pPicControlH264->ref;
-         pD3D12Dec->m_currentReferenceTargetsCount = 16;
       } break;
 
       default:

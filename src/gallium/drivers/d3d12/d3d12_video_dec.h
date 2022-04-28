@@ -131,7 +131,6 @@ struct d3d12_video_decoder
    // Holds pointers to current decode output target texture and reference textures from upper layer
    struct pipe_video_buffer *m_pCurrentDecodeTarget;
    struct pipe_video_buffer **m_pCurrentReferenceTargets;
-   uint8_t m_currentReferenceTargetsCount;
 
    // Holds the input bitstream buffer while it's being constructed in decode_bitstream calls
    std::vector<uint8_t> m_stagingDecodeBitstream;

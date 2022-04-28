@@ -36,7 +36,6 @@ d3d12_video_decoder_refresh_dpb_active_references_h264(struct d3d12_video_decode
 
    // Assign DXVA original Index7Bits indices to current frame and references
    DXVA_PicParams_H264 *pCurrPicParams = d3d12_video_decoder_get_current_dxva_picparams<DXVA_PicParams_H264>(pD3D12Dec);
-   assert(pD3D12Dec->m_currentReferenceTargetsCount == 16);
    for (uint8_t i = 0; i < 16; i++) {
       // From H264 DXVA spec:
       // Index7Bits
