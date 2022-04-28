@@ -551,6 +551,12 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
    // 2007. The value 1 was previously assigned for uses prior to October 12, 2007. The
    // value 2 was previously assigned for uses prior to January 15, 2009. Software
    // decoders shall not set Reserved16Bits to any value other than those listed here.
+   // Note Software decoders that set Reserved16Bits to 3 should ensure that any aspects of software decoder operation
+   // that were previously not in conformance with this version of the specification have been corrected in the current
+   // implementation. One particular aspect of conformance that should be checked is the ordering of quantization
+   // scaling list data, as specified in section 5.2. In addition, the ReservedIntraBit flag in the macroblock control
+   // buffer must use the semantics described in section 7.2 (this flag was previously reserved). The semantics of
+   // Index7Bits and RefPicList have also been clarified in updates to this specification.
    dxvaStructure.Reserved16Bits = 3;
 
    // DXVA spec: Arbitrary number set by the host decoder to use as a tag in the status report
@@ -578,34 +584,26 @@ d3d12_video_decoder_dxva_qmatrix_from_pipe_picparams_h264(pipe_h264_picture_desc
                                                           bool &outSeq_scaling_matrix_present_flag)
 {
    outSeq_scaling_matrix_present_flag = pPipeDesc->pps->sps->seq_scaling_matrix_present_flag;
+   D3D12_LOG_DBG("[D3D12 H264 Dec] 4x4 and 8x8 scaling lists present: %d\n", outSeq_scaling_matrix_present_flag);
 
-   D3D12_LOG_DBG("[D3D12 H264 Dec] 4x4 and 8x8 Scaling Matrices available: %d - ZigZag workaround: %d\n",
-                 outSeq_scaling_matrix_present_flag,
-                 D3D12_VIDEO_DEC_QPMATRIX_ZIGZAG_SCAN);
+   // Please note here that the matrices coming from the gallium VA frontend are copied from VAIQMatrixBufferH264
+   // which are specified in VAAPI as being in raster scan order (different than zigzag needed by DXVA)
+   // also please note that VAIQMatrixBufferH264.ScalingList8x8 is copied into the first two rows of
+   // pipe_h264_pps.ScalingList8x8 leaving the upper 4 rows of  pipe_h264_pps.ScalingList8x8[6][64] unmodified
+   // Finally, please note that other gallium frontends might decide to copy the scaling lists in other order
+   // and this section might have to be extended to add support for them.
 
-   unsigned i, j;
-   memset(&outMatrixBuffer, 0, sizeof(DXVA_Qmatrix_H264));
-   if (D3D12_VIDEO_DEC_QPMATRIX_ZIGZAG_SCAN) {
+   if (outSeq_scaling_matrix_present_flag) {
+      // In DXVA each scaling list is ordered in zig-zag scan order, convert them from raster scan order.
+      unsigned i, j;
       for (i = 0; i < 6; i++) {
          for (j = 0; j < 16; j++) {
             outMatrixBuffer.bScalingLists4x4[i][j] = pPipeDesc->pps->ScalingList4x4[i][d3d12_video_zigzag_scan[j]];
          }
       }
-
       for (i = 0; i < 64; i++) {
          outMatrixBuffer.bScalingLists8x8[0][i] = pPipeDesc->pps->ScalingList8x8[0][d3d12_video_zigzag_direct[i]];
-         outMatrixBuffer.bScalingLists8x8[1][i] = pPipeDesc->pps->ScalingList8x8[3][d3d12_video_zigzag_direct[i]];
-      }
-   } else {
-      for (i = 0; i < 6; i++) {
-         for (j = 0; j < 16; j++) {
-            outMatrixBuffer.bScalingLists4x4[i][j] = pPipeDesc->pps->ScalingList4x4[i][j];
-         }
-      }
-
-      for (i = 0; i < 64; i++) {
-         outMatrixBuffer.bScalingLists8x8[0][i] = pPipeDesc->pps->ScalingList8x8[0][i];
-         outMatrixBuffer.bScalingLists8x8[1][i] = pPipeDesc->pps->ScalingList8x8[3][i];
+         outMatrixBuffer.bScalingLists8x8[1][i] = pPipeDesc->pps->ScalingList8x8[1][d3d12_video_zigzag_direct[i]];
       }
    }
 }
