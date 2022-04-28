@@ -51,6 +51,12 @@ using Microsoft::WRL::ComPtr;
 
 const bool D3D12_VIDEO_ENC_FALLBACK_RATE_CONTROL_CONFIG = debug_get_bool_option("D3D12_VIDEO_ENC_FALLBACK_RATE_CONTROL_CONFIG", false);
 
+/* For CBR mode, to guarantee bitrate of generated stream complies with
+* target bitrate (e.g. no over +/-10%), vbv_buffer_size should be same
+* as target bitrate. Controlled by OS env var D3D12_VIDEO_ENC_CBR_FORCE_VBV_EQUAL_BITRATE
+*/
+const bool D3D12_VIDEO_ENC_CBR_FORCE_VBV_EQUAL_BITRATE = debug_get_bool_option("D3D12_VIDEO_ENC_CBR_FORCE_VBV_EQUAL_BITRATE", true);
+
 // Allow encoder to continue the encoding session when aa slice mode 
 // is requested but not supported.
 //
