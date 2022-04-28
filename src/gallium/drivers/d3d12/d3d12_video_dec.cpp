@@ -364,7 +364,7 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
    /// Prepare Slice control buffers before clearing staging buffer
    ///
    assert(pD3D12Dec->m_stagingDecodeBitstream.size() > 0);   // Make sure the staging wasn't cleared yet in end_frame
-   d3d12_video_decoder_prepare_dxva_slices_control(pD3D12Dec);
+   d3d12_video_decoder_prepare_dxva_slices_control(pD3D12Dec, picture);
    assert(pD3D12Dec->m_SliceControlBuffer.size() > 0);
 
    ///
@@ -1256,7 +1256,8 @@ d3d12_video_decoder_store_converted_dxva_picparams_from_pipe_input(
 
 void
 d3d12_video_decoder_prepare_dxva_slices_control(
-   struct d3d12_video_decoder *pD3D12Dec   // input argument, current decoder
+   struct d3d12_video_decoder *pD3D12Dec,   // input argument, current decoder
+   struct pipe_picture_desc *picture
 )
 {
    d3d12_video_decode_profile_type profileType =
@@ -1264,8 +1265,10 @@ d3d12_video_decoder_prepare_dxva_slices_control(
    switch (profileType) {
       case d3d12_video_decode_profile_type_h264:
       {
+         
          std::vector<DXVA_Slice_H264_Short> pOutSliceControlBuffers;
-         d3d12_video_decoder_prepare_dxva_slices_control_h264(pD3D12Dec, pOutSliceControlBuffers);
+         struct pipe_h264_picture_desc* picture_h264 = (struct pipe_h264_picture_desc*) picture;
+         d3d12_video_decoder_prepare_dxva_slices_control_h264(pD3D12Dec, pOutSliceControlBuffers, picture_h264);
 
          assert(sizeof(pOutSliceControlBuffers.data()[0]) == sizeof(DXVA_Slice_H264_Short));
          uint64_t DXVAStructSize = pOutSliceControlBuffers.size() * sizeof((pOutSliceControlBuffers.data()[0]));
