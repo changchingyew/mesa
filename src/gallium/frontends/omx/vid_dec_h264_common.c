@@ -316,6 +316,7 @@ static void seq_parameter_set(vid_dec_PrivateType *priv, struct vl_rbsp *rbsp)
 
    sps->direct_8x8_inference_flag = vl_rbsp_u(rbsp, 1);
 
+   sps->MinLumaBiPredSize8x8 = (sps->level_idc >= 31); /* See section A.3.3.2 of H264 spec */;
 #if ENABLE_ST_OMX_TIZONIA
    priv->stream_info.width = pic_width_in_samplesl;
 

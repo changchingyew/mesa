@@ -353,7 +353,7 @@ vlVdpDecoderRenderVC1(struct pipe_vc1_picture_desc *picture,
 
 static VdpStatus
 vlVdpDecoderRenderH264(struct pipe_h264_picture_desc *picture,
-                       VdpPictureInfoH264 *picture_info)
+                       VdpPictureInfoH264 *picture_info, unsigned level_idc)
 {
    unsigned i;
 
@@ -366,6 +366,8 @@ vlVdpDecoderRenderH264(struct pipe_h264_picture_desc *picture,
    picture->pps->sps->log2_max_pic_order_cnt_lsb_minus4 = picture_info->log2_max_pic_order_cnt_lsb_minus4;
    picture->pps->sps->delta_pic_order_always_zero_flag = picture_info->delta_pic_order_always_zero_flag;
    picture->pps->sps->direct_8x8_inference_flag = picture_info->direct_8x8_inference_flag;
+   picture->pps->sps->level_idc = level_idc;
+   picture->pps->sps->MinLumaBiPredSize8x8 = (level_idc >= 31); /* See section A.3.3.2 of H264 spec */;
 
    picture->pps->transform_8x8_mode_flag = picture_info->transform_8x8_mode_flag;
    picture->pps->chroma_qp_index_offset = picture_info->chroma_qp_index_offset;
@@ -664,7 +666,7 @@ vlVdpDecoderRender(VdpDecoder decoder,
       break;
    case PIPE_VIDEO_FORMAT_MPEG4_AVC:
       desc.h264.pps = &pps_h264;
-      ret = vlVdpDecoderRenderH264(&desc.h264, (VdpPictureInfoH264 *)picture_info);
+      ret = vlVdpDecoderRenderH264(&desc.h264, (VdpPictureInfoH264 *)picture_info, dec->level);
       break;
    case PIPE_VIDEO_FORMAT_HEVC:
       desc.h265.pps = &pps_h265;
