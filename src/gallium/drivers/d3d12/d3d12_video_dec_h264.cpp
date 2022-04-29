@@ -527,11 +527,11 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
          // empty), the value of both flags for that entry shall be 0. Accelerators may rely on this constraint being
          // fulfilled.
 
-         if (pPipeDesc->top_is_reference[i]) {
+         if (pPipeDesc->top_is_reference[i] || pPipeDesc->is_long_term[i]) {
             dxvaStructure.UsedForReferenceFlags |= (1 << (2 * i));
          }
 
-         if (pPipeDesc->bottom_is_reference[i]) {
+         if (pPipeDesc->bottom_is_reference[i] || pPipeDesc->is_long_term[i]) {
             dxvaStructure.UsedForReferenceFlags |= (1 << (2 * i + 1));
          }
       }
