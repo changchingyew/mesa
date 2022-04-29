@@ -371,6 +371,7 @@ vlVdpDecoderRenderH264(struct pipe_h264_picture_desc *picture,
    picture->pps->chroma_qp_index_offset = picture_info->chroma_qp_index_offset;
    picture->pps->second_chroma_qp_index_offset = picture_info->second_chroma_qp_index_offset;
    picture->pps->pic_init_qp_minus26 = picture_info->pic_init_qp_minus26;
+   /*picture->pps-> pic_init_qs_minus26 not passed in VdpPictureInfoH264*/
    picture->pps->entropy_coding_mode_flag = picture_info->entropy_coding_mode_flag;
    picture->pps->deblocking_filter_control_present_flag = picture_info->deblocking_filter_control_present_flag;
    picture->pps->redundant_pic_cnt_present_flag = picture_info->redundant_pic_cnt_present_flag;

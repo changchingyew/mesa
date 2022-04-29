@@ -438,8 +438,7 @@ static void picture_parameter_set(vid_dec_PrivateType *priv, struct vl_rbsp *rbs
 
    pps->pic_init_qp_minus26 = vl_rbsp_se(rbsp);
 
-   /* pic_init_qs_minus26 */
-   vl_rbsp_se(rbsp);
+   pps->pic_init_qs_minus26 = vl_rbsp_se(rbsp);
 
    pps->chroma_qp_index_offset = vl_rbsp_se(rbsp);
 
