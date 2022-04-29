@@ -466,7 +466,7 @@ d3d12_video_decoder_dxva_picparams_from_pipe_picparams_h264(
       }
 
       // If both top and bottom reference flags are false, this is an invalid entry
-      bool validEntry = (pPipeDesc->top_is_reference[i] || pPipeDesc->bottom_is_reference[i]);
+      bool validEntry = (pPipeDesc->top_is_reference[i] || pPipeDesc->bottom_is_reference[i] || pPipeDesc->is_long_term[i]);
       if (!validEntry) {
          // From DXVA spec:
          // Entries that will not be used for decoding the current picture, or any subsequent pictures, are indicated by
