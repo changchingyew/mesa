@@ -78,7 +78,7 @@ d3d12_array_of_textures_dpb_manager::d3d12_array_of_textures_dpb_manager(
      m_nodeMask(nodeMask)
 {
    // Initialize D3D12 DPB exposed in this class implemented CRUD interface for a DPB
-   assert(0u == clear_decode_picture_buffer());
+   clear_decode_picture_buffer();
 
    // Sometimes the client of this class can reuse allocations from an upper layer
    // and doesn't need to get fresh/tracked allocations
