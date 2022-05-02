@@ -1613,11 +1613,6 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
 
                transfer_buf_to_image(ctx, d3d12_resource(planes[plane_slice]), staging_res, trans, 0);
             }
-            
-            /* Some frontends like VA in functions vaUnmapBuffer dont't flush*/
-            /* and some callers to vaUnmapBuffer like ffmpeg destroy the underlying*/
-            /* source CPU buffer without flushing, so let's flush here*/
-            d3d12_flush_cmdlist_and_wait(ctx);
          }
 
          pipe_resource_reference(&trans->staging_res, NULL);
