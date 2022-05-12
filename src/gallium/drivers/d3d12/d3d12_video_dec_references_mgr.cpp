@@ -309,13 +309,6 @@ d3d12_video_decoder_references_manager::store_future_reference(uint16_t         
    uint16_t remappedIndex = find_remapped_index(index);
 
    if (remappedIndex == m_invalidIndex) {
-      // If not already mapped, see if the same index in the remapped space is available.
-      if (index < m_dpbDescriptor.dpbSize && m_referenceDXVAIndices[index].originalIndex == m_invalidIndex) {
-         remappedIndex = index;
-      }
-   }
-
-   if (remappedIndex == m_invalidIndex) {
       // The current output index was not used last frame.  Get an unused entry.
       remappedIndex = find_remapped_index(m_invalidIndex);
    }
