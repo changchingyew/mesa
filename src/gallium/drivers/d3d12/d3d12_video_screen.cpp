@@ -324,6 +324,8 @@ d3d12_video_encode_max_supported_slices(const D3D12_VIDEO_ENCODER_CODEC &argTarg
    capEncoderSupportData.InputFormat = encodeFormat;
    capEncoderSupportData.RateControl = {};
    capEncoderSupportData.RateControl.Mode = D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_CQP;
+   capEncoderSupportData.RateControl.TargetFrameRate.Numerator = 60;
+   capEncoderSupportData.RateControl.TargetFrameRate.Denominator = 1;
    D3D12_VIDEO_ENCODER_RATE_CONTROL_CQP rcCqp = { 25, 25, 25 };
    capEncoderSupportData.RateControl.ConfigParams.pConfiguration_CQP = &rcCqp;
    capEncoderSupportData.RateControl.ConfigParams.DataSize = sizeof(rcCqp);
@@ -401,6 +403,7 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
    bool supportsProfile = false;
    switch (profile) {
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
+      case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
       case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10:
@@ -413,7 +416,7 @@ d3d12_has_video_encode_support(struct pipe_screen *pscreen,
          profDesc.pH264Profile = &profH264;
          D3D12_VIDEO_ENCODER_CODEC codecDesc = d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(profile);
          D3D12_VIDEO_ENCODER_LEVELS_H264 minLvlSettingH264 = static_cast<D3D12_VIDEO_ENCODER_LEVELS_H264>(0);
-         D3D12_VIDEO_ENCODER_LEVELS_H264 maxLvlSettingH264 = static_cast<D3D12_VIDEO_ENCODER_LEVELS_H264>(0);
+         D3D12_VIDEO_ENCODER_LEVELS_H264 maxLvlSettingH264 = static_cast<D3D12_VIDEO_ENCODER_LEVELS_H264>(19);
          D3D12_VIDEO_ENCODER_LEVEL_SETTING minLvl = {};
          D3D12_VIDEO_ENCODER_LEVEL_SETTING maxLvl = {};
          minLvl.pH264LevelSetting = &minLvlSettingH264;
